@@ -19,13 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.quiverPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -51,7 +51,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class QuiverPlotOpDesc extends PythonVisualizationOpDesc {
 
   //property panel variable: 4 requires: {x,y,u,v}, all columns should only contain numerical data
 
@@ -85,14 +85,6 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @NotNull(message = "v cannot be empty")
   var v: EncodableString = ""
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Quiver Plot",
@@ -119,16 +111,11 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Quiver Plot is not available.</h1>
-         |                  <p>Reasons are: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Quiver Plot is not available.", plural = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |
          |        required_columns = {$x, $y, $u, $v}
          |        if not required_columns.issubset(table.columns):
@@ -156,13 +143,10 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |            yield {'html-content': self.render_error(f"Plotly error: {str(e)}")}
          |            return
          |
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val xLit = pyStringLiteral(x)
@@ -171,14 +155,10 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     val vLit = pyStringLiteral(v)
     s"""import plotly.figure_factory as ff
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Quiver Plot is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Quiver Plot is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df
        |    required_columns = {$xLit, $yLit, $uLit, $vLit}
@@ -199,9 +179,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |                    table[$uLit], table[$vLit],
        |                    scale=0.1
        |                )
-       |                fig.write_json(outputJson)
-       |                fig.write_html(outputHtml)
-       |                print("Quiver plot saved to " + outputHtml)
+       |${standaloneFigure("Quiver plot", indent = 16)}
        |            except Exception as e:
        |                with open(outputHtml, "w", encoding="utf-8") as output:
        |                    output.write(render_error(f"Plotly error: {str(e)}"))""".stripMargin

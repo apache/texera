@@ -19,61 +19,14 @@
 
 package org.apache.texera.amber.operator.sklearn.training
 
-import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.sklearn.SklearnModelOpDescBehaviors
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SklearnTrainingKNNOpDescSpec extends AnyFlatSpec with Matchers {
-
-  "SklearnTrainingKNNOpDesc.operatorInfo" should
-    "advertise the model name, Sklearn Training group, and the single training port" in {
-    val info = (new SklearnTrainingKNNOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Training: K-nearest Neighbors"
-    info.operatorDescription shouldBe "Sklearn Training: K-nearest Neighbors Operator"
-    info.operatorGroupName shouldBe OperatorGroupConstants.SKLEARN_TRAINING_GROUP
-    info.inputPorts.map(_.displayName) shouldBe List("training")
-    info.outputPorts should have length 1
-    info.outputPorts.head.blocking shouldBe true
-  }
-
-  "SklearnTrainingKNNOpDesc" should "default its config fields" in {
-    val d = new SklearnTrainingKNNOpDesc
-    d.countVectorizer shouldBe false
-    d.tfidfTransformer shouldBe false
-    d.target shouldBe null
-    d.text shouldBe empty
-  }
-
-  "SklearnTrainingKNNOpDesc.getOutputSchemas" should
-    "emit the model_name/model schema keyed by the declared output port" in {
-    val d = new SklearnTrainingKNNOpDesc
-    val schema = d.getOutputSchemas(Map.empty)(d.operatorInfo.outputPorts.head.id)
-    schema.getAttribute("model_name").getType shouldBe AttributeType.STRING
-    schema.getAttribute("model").getType shouldBe AttributeType.BINARY
-  }
-
-  "SklearnTrainingKNNOpDesc.generatePythonCode" should "import the configured sklearn estimator" in {
-    val d = new SklearnTrainingKNNOpDesc
-    d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("from sklearn.neighbors import KNeighborsClassifier")
-    code should include("make_pipeline")
-    code should include("Training: K-nearest Neighbors")
-  }
-
-  "SklearnTrainingKNNOpDesc" should "round-trip its config fields through the polymorphic base" in {
-    val d = new SklearnTrainingKNNOpDesc
-    d.target = "label"
-    d.countVectorizer = true
-    val json = objectMapper.writeValueAsString(d)
-    json should include("\"operatorType\":\"SklearnTrainingKNN\"")
-    val restored = objectMapper.readValue(json, classOf[LogicalOp])
-    restored shouldBe a[SklearnTrainingKNNOpDesc]
-    val r = restored.asInstanceOf[SklearnTrainingKNNOpDesc]
-    r.target shouldBe "label"
-    r.countVectorizer shouldBe true
-  }
+class SklearnTrainingKNNOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
+  sklearnTrainer(
+    new SklearnTrainingKNNOpDesc,
+    "SklearnTrainingKNN",
+    "Training: K-nearest Neighbors",
+    "from sklearn.neighbors import KNeighborsClassifier"
+  )
 }

@@ -19,17 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.dendrogram
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -46,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class DendrogramOpDesc extends PythonVisualizationOpDesc {
   @JsonProperty(value = "xVal", required = true)
   @JsonSchemaTitle("Value X Column")
   @JsonPropertyDescription("The x values of points in dendrogram")
@@ -75,14 +75,6 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonPropertyDescription("Value at which separation of clusters will be made")
   @JsonDeserialize(contentAs = classOf[java.lang.Double])
   var threshold: Option[Double] = None
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -123,22 +115,15 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Dendrogram is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Dendrogram is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        # A row missing either coordinate has no position to cluster from, and
          |        # scipy refuses a NaN anywhere in the distance matrix.
          |        table = table.dropna(subset=[$xVal, $yVal]) #remove missing values
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table has no rows with all of the configured columns filled in.")}
-         |           return
+         |${emptyTableGuard("input table has no rows with all of the configured columns filled in.")}
          |        # Clustering starts from the distances between rows, so a single row
          |        # leaves scipy an empty distance matrix and it raises rather than draws.
          |        if len(table) < 2:
@@ -146,26 +131,21 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |           return
          |        ${createDendrogram()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
 
     // render_error's continuation line keeps the runtime path's indentation — the
-    // HTML is triple-quoted, so those spaces reach the browser.
+    // HTML is triple-quoted, so those spaces reach the browser. scipy refuses a NaN and a
+    // single row, so both get an error page; chart_df keeps the input whole.
     s"""import numpy as np
        |import plotly.figure_factory as ff
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Dendrogram is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Dendrogram is not available.")}
        |
        |def _write_error(message):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -174,15 +154,9 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |if in1df.empty:
        |    _write_error("input table is empty.")
        |else:
-       |    # A row missing either coordinate has no position to cluster from, and
-       |    # scipy refuses a NaN anywhere in the distance matrix. Bound to a name
-       |    # of its own: the same frame can feed another branch of the plan, which
-       |    # must still see every row.
        |    chart_df = in1df.dropna(subset=[${pyStringLiteral(xVal)}, ${pyStringLiteral(yVal)}])
        |    if chart_df.empty:
        |        _write_error("input table has no rows with all of the configured columns filled in.")
-       |    # Clustering starts from the distances between rows, so a single row
-       |    # leaves scipy an empty distance matrix and it raises rather than draws.
        |    elif len(chart_df) < 2:
        |        _write_error("input table has fewer than two rows to cluster.")
        |    else:
@@ -192,9 +166,7 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |        labels = chart_df[${pyStringLiteral(labels)}].tolist()
        |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=$thresholdExpr)
        |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Dendrogram saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dendrogram")}""".stripMargin
   }
 
 }

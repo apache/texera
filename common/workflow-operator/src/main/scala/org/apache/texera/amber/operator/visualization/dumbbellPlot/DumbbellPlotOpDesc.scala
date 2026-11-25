@@ -19,17 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.dumbbellPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -47,7 +47,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
   }
 }
 """)
-class DumbbellPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class DumbbellPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "categoryColumnName", required = true)
   @JsonSchemaTitle("Category Column Name")
@@ -89,14 +89,6 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneC
   @JsonSchemaTitle("Show Legends?")
   @JsonPropertyDescription("whether to show legends in the graph")
   var showLegends: Boolean = false
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -177,31 +169,21 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneC
        |import numpy as np
        |
        |class ProcessTableOperator(UDFTableOperator):
-       |    def render_error(self, error_msg):
-       |        return '''<h1>DumbbellPlot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${runtimeError("DumbbellPlot is not available.")}
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table is empty.")}
-       |           return
+       |${emptyTableGuard("input table is empty.")}
        |        table = table.dropna(subset=[$comparedColumnName, $categoryColumnName, $measurementColumnName]) #remove missing values
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table has no rows with all of the configured columns filled in.")}
-       |           return
+       |${emptyTableGuard("input table has no rows with all of the configured columns filled in.")}
        |        ${createPlotlyDumbbellLineFigure()}
        |        ${addPlotlyDots()}
        |        # convert fig to html content
        |        fig.update_layout(margin=dict(l=0, r=0, b=60, t=0))
-       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-       |        yield {'html-content': html}
+       |${plotlyHtmlYield()}
        |
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     // Typed-in values and column names become escaped Python literals; the runtime
@@ -216,10 +198,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneC
       else ""
     s"""import plotly.graph_objects as go
        |
-       |def render_error(error_msg):
-       |    return '''<h1>DumbbellPlot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("DumbbellPlot is not available.")}
        |
        |table = in1df
        |_error = None
@@ -266,8 +245,6 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneC
        |                                     mode='markers',
        |                                     name=entity + ' ' + dotColumn,
        |                                     marker=dict(color='black', size=5)))
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Dumbbell plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dumbbell plot", indent = 4)}""".stripMargin
   }
 }

@@ -19,18 +19,18 @@
 
 package org.apache.texera.amber.operator.visualization.tablesChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotEmpty
-class TablesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class TablesPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
   @JsonProperty(value = "add attribute", required = true)
@@ -83,15 +83,11 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table is empty.")}
-       |           return
+       |${emptyTableGuard("input table is empty.")}
        |
        |        ${manipulateTable()}
        |
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("value column contains only non-positive numbers or nulls.")}
-       |           return
+       |${emptyTableGuard("value column contains only non-positive numbers or nulls.")}
 
        |
        |        ${createPlotlyFigure()}
@@ -109,16 +105,6 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
     )
   }
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     assert(includedColumns.nonEmpty)
     // Mirror getAttributes: a Python list literal of the selected column names.
@@ -131,13 +117,14 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |
        |attributes = $columnsList
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=attributes)
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
+       |${standaloneErrorPage(
+      "value column contains only non-positive numbers or nulls.",
+      indent = 8
+    )}
        |    else:
        |        filtered_table = table[attributes]
        |        headers = filtered_table.columns.tolist()

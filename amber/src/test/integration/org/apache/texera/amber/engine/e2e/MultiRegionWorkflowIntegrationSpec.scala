@@ -21,31 +21,18 @@ package org.apache.texera.amber.engine.e2e
 
 import com.twitter.util.Duration
 import com.typesafe.scalalogging.Logger
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
-import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  runWorkflowAndReadTerminalResults,
-  setUpWorkflowExecutionData
+  runWorkflowAndReadTerminalResults
 }
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
-import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
-import org.scalatest.flatspec.AnyFlatSpecLike
-
-import scala.concurrent.duration._
 
 /**
   * End-to-end coverage for a workflow that executes across MULTIPLE regions and
@@ -106,85 +93,17 @@ import scala.concurrent.duration._
   */
 @IntegrationTest
 class MultiRegionWorkflowIntegrationSpec
-    extends TestKit(ActorSystem("MultiRegionWorkflowIntegrationSpec", AmberRuntime.pekkoConfig))
-    with ImplicitSender
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with Retries {
-
-  /**
-    * Retry each test once if it fails. Mirrors the other e2e integration specs:
-    * in CI there is a small chance the run does not observe "COMPLETED", so a
-    * single retry stabilizes the suite until that root cause is fixed.
-    */
-  override def withFixture(test: NoArgTest): Outcome =
-    withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
+    extends RetryingDatabaseE2ESpec("MultiRegionWorkflowIntegrationSpec", specId = 5) {
 
   private val logger = Logger("MultiRegionWorkflowIntegrationSpecLogger")
-  private val specId = 5
 
   // Stable properties of the checked-in test resource, asserted below.
   private val sourceRowCount = 100
   private val distinctRegionCount = 7
 
-  override protected def beforeEach(): Unit = {
-    setUpWorkflowExecutionData(specId)
-  }
-
-  override protected def afterEach(): Unit = {
-    cleanupWorkflowExecutionData(specId)
-  }
-
   override def beforeAll(): Unit = {
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
-    // Explicitly load the JDBC driver to avoid flaky CI failures.
-    Class.forName("org.postgresql.Driver")
-    initiateTexeraDBForTestCases()
-    warmupOnce()
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
-
-  /**
-    * Runs a TextInput -> Python UDF workflow once before the timed test so the
-    * Python worker cold-start is paid here, not inside the timed run. Reuses the
-    * shared runner (which owns the client lifecycle, fails fast on FatalError,
-    * and shuts the client down), and is wrapped/capped so warmup can never fail
-    * or hang the suite.
-    */
-  private def warmupOnce(): Unit = {
-    setUpWorkflowExecutionData(specId)
-    try {
-      val src = new TextInputSourceOpDesc()
-      src.textInput = "warmup"
-      val udf = TestOperators.pythonOpDesc()
-      val workflow = buildWorkflow(
-        List(src, udf),
-        List(
-          LogicalLink(
-            src.operatorIdentifier,
-            PortIdentity(),
-            udf.operatorIdentifier,
-            PortIdentity()
-          )
-        ),
-        TestUtils.workflowContext(specId)
-      )
-      runWorkflowAndReadTerminalResults(system, workflow, Duration.fromSeconds(60))
-    } catch {
-      case e: Throwable =>
-        logger.warn(
-          s"warmup workflow did not finish; tests will run cold and rely on Retries: ${e.getMessage}"
-        )
-    } finally {
-      cleanupWorkflowExecutionData(specId)
-    }
+    super.beforeAll()
+    warmUpPythonWorker(logger)
   }
 
   private def sortOpDesc(attributeName: String, order: SortPreference): SortOpDesc = {

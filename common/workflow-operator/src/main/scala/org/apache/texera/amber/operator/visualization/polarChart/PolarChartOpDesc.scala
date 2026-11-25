@@ -19,13 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.polarChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -47,7 +47,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class PolarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "r", required = true)
   @JsonSchemaTitle("r")
@@ -62,15 +62,6 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @AutofillAttributeName
   @NotNull(message = "theta cannot be empty")
   var theta: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -130,8 +121,6 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val rLit = pyStringLiteral(r)
     val thetaLit = pyStringLiteral(theta)
@@ -159,9 +148,7 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |        marker=dict(size=10, opacity=0.7, line=dict(color='white'))
        |    ))
        |    fig.update_layout(title='Polar Chart', showlegend=False)
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Polar chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Polar chart", indent = 4)}""".stripMargin
   }
 
 }

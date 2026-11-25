@@ -24,9 +24,6 @@ import { Workflow } from "../../type/workflow";
 import { SearchFilterParameters, searchTestEntries } from "../../../dashboard/type/search-filter-parameters";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 
-export const WORKFLOW_BASE_URL = "workflow";
-export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
-
 @Injectable()
 export class StubWorkflowPersistService {
   constructor(private testWorkflows: DashboardEntry[]) {}

@@ -59,23 +59,24 @@ export class AdminUserService {
   }
 
   public getCreatedDatasets(uid: number): Observable<ReadonlyArray<DatasetQuota>> {
-    let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<DatasetQuota>>(`${USER_CREATED_DATASETS}`, { params: params });
+    return this.getUserResource<DatasetQuota>(USER_CREATED_DATASETS, uid);
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {
-    let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<Workflow>>(`${USER_CREATED_WORKFLOWS}`, { params: params });
+    return this.getUserResource<Workflow>(USER_CREATED_WORKFLOWS, uid);
   }
 
   public getAccessWorkflows(uid: number): Observable<ReadonlyArray<number>> {
-    let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<number>>(`${USER_ACCESS_WORKFLOWS}`, { params: params });
+    return this.getUserResource<number>(USER_ACCESS_WORKFLOWS, uid);
   }
 
   public getExecutionQuota(uid: number): Observable<ReadonlyArray<ExecutionQuota>> {
-    let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<ExecutionQuota>>(`${USER_QUOTA_SIZE}`, { params: params });
+    return this.getUserResource<ExecutionQuota>(USER_QUOTA_SIZE, uid);
+  }
+
+  private getUserResource<T>(url: string, uid: number): Observable<ReadonlyArray<T>> {
+    const params = new HttpParams().set("user_id", uid.toString());
+    return this.http.get<ReadonlyArray<T>>(url, { params });
   }
 
   public deleteExecutionCollection(eid: number): Observable<void> {

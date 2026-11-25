@@ -20,15 +20,15 @@
 package org.apache.texera.amber.operator.visualization.volcanoPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
@@ -43,7 +43,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Effect Size (log2 Fold Change)")
@@ -69,6 +69,59 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Hover column")
+  @JsonPropertyDescription(
+    "Column value to display when a dot is hovered over; leave empty for the first column"
+  )
+  @AutofillAttributeName
+  var hoverName: EncodableString = ""
+
+  // Numeric: both are compared against the data and the first is log10'd. contentAs
+  // names the boxed class — Option erases its element type, and a blank must not read as 0.
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Significance threshold")
+  @JsonPropertyDescription(
+    "P-value cut-off such as 0.05; draws a dashed horizontal line at -log10 of it"
+  )
+  @JsonSchemaInject(json = """{"exclusiveMinimum": 0, "maximum": 1}""")
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var significanceThreshold: Option[Double] = None
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Effect-size threshold")
+  @JsonPropertyDescription(
+    "Effect-size cut-off such as 1; draws dashed vertical lines at plus and minus it"
+  )
+  @JsonSchemaInject(json = """{"exclusiveMinimum": 0}""")
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var effectSizeThreshold: Option[Double] = None
+
+  @JsonProperty(required = false, defaultValue = "false")
+  @JsonSchemaTitle("Color by significance")
+  @JsonPropertyDescription(
+    "Color points Up, Down or Not significant by both thresholds instead of by effect size; " +
+      "needs both thresholds, otherwise the effect-size coloring is kept"
+  )
+  var colorBySignificance: Boolean = false
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("The figure title; leave empty for Volcano Plot")
+  var title: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("X Label")
+  @JsonPropertyDescription(
+    "The label for the x axis and the color bar; leave empty for the effect size column name"
+  )
+  var xLabel: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Y Label")
+  @JsonPropertyDescription("The label for the y axis; leave empty for -log10(<p-value column>)")
+  var yLabel: EncodableString = ""
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
@@ -76,13 +129,148 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  /** An empty or blank hover column keeps the first column, which is what saved
+    * workflows show. One rule for both code paths, so they cannot disagree.
+    */
+  private def hoverColumnSet: Boolean = hoverName.trim.nonEmpty
+
+  private def hoverColumn: PythonTemplateBuilder =
+    if (hoverColumnSet) pyb"$hoverName" else pyb"table.columns[0]"
+
+  /** A set hover column that the input lacks gets the operator's error page, like the
+    * two required columns, instead of the ValueError plotly would raise.
+    */
+  private def hoverColumnCheck: PythonTemplateBuilder =
+    if (hoverColumnSet)
+      pyb"""if $hoverName not in table.columns:
+         |            yield {"html-content": self.render_error("Missing hover column in table.")}
+         |            return
+         |"""
+    else pyb""
+
+  // The exported script's twins of the two helpers above, with the column name as a
+  // Python literal rather than decoded. The check is one more `elif` in the script's
+  // chain, so it ends with its own newline and the template puts `else:` right after it.
+  private def standaloneHoverColumn: String =
+    if (hoverColumnSet) pyStringLiteral(hoverName) else "table.columns[0]"
+
+  private def standaloneHoverColumnCheck: String =
+    if (hoverColumnSet)
+      s"""elif ${pyStringLiteral(hoverName)} not in in1df.columns:
+         |    with open(outputHtml, "w", encoding="utf-8") as output:
+         |        output.write(render_error("Missing hover column in table."))
+         |""".stripMargin
+    else ""
+
+  /** A cut-off is used only when it can be drawn: finite, above zero and, for the
+    * p-value, at most one. Anything else counts as unset. The schema bounds keep such
+    * values out of the property panel; this keeps a hand-edited workflow from failing.
+    */
+  private def isUsable(cutoff: Double): Boolean =
+    !cutoff.isNaN && !cutoff.isInfinite && cutoff > 0
+
+  private def significanceCutoff: Option[Double] =
+    significanceThreshold.filter(sig => isUsable(sig) && sig <= 1)
+
+  private def effectCutoff: Option[Double] = effectSizeThreshold.filter(isUsable)
+
+  /** Both cut-offs are needed to call a point Up or Down. */
+  private def colorByCategory: Boolean =
+    colorBySignificance && significanceCutoff.isDefined && effectCutoff.isDefined
+
+  /** Strict comparisons: a point exactly on a cut-off is not significant. The categories
+    * go to a new column, Significance with underscores appended until no column has that
+    * name, so no input column is overwritten. px reads it by name: an array passed as
+    * `color` is named "color" by px and clashes with a column of that name that x, y or
+    * hover_name uses.
+    */
+  private def significanceCategories: PythonTemplateBuilder =
+    if (colorByCategory) {
+      val sig = significanceCutoff.get
+      val eff = effectCutoff.get
+      pyb"""significant = table[$pvalueColumn] < $sig
+         |        significance_column = "Significance"
+         |        while significance_column in table.columns:
+         |            significance_column += "_"
+         |        table[significance_column] = np.select(
+         |            [significant & (table[$effectColumn] > $eff), significant & (table[$effectColumn] < -$eff)],
+         |            ["Up", "Down"],
+         |            default="Not significant",
+         |        )
+         |"""
+    } else pyb""
+
+  // ColorBrewer RdBu end points plus a neutral grey, so the figure reads like other
+  // volcano-plot tooling; the continuous RdBu scale stays when not coloring by category.
+  // Shared by both code paths so the exported figure cannot drift from the engine's.
+  // The legend and hover call the category column Significance, except when the effect
+  // column has that name: px would merge the two hover lines that share the label.
+  private def categoryColorArgs: PythonLiteral = {
+    val label =
+      if (effectColumn == "Significance") Seq.empty
+      else Seq("""labels={significance_column: "Significance"},""")
+    (Seq("color=significance_column,") ++ label ++ Seq(
+      """color_discrete_map={"Up": "#B2182B", "Down": "#2166AC", "Not significant": "#9E9E9E"},""",
+      """category_orders={significance_column: ["Up", "Down", "Not significant"]},"""
+    )).mkString("\n            ")
   }
+
+  private def colorArgs: PythonTemplateBuilder =
+    if (colorByCategory) pyb"$categoryColorArgs"
+    else
+      pyb"""color=$effectColumn,
+         |            color_continuous_scale="RdBu","""
+
+  // The exported script's twins of the two helpers above: the same Python with the
+  // column names as literals rather than decoded, and the very same threshold literals.
+  private def standaloneSignificanceCategories: String =
+    if (colorByCategory) {
+      val sig = significanceCutoff.get
+      val eff = effectCutoff.get
+      val pvalueLit = pyStringLiteral(pvalueColumn)
+      val effectLit = pyStringLiteral(effectColumn)
+      s"""significant = table[$pvalueLit] < $sig
+         |        significance_column = "Significance"
+         |        while significance_column in table.columns:
+         |            significance_column += "_"
+         |        table[significance_column] = np.select(
+         |            [significant & (table[$effectLit] > $eff), significant & (table[$effectLit] < -$eff)],
+         |            ["Up", "Down"],
+         |            default="Not significant",
+         |        )
+         |""".stripMargin
+    } else ""
+
+  private def standaloneColorArgs: String =
+    if (colorByCategory) categoryColorArgs
+    else
+      s"""color=${pyStringLiteral(effectColumn)},
+         |            color_continuous_scale="RdBu",""".stripMargin
+
+  /** One dashed line per cut-off that is set: horizontal at -log10 of the p-value
+    * cut-off, vertical at plus and minus the effect-size cut-off.
+    */
+  private def thresholdLines: PythonLiteral = {
+    val lines = scala.collection.mutable.ArrayBuffer[PythonTemplateBuilder]()
+    significanceCutoff.foreach { sig =>
+      lines += pyb"""fig.add_hline(y=-np.log10($sig), line_dash="dash", line_color="gray")"""
+    }
+    effectCutoff.foreach { eff =>
+      lines += pyb"""fig.add_vline(x=$eff, line_dash="dash", line_color="gray")"""
+      lines += pyb"""fig.add_vline(x=-$eff, line_dash="dash", line_color="gray")"""
+    }
+    lines.mkString("\n        ")
+  }
+
+  /** The y column is named after the selected p-value column, so a figure drawn
+    * from an adjusted column says so instead of always reading "-log10(pvalue)".
+    */
+  private def yColumn: EncodableString = s"-log10($pvalueColumn)"
+
+  // An empty or blank label keeps the text the figure derives from the selected columns.
+  private def titleText: EncodableString = if (title.trim.nonEmpty) title else "Volcano Plot"
+  private def xAxisTitle: EncodableString = if (xLabel.trim.nonEmpty) xLabel else effectColumn
+  private def yAxisTitle: EncodableString = if (yLabel.trim.nonEmpty) yLabel else yColumn
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -105,35 +293,41 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        if $pvalueColumn not in table.columns or $effectColumn not in table.columns:
        |            yield {"html-content": self.render_error("Missing required columns in table.")}
        |            return
-       |
+       |        $hoverColumnCheck
        |        # Filter out non-positive p-values to avoid math errors
        |        table = table[table[$pvalueColumn] > 0]
        |        if table.empty:
        |            yield {"html-content": self.render_error("No rows with valid p-values.")}
        |            return
        |
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueColumn])
-       |
+       |        table[$yColumn] = -np.log10(table[$pvalueColumn])
+       |        $significanceCategories
        |        fig = px.scatter(
        |            table,
        |            x=$effectColumn,
-       |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
-       |            color=$effectColumn,
-       |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            y=$yColumn,
+       |            hover_name=$hoverColumn,
+       |            $colorArgs
+       |            title=$titleText
        |        )
+       |        fig.update_layout(
+       |            xaxis_title=$xAxisTitle,
+       |            yaxis_title=$yAxisTitle,
+       |            coloraxis_colorbar_title_text=$xAxisTitle
+       |        )
+       |        $thresholdLines
        |
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
        |        yield {"html-content": html}
        |""".encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
+  // The exported script draws the same figure as the engine, so it labels it the same
+  // way; the only difference is that the text is a Python literal rather than decoded.
   override def generateStandaloneCode(): String = {
     val pvalueLit = pyStringLiteral(pvalueColumn)
     val effectLit = pyStringLiteral(effectColumn)
+    val yLit = pyStringLiteral(yColumn)
     s"""import numpy as np
        |
        |def render_error(msg):
@@ -145,22 +339,28 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |elif $pvalueLit not in in1df.columns or $effectLit not in in1df.columns:
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(render_error("Missing required columns in table."))
-       |else:
+       |${standaloneHoverColumnCheck}else:
        |    table = in1df[in1df[$pvalueLit] > 0].copy()
        |    if table.empty:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
+       |        table[$yLit] = -np.log10(table[$pvalueLit])
+       |        $standaloneSignificanceCategories
        |        fig = px.scatter(
        |            table,
        |            x=$effectLit,
-       |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
-       |            color=$effectLit,
-       |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            y=$yLit,
+       |            hover_name=$standaloneHoverColumn,
+       |            $standaloneColorArgs
+       |            title=${pyStringLiteral(titleText)}
        |        )
+       |        fig.update_layout(
+       |            xaxis_title=${pyStringLiteral(xAxisTitle)},
+       |            yaxis_title=${pyStringLiteral(yAxisTitle)},
+       |            coloraxis_colorbar_title_text=${pyStringLiteral(xAxisTitle)}
+       |        )
+       |        $thresholdLines
        |        fig.write_json(outputJson)
        |        fig.write_html(outputHtml)
        |        print("Volcano plot saved to " + outputHtml)""".stripMargin

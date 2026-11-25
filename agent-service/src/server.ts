@@ -21,7 +21,6 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
-import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
@@ -42,7 +41,7 @@ import type {
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
 import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
-import type { OperatorResultSummary } from "./types/execution";
+import type { OperatorExecutionSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -70,6 +69,7 @@ async function createAgentInstance(
     modelType,
     agentId,
     agentName: customName || "Bob",
+    userToken: delegateConfig.userToken,
   });
 
   await agent.initialize();
@@ -303,7 +303,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .post("/:id/stop", ({ params: { id } }) => {
     const agent = getAgent(id);
     agent.stop();
-    return { status: "stopping" };
+    // Report the resulting state: STOPPING mid-run, unchanged when idle.
+    return { status: agent.getState() };
   })
 
   .post("/:id/clear", ({ params: { id } }) => {
@@ -389,25 +390,16 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
+// Only resultSummary: the frontend's sole consumer (the operator popover) reads
+// nothing else, so state, errors and console messages stay server-side.
+function getOperatorResultSummaries(
+  agent: TexeraAgent
+): Record<string, Pick<OperatorExecutionSummary, "resultSummary">> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummary> = {};
+  const results: Record<string, Pick<OperatorExecutionSummary, "resultSummary">> = {};
   for (const [opId, entry] of visible) {
-    const info = entry.operatorInfo;
-    results[opId] = {
-      state: info.state,
-      inputTuples: info.inputTuples,
-      outputTuples: info.outputTuples,
-      inputPortShapes: info.inputPortShapes,
-      outputColumns: info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
-      error: info.error,
-      warnings: info.warnings,
-      consoleLogCount: info.consoleLogs?.length,
-      totalRowCount: info.totalRowCount,
-      sampleRecords: info.result,
-      resultStatistics: info.resultStatistics,
-    };
+    results[opId] = { resultSummary: entry.operatorInfo.resultSummary };
   }
   return results;
 }
@@ -482,7 +474,8 @@ export function buildApp() {
         switch (msg.type) {
           case "WsClientStopCommand":
             agent.stop();
-            broadcastToAgentClients(agentId, new WsServerStatusEvent(AgentState.STOPPING));
+            // Broadcast the resulting state: STOPPING mid-run, unchanged when idle.
+            broadcastToAgentClients(agentId, new WsServerStatusEvent(agent.getState()));
             return;
 
           case "WsClientPromptCommand": {
@@ -492,6 +485,15 @@ export function buildApp() {
             }
 
             wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
+
+            // Reject a prompt that arrives while a run is already in flight
+            // instead of re-pointing that run's warehouse mid-execution (#8711).
+            // Checked before setDelegateWarehouse so a busy agent's delegate
+            // config is left untouched.
+            if (agent.getState() !== AgentState.AVAILABLE) {
+              sendEventToClient(ws, new WsServerErrorEvent("Agent is busy processing another message"));
+              return;
+            }
 
             // The prompt carries the workspace's current warehouse pick, so a run
             // uses what the user has selected now rather than whatever was

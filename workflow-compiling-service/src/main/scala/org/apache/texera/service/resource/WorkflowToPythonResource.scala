@@ -21,15 +21,19 @@ package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.translator.WorkflowToPythonTranslator
+import org.apache.texera.auth.SessionUser
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -44,7 +48,18 @@ import org.apache.texera.amber.translator.WorkflowToPythonTranslator
 )
 sealed trait WorkflowToPythonResponse
 
-case class WorkflowToPythonSuccess(pythonCode: String) extends WorkflowToPythonResponse
+/** An input the script reads under a name other than its own. */
+case class RenamedSource(from: String, to: String)
+
+/**
+  * @param helpersModule the `texera_helpers.py` the script imports from, when it imports any.
+  * @param renamedSources the inputs that must be saved under a new name next to the script.
+  */
+case class WorkflowToPythonSuccess(
+    pythonCode: String,
+    helpersModule: Option[String] = None,
+    renamedSources: Seq[RenamedSource] = Seq.empty
+) extends WorkflowToPythonResponse
 
 case class WorkflowToPythonFailure(errorMessage: String) extends WorkflowToPythonResponse
 
@@ -59,7 +74,8 @@ class WorkflowToPythonResource extends LazyLogging {
   @POST
   @Path("")
   def convertWorkflowToPython(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      @Auth user: SessionUser
   ): WorkflowToPythonResponse = {
     try {
       val logicalPlan = LogicalPlan(logicalPlanPojo)
@@ -69,8 +85,15 @@ class WorkflowToPythonResource extends LazyLogging {
       // typed and the CSV reader quietly dropped the timestamp columns it would have
       // parsed. And a downstream operator that renders a column as text needs the type the
       // column was DECLARED as, which the file it reads cannot carry.
-      val pythonCode = translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo))
-      WorkflowToPythonSuccess(pythonCode)
+      val pythonCode =
+        translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo, user.getUid))
+      WorkflowToPythonSuccess(
+        pythonCode,
+        Option.when(pythonCode.contains("from texera_helpers import"))(
+          StandaloneHelpers.helpersModule
+        ),
+        translator.renamedSources(logicalPlan).map { case (from, to) => RenamedSource(from, to) }
+      )
     } catch {
       case e: Exception =>
         logger.error("Failed to translate workflow to Python", e)
@@ -85,12 +108,14 @@ class WorkflowToPythonResource extends LazyLogging {
     * before, only without what the schema adds.
     */
   private def outputSchemasOf(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      uid: Integer
   ): Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] =
     try {
-      new WorkflowCompiler(new WorkflowContext(workflowId = WorkflowIdentity(0)))
-        .compile(logicalPlanPojo, CompilationErrorHandling.Lenient)
-        .operatorIdToOutputSchemas
+      new WorkflowCompiler(
+        new WorkflowContext(workflowId = WorkflowIdentity(0)),
+        FileResolver.forUser(uid)
+      ).compile(logicalPlanPojo, CompilationErrorHandling.Lenient).operatorIdToOutputSchemas
     } catch {
       case e: Exception =>
         logger.warn("Could not resolve output schemas; translating without them", e)

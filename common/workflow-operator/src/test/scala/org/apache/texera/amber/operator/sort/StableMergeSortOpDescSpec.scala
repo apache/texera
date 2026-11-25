@@ -19,7 +19,14 @@
 
 package org.apache.texera.amber.operator.sort
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runSource
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -27,10 +34,21 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.mutable.ListBuffer
+
 class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
+
+  private def newDesc(attribute: String, preference: SortPreference): StableMergeSortOpDesc = {
+    val unit = new SortCriteriaUnit
+    unit.attributeName = attribute
+    unit.sortPreference = preference
+    val desc = new StableMergeSortOpDesc
+    desc.keys = ListBuffer(unit)
+    desc
+  }
 
   "StableMergeSortOpDesc.operatorInfo" should
     "advertise the name, Sort group, and a single blocking output" in {
@@ -66,5 +84,192 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
     desc.keys should have size 1
     desc.keys.head.attributeName shouldBe "age"
     desc.keys.head.sortPreference shouldBe SortPreference.DESC
+  }
+
+  // A null goes last whichever way the key points; a NaN compares above every
+  // number, so it goes last ascending and first descending. Only a column read
+  // into a nullable dtype can hold both, which is where this is run.
+  "StableMergeSortOpDesc.generateStandaloneCode" should
+    "put a null last both ways and a NaN where the key points" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    def blockFor(pref: SortPreference): String = {
+      newDesc("v", pref).generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+    }
+
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def frame():
+         |    # 3.0, a null, a stored NaN, 1.0, +inf
+         |    col = pd.arrays.FloatingArray(
+         |        np.array([3.0, 0.0, np.nan, 1.0, np.inf]),
+         |        np.array([False, True, False, False, False]),
+         |    )
+         |    return pd.DataFrame({"v": col})
+         |
+         |def show(df):
+         |    return [("NULL" if x is pd.NA else repr(float(x))) for x in df["v"]]
+         |
+         |if True:
+         |    in1df = frame()
+         |${blockFor(SortPreference.ASC)}
+         |    print("asc", show(out1df))
+         |if True:
+         |    in1df = frame()
+         |${blockFor(SortPreference.DESC)}
+         |    print("desc", show(out1df))
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "sort-nan-", driver)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "asc ['1.0', '3.0', 'inf', 'nan', 'NULL']"
+      lines(1) shouldBe "desc ['nan', 'inf', '3.0', '1.0', 'NULL']"
+    }
+  }
+
+  // Double.compare puts -0.0 below 0.0, where pandas reads the two as equal and
+  // keeps them in input order. Each row carries its input position, and the
+  // engine runs the same rows both ways.
+  it should "order signed zeros as the engine does both ways" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    val values: Seq[java.lang.Double] = Seq(0.0, -0.0, Double.NaN, 1.0, null, -0.0)
+    val schema = Schema().add("v", AttributeType.DOUBLE).add("i", AttributeType.INTEGER)
+    def descFor(pref: SortPreference): StableMergeSortOpDesc = newDesc("v", pref)
+    val prefs = Seq(SortPreference.ASC, SortPreference.DESC)
+    val engine = prefs.map { pref =>
+      val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(descFor(pref)))
+      exec.open()
+      val rows = values.zipWithIndex.flatMap {
+        case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
+      } ++ exec.onFinish(0)
+      rows.map(_.getFields(1).toString).mkString(" ")
+    }
+
+    val calls = prefs
+      .map(p => s"order(${objectMapper.writeValueAsString(descFor(p).generateStandaloneCode())})")
+      .mkString("\n")
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def order(code):
+         |    in1df = pd.DataFrame({
+         |        "v": pd.arrays.FloatingArray(
+         |            np.array([0.0, -0.0, np.nan, 1.0, 0.0, -0.0]),
+         |            np.array([False, False, False, False, True, False]),
+         |        ),
+         |        "i": range(6),
+         |    })
+         |    ns = {"pd": pd, "in1df": in1df}
+         |    exec(code, ns)
+         |    print(" ".join(str(i) for i in ns["out1df"]["i"]))
+         |
+         |$calls
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "stable-merge-sort-zero-", driver)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      out.trim.linesIterator.toList shouldBe engine
+    }
+  }
+
+  // The sort tiers are named after nothing the input can be carrying, so a
+  // column that happens to answer to a helper's old name keeps its values.
+  it should "keep an input column named after a sort helper" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    val desc = newDesc("x", SortPreference.ASC)
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({
+         |    "x": [2, 1],
+         |    "_texera_null_x": ["a", "b"],
+         |    "_texera_nan_x": ["c", "d"],
+         |})
+         |${desc.generateStandaloneCode()}
+         |print(list(out1df.columns))
+         |print(list(out1df["_texera_null_x"]), list(out1df["_texera_nan_x"]))
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "sort-helper-name-", driver)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "['x', '_texera_null_x', '_texera_nan_x']"
+      lines(1) shouldBe "['b', 'a'] ['d', 'c']"
+    }
+  }
+
+  // U+1F600 is stored as the surrogate pair D83D DE00, so the engine puts it
+  // before U+FF01, while Python's code-point order puts it after.
+  it should "order strings the way the engine does above U+FFFF" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    def cp(c: Int): String = new String(Character.toChars(c))
+    val values = Seq(cp(0xff01), cp(0x1f600), "a", null, cp(0xffff))
+    def show(v: String): String =
+      if (v == null) "NULL" else v.codePoints().toArray.map(c => f"$c%X").mkString("+")
+
+    val schema = Schema().add(new Attribute("s", AttributeType.STRING))
+    def descFor(pref: SortPreference): StableMergeSortOpDesc = newDesc("s", pref)
+    def engine(pref: SortPreference): String = {
+      val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(descFor(pref)))
+      exec.open()
+      values.foreach { v =>
+        exec.processTuple(Tuple.builder(schema).add(schema.getAttribute("s"), v).build(), 0)
+      }
+      val out = exec.onFinish(0).map(_.asInstanceOf[Tuple].getField[String]("s")).toList
+      exec.close()
+      out.map(show).mkString(" ")
+    }
+    def block(pref: SortPreference): String =
+      descFor(pref).generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+
+    val literal = values
+      .map(v =>
+        if (v == null) "None"
+        else v.codePoints().toArray.map(c => f"chr(0x$c%X)").mkString("+")
+      )
+      .mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |def show(df):
+         |    return " ".join(
+         |        "NULL" if v is None else "+".join("%X" % ord(c) for c in v) for v in df["s"]
+         |    )
+         |
+         |if True:
+         |    in1df = pd.DataFrame({"s": $literal})
+         |${block(SortPreference.ASC)}
+         |    print(show(out1df))
+         |if True:
+         |    in1df = pd.DataFrame({"s": $literal})
+         |${block(SortPreference.DESC)}
+         |    print(show(out1df))
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "sort-utf16-", driver)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      engine(SortPreference.ASC) shouldBe "61 1F600 FF01 FFFF NULL"
+      lines.head shouldBe engine(SortPreference.ASC)
+      lines(1) shouldBe engine(SortPreference.DESC)
+    }
   }
 }

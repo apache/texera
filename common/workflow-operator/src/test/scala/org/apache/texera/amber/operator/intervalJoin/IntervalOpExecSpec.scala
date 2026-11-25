@@ -20,16 +20,14 @@
 package org.apache.texera.amber.operator.intervalJoin
 
 import org.apache.texera.amber.core.tuple._
-import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class IntervalOpExecSpec extends AnyFlatSpec {
   val left: Int = 0
   val right: Int = 1
 
@@ -41,20 +39,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   private val Seed: Long = 20260819L
 
   var opDesc: IntervalJoinOpDesc = _
-  var counter: Int = 0
-
-  def physicalLink(): PhysicalLink =
-    PhysicalLink(
-      physicalOpId(),
-      fromPortId = PortIdentity(),
-      physicalOpId(),
-      toPortId = PortIdentity()
-    )
-
-  def physicalOpId(): PhysicalOpIdentity = {
-    counter += 1
-    PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
-  }
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {
     Tuple
@@ -64,21 +48,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .build()
   }
 
-  def integerTuple(name: String, n: Int = 1, i: Int): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.INTEGER, n))
-      .add(new Attribute(name, AttributeType.INTEGER), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.INTEGER), i)
-      .build()
-  }
-
-  def doubleTuple(name: String, n: Int = 1, i: Double): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.DOUBLE, n))
-      .add(new Attribute(name, AttributeType.DOUBLE), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.DOUBLE), i)
-      .build()
-  }
+  def doubleTuple(name: String, n: Int = 1, i: Double): Tuple =
+    newTuple[Double](name, n, i, AttributeType.DOUBLE)
 
   def schema(name: String, attributeType: AttributeType, n: Int = 1): Schema = {
     Schema()
@@ -87,21 +58,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
-  def longTuple(name: String, n: Int = 1, i: Long): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.LONG, n))
-      .add(new Attribute(name, AttributeType.LONG), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.LONG), i)
-      .build()
-  }
-
-  def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.TIMESTAMP, n))
-      .add(new Attribute(name, AttributeType.TIMESTAMP), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.TIMESTAMP), i)
-      .build()
-  }
+  def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple =
+    newTuple[Timestamp](name, n, i, AttributeType.TIMESTAMP)
 
   def bruteForceJoin[T](
       leftInput: Array[T],
@@ -244,7 +202,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
     val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
     val orderRandom = new Random(Seed)
@@ -309,87 +266,29 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       rangeList
     )
   }
-  it should "work with Integer value int [] interval, simple test" in {
-    val pointList: Array[Int] = (1 to 10).toArray[Int]
-    val rangeList: Array[Int] = Array(1, 5, 8)
-    testJoin[Int](
-      "point",
-      "range",
-      includeLeftBound = true,
-      includeRightBound = true,
-      AttributeType.INTEGER,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
-  }
-
-  it should "work with Integer value int [] interval, same key" in {
-
-    val pointList: Array[Int] = (1 to 10).toArray[Int]
-    val rangeList: Array[Int] = Array(1, 5, 8)
-    testJoin[Int](
-      "same",
-      "same",
-      includeLeftBound = true,
-      includeRightBound = true,
-      AttributeType.INTEGER,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
-  }
-
-  it should "work with Integer value int [) interval" in {
-
-    val pointList: Array[Int] = (1 to 10).toArray[Int]
-    val rangeList: Array[Int] = Array(1, 5, 8)
-    testJoin[Int](
-      "point",
-      "range",
-      includeLeftBound = true,
-      includeRightBound = false,
-      AttributeType.INTEGER,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
-  }
-
-  it should "work with Integer value int (] interval" in {
-
-    val pointList: Array[Int] = (1 to 10).toArray[Int]
-    val rangeList: Array[Int] = Array(1, 5, 8)
-    testJoin[Int](
-      "point",
-      "range",
-      includeLeftBound = false,
-      includeRightBound = true,
-      AttributeType.INTEGER,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
-  }
-  it should "work with Integer value int () interval" in {
-
-    val pointList: Array[Int] = (1 to 10).toArray[Int]
-    val rangeList: Array[Int] = Array(1, 5, 8)
-    testJoin[Int](
-      "point",
-      "range",
-      includeLeftBound = false,
-      includeRightBound = false,
-      AttributeType.INTEGER,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
+  Seq(
+    ("work with Integer value int [] interval, simple test", "point", "range", true, true),
+    ("work with Integer value int [] interval, same key", "same", "same", true, true),
+    ("work with Integer value int [) interval", "point", "range", true, false),
+    ("work with Integer value int (] interval", "point", "range", false, true),
+    ("work with Integer value int () interval", "point", "range", false, false)
+  ).foreach {
+    case (title, leftKey, rightKey, includeLeft, includeRight) =>
+      it should title in {
+        val pointList: Array[Int] = (1 to 10).toArray[Int]
+        val rangeList: Array[Int] = Array(1, 5, 8)
+        testJoin[Int](
+          leftKey,
+          rightKey,
+          includeLeftBound = includeLeft,
+          includeRightBound = includeRight,
+          AttributeType.INTEGER,
+          TimeIntervalType.DAY,
+          3,
+          pointList,
+          rangeList
+        )
+      }
   }
   it should "work with Timestamp value int [] interval" in {
     val pointList: Array[Timestamp] = (1L to 10L)
@@ -422,7 +321,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.timeIntervalType = Option(TimeIntervalType.DAY)
     val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    counter = 0
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
@@ -440,54 +338,27 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "work with Long value int [] interval" in {
-
-    val pointList: Array[Long] = (1L to 10L).toArray
-    val rangeList: Array[Long] = Array(1L, 5L, 8L)
-    testJoin[Long](
-      "point",
-      "range",
-      includeLeftBound = true,
-      includeRightBound = true,
-      AttributeType.LONG,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
-  }
-
-  it should "work with basic two input streams with left empty table" in {
-
-    val pointList: Array[Long] = Array()
-    val rangeList: Array[Long] = Array(1L, 5L, 8L)
-    testJoin[Long](
-      "point",
-      "range",
-      includeLeftBound = true,
-      includeRightBound = true,
-      AttributeType.LONG,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
-  }
-
-  it should "work with basic two input streams with right empty table" in {
-    val pointList: Array[Long] = (1L to 10L).toArray
-    val rangeList: Array[Long] = Array()
-    testJoin[Long](
-      "point",
-      "range",
-      includeLeftBound = true,
-      includeRightBound = true,
-      AttributeType.LONG,
-      TimeIntervalType.DAY,
-      3,
-      pointList,
-      rangeList
-    )
+  Seq(
+    ("work with Long value int [] interval", false, false),
+    ("work with basic two input streams with left empty table", true, false),
+    ("work with basic two input streams with right empty table", false, true)
+  ).foreach {
+    case (title, emptyLeft, emptyRight) =>
+      it should title in {
+        val pointList: Array[Long] = if (emptyLeft) Array() else (1L to 10L).toArray
+        val rangeList: Array[Long] = if (emptyRight) Array() else Array(1L, 5L, 8L)
+        testJoin[Long](
+          "point",
+          "range",
+          includeLeftBound = true,
+          includeRightBound = true,
+          AttributeType.LONG,
+          TimeIntervalType.DAY,
+          3,
+          pointList,
+          rangeList
+        )
+      }
   }
 
   it should "test larger dataset(1k)" in {

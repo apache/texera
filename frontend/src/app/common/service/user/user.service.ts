@@ -18,8 +18,6 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
-import { AppSettings } from "../../app-setting";
 import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
@@ -42,8 +40,7 @@ export class UserService {
 
   constructor(
     private authService: AuthService,
-    private config: GuiConfigService,
-    private http: HttpClient
+    private config: GuiConfigService
   ) {
     const user = this.authService.loginWithExistingToken();
     this.changeUser(user);
@@ -136,9 +133,10 @@ export class UserService {
 
   // Returns Observable<void> rather than void so callers (login / googleLogin /
   // register) can switchMap through the post-login config fetch. The /config/gui
-  // and /config/user-system endpoints are @RolesAllowed, so we must wait for the
-  // new JWT to be in localStorage before they will answer; loginWithExistingToken
-  // also reads config.env.inviteOnly, so it must run after loadPostLogin resolves.
+  // and /config/amber endpoints are @RolesAllowed, so we must wait for the
+  // new JWT to be in localStorage before they will answer; the user change that
+  // loginWithExistingToken feeds renders from that config, so it runs after
+  // loadPostLogin resolves.
   private handleAccessToken(accessToken: string): Observable<void> {
     AuthService.setAccessToken(accessToken);
     return this.config.loadPostLogin().pipe(

@@ -60,6 +60,16 @@ import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
+/** True for a link the browser would load as a page: one that resolves to an http or https address. */
+function isWebLink(href: string): boolean {
+  try {
+    const url = new URL(href, document.baseURI);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 @UntilDestroy()
 @Component({
   selector: "texera-agent-chat",
@@ -274,7 +284,15 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       )
       .subscribe(workflow => {
         if (workflow) {
-          this.workflowActionService.reloadWorkflow(workflow, false, false);
+          // A step that reaches the page before the agent's workflow has been fetched carries the
+          // content alone. Reloaded as it came, it made the workspace forget which workflow it had
+          // open: the title went blank and this agent's own tab locked as on another workflow. An
+          // agent bound to the open workflow works on it, so that workflow's id and name stand in.
+          // An agent bound to none keeps what it sent, so its content is not saved over this one.
+          const open = this.workflowActionService.getWorkflowMetadata();
+          const boundWid = this.agentInfo.delegate?.workflowId;
+          const isBoundToOpen = !!boundWid && boundWid === open.wid;
+          this.workflowActionService.reloadWorkflow(isBoundToOpen ? { ...open, ...workflow } : workflow, false, false);
         }
       });
   }
@@ -303,6 +321,16 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
+  }
+
+  /** Makes the web links of a rendered message open in a new tab, so a click does not replace the editor. */
+  public openLinksInNewTab(message: HTMLElement): void {
+    message.querySelectorAll<HTMLAnchorElement>("a[href]").forEach(link => {
+      if (isWebLink(link.getAttribute("href") ?? "")) {
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+      }
+    });
   }
 
   public setHoveredMessage(index: number | null): void {

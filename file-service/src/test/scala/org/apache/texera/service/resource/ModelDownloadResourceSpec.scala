@@ -29,7 +29,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.MockLakeFS
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util.zip.ZipInputStream
@@ -42,7 +42,6 @@ class ModelDownloadResourceSpec
     with MockTexeraDB
     with MockLakeFS
     with BeforeAndAfterAll
-    with BeforeAndAfterEach
     with ResourceTestHelpers {
 
   private def mkUser(name: String): User = {

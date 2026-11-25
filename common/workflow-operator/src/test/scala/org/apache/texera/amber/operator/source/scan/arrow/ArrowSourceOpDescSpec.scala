@@ -19,15 +19,23 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runScript
+}
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{UInt8Vector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowFileSchema}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
+import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceFixtures._
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -35,38 +43,14 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.{File, FileOutputStream}
 import java.nio.channels.Channels
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import scala.jdk.CollectionConverters._
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def writeArrowFile(schema: Schema, rows: Seq[Array[Any]]): File = {
-    val file = File.createTempFile("arrow-src-", ".arrow")
-    file.deleteOnExit()
-    val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
-    val out = new FileOutputStream(file)
-    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
-    try {
-      writer.start()
-      root.allocateNew()
-      rows.zipWithIndex.foreach {
-        case (values, i) =>
-          ArrowUtils.setTexeraTuple(Tuple.builder(schema).addSequentially(values).build(), i, root)
-      }
-      root.setRowCount(rows.size)
-      writer.writeBatch()
-      writer.end()
-    } finally {
-      writer.close()
-      root.close()
-      allocator.close()
-      out.close()
-    }
-    file
-  }
 
   "ArrowSourceOpDesc.operatorInfo" should
     "advertise the Arrow file-scan name in the Data Input group with no input and one output" in {
@@ -102,6 +86,14 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
     physical.inputPorts.keySet shouldBe empty
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
+  }
+
+  it should "propagate the schema read from the file, not sourceSchema, to its output port" in {
+    val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(writeArrowFile(schema, Seq(Array[Any]("a"))).toURI.toString)
+    val propagated = d.getPhysicalOp(workflowId, executionId).propagateSchema.func(Map.empty)
+    propagated shouldBe Map(d.operatorInfo.outputPorts.head.id -> schema)
   }
 
   "ArrowSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {
@@ -153,13 +145,214 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.inferSchema() shouldBe schema
   }
 
+  // A missing double and a stored NaN are two different values to the engine,
+  // and a numpy column has one slot for both. A holed integer column loses its
+  // type the same way.
+  "ArrowSourceOpDesc.generateStandaloneCode" should
+    "keep a missing value apart from a NaN, and an integer integral" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "pyarrow")) cancel(s"'$python' cannot import pandas")
+
+    val schema = Schema(
+      List(new Attribute("d", AttributeType.DOUBLE), new Attribute("i", AttributeType.INTEGER))
+    )
+    val file = writeArrowFile(
+      schema,
+      Seq(
+        Array[Any](null, null),
+        Array[Any](Double.box(Double.NaN), Int.box(7))
+      )
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    // The block reads the file from the script's own directory, so run there.
+    val workDir = Files.createTempDirectory("arrow-standalone-")
+    workDir.toFile.deleteOnExit()
+    val beside = workDir.resolve(file.getName)
+    Files.copy(file.toPath, beside)
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(str(out1df["d"].dtype), str(out1df["i"].dtype))
+         |print(repr(out1df["d"].iloc[0]), repr(out1df["d"].iloc[1]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val (exitCode, out) = runScript(python, script, directory = Some(workDir))
+
+    withClue(s"python said:\n$out") {
+      exitCode shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "Float64 Int32"
+      // The first is the value that was missing, the second the NaN that was
+      // stored. Under numpy dtypes both printed as nan.
+      lines(1) should include("<NA>")
+      lines(1) should include("nan")
+    }
+  }
+
   it should "throw a friendly error when the file is not a valid Arrow file" in {
-    val bogus = File.createTempFile("not-arrow-", ".arrow")
-    bogus.deleteOnExit()
-    Files.write(bogus.toPath, "this is not arrow".getBytes)
+    val bogus = invalidArrowFile()
     val d = new ArrowSourceOpDesc
     d.fileName = Some(bogus.toURI.toString)
     val ex = intercept[RuntimeException](d.inferSchema())
     ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
+  }
+
+  // pandas notes in an Arrow file's schema what type the frame's column labels
+  // had, and casts the names back to it. A frame whose columns were numbered is written
+  // under the names "1" and "2", which is what the executor reads, and comes
+  // back out of pandas labelled 1 and 2.
+  it should "keep the names a pandas frame of numbered columns was written under" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "pyarrow")) cancel(s"'$python' cannot import pandas")
+
+    val schema =
+      Schema(
+        List(new Attribute("1", AttributeType.INTEGER), new Attribute("2", AttributeType.INTEGER))
+      )
+    // What `pd.DataFrame({1: [7, 8], 2: [10, 20]}).to_feather(...)` leaves: the
+    // names are strings, and `column_indexes` is the whole of what turns them
+    // back into numbers.
+    val pandasMetadata =
+      """|{"index_columns": [{"kind": "range", "name": null, "start": 0, "stop": 2, "step": 1}],
+         | "column_indexes": [{"name": null, "field_name": null,
+         |                     "pandas_type": "int64", "numpy_type": "int64", "metadata": null}],
+         | "columns": [{"name": "1", "field_name": "1",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null},
+         |             {"name": "2", "field_name": "2",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null}],
+         | "pandas_version": "2.2.3"}""".stripMargin
+    val file = writeArrowFile(
+      schema,
+      Seq(Array[Any](7, 10), Array[Any](8, 20)),
+      Map("pandas" -> pandasMetadata)
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    d.inferSchema().getAttributeNames.toList shouldBe List("1", "2")
+
+    val workDir = Files.createTempDirectory("arrow-labels-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(list(out1df.columns))
+         |print([int(v) for v in out1df["2"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val (exitCode, out) = runScript(python, script, directory = Some(workDir))
+
+    withClue(s"python said:\n$out") {
+      exitCode shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "['1', '2']"
+      lines(1) shouldBe "[10, 20]"
+    }
+  }
+
+  // Nothing in Texera holds a value past 2^63 - 1, so the column is refused at
+  // the schema rather than read as the -1 its storage counts down to.
+  it should "refuse an unsigned 64-bit column, having no Texera type for it" in {
+    val fields = List(new Field("u", FieldType.nullable(new ArrowType.Int(64, false)), null))
+    val file = writeRawArrowFile("arrow-u64-", new ArrowFileSchema(fields.asJava), 1) { root =>
+      root.getVector("u").asInstanceOf[UInt8Vector].setSafe(0, -1L)
+    }
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    val ex = intercept[RuntimeException](d.inferSchema())
+    ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
+  }
+
+  /** The block names its file by placeholder; the translator puts a name there. */
+  private def bindSourceFile(d: ArrowSourceOpDesc): String =
+    s"""${StandaloneCodeGenerator.SourceFilePlaceholder} = "${d.standaloneSourceName().get}""""
+
+  /** What a script needs before the block: its imports, and the file it reads. */
+  private def scriptHeader(d: ArrowSourceOpDesc): String =
+    (d.standaloneImports() :+ "import pandas as pd" :+ bindSourceFile(d)).mkString("\n")
+}
+
+private[arrow] object ArrowSourceFixtures {
+  def writeArrowFile(
+      schema: Schema,
+      rows: Seq[Array[Any]],
+      schemaMetadata: Map[String, String] = Map.empty
+  ): File =
+    writeArrowBatches(schema, Seq(rows), schemaMetadata)
+
+  def writeArrowBatches(
+      schema: Schema,
+      batches: Seq[Seq[Array[Any]]],
+      schemaMetadata: Map[String, String] = Map.empty
+  ): File =
+    writeRawArrowBatches(
+      "arrow-src-",
+      new ArrowFileSchema(ArrowUtils.fromTexeraSchema(schema).getFields, schemaMetadata.asJava),
+      batches.map { rows =>
+        rows.size -> { (root: VectorSchemaRoot) =>
+          rows.zipWithIndex.foreach {
+            case (values, i) =>
+              ArrowUtils.setTexeraTuple(
+                Tuple.builder(schema).addSequentially(values).build(),
+                i,
+                root
+              )
+          }
+        }
+      }
+    )
+
+  def writeRawArrowFile(prefix: String, schema: => ArrowFileSchema, rowCount: Int)(
+      populate: VectorSchemaRoot => Unit
+  ): File =
+    writeRawArrowBatches(prefix, schema, Seq(rowCount -> populate))
+
+  private def writeRawArrowBatches(
+      prefix: String,
+      schema: => ArrowFileSchema,
+      batches: Seq[(Int, VectorSchemaRoot => Unit)]
+  ): File = {
+    val file = File.createTempFile(prefix, ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(schema, allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      batches.foreach {
+        case (rowCount, populate) =>
+          root.allocateNew()
+          populate(root)
+          root.setRowCount(rowCount)
+          writer.writeBatch()
+      }
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+    file
+  }
+
+  def invalidArrowFile(): File = {
+    val file = File.createTempFile("not-arrow-", ".arrow")
+    file.deleteOnExit()
+    Files.write(file.toPath, "this is not arrow".getBytes)
+    file
   }
 }

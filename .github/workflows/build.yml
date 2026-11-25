@@ -56,6 +56,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_workflow_to_python:
+        required: false
+        type: boolean
+        default: true
       run_pyamber:
         required: false
         type: boolean
@@ -246,7 +250,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
+        uses: sbt/setup-sbt@67d461eba2c4753196c230e02da850757ba4775e # v1.5.14
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -330,7 +334,8 @@ jobs:
         run: |
           # Backport builds filter by the checked-out build.sbt.
           want=(DAO Auth Config Observability Resource Util PyBuilder WorkflowCore
-                WorkflowOperator WorkflowCompiler WorkflowExecutionService)
+                WorkflowOperator WorkflowCompiler WorkflowExecutionService
+                OperatorReferenceGenerator)
           tasks=()
           if [ -n "${BACKPORT_TARGET_BRANCH}" ]; then
             for m in "${want[@]}"; do
@@ -380,10 +385,10 @@ jobs:
     if: ${{ inputs.run_amber_integration }}
     # A Python UDF worker that fails to start (e.g. a bad log level) leaves the
     # JVM blocked on the proxy handshake with no internal timeout, so the whole
-    # job would otherwise hang until GitHub's 6h cap. Fail fast instead: recent
-    # green runs take 9-17 minutes, so 25 leaves headroom for a cold cache or a
-    # slow macOS runner without masking a real hang.
-    timeout-minutes: 25
+    # job would otherwise hang until GitHub's 6h cap. Fail fast instead: green
+    # macOS runs take about 20 minutes and up to 24, so 35 leaves headroom for
+    # a cold cache or a slow runner without masking a real hang.
+    timeout-minutes: 35
     strategy:
       # macOS provisions postgres / rustfs / lakekeeper natively because
       # GitHub-hosted macOS runners have no Docker (and `services:`
@@ -500,7 +505,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
+        uses: sbt/setup-sbt@67d461eba2c4753196c230e02da850757ba4775e # v1.5.14
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -519,10 +524,10 @@ jobs:
               -e RUSTFS_ACCESS_KEY=texera_rustfs \
               -e RUSTFS_SECRET_KEY=password \
               -e RUSTFS_REGION=us-west-2 \
-              rustfs/rustfs:1.0.0-rc.6
+              rustfs/rustfs:1.0.0
           else
             curl -sSfL -o /tmp/rustfs.zip \
-              https://dl.rustfs.com/artifacts/rustfs/release/rustfs-macos-aarch64-v1.0.0-rc.6.zip
+              https://dl.rustfs.com/artifacts/rustfs/release/rustfs-macos-aarch64-v1.0.0.zip
             unzip -q -o /tmp/rustfs.zip -d /tmp/rustfs-bin
             chmod +x /tmp/rustfs-bin/rustfs
             mkdir -p /tmp/rustfs-data
@@ -780,6 +785,8 @@ jobs:
             sbt_project: WorkflowCompilingService
           - service: notebook-migration-service
             sbt_project: NotebookMigrationService
+          - service: result-service
+            sbt_project: ResultService
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -820,7 +827,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
+        uses: sbt/setup-sbt@67d461eba2c4753196c230e02da850757ba4775e # v1.5.14
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
@@ -941,6 +948,9 @@ jobs:
           - service: notebook-migration-service
             sbt_project: NotebookMigrationService
             port: 9098
+          - service: result-service
+            sbt_project: ResultService
+            port: 9102
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -975,16 +985,18 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
+        uses: sbt/setup-sbt@67d461eba2c4753196c230e02da850757ba4775e # v1.5.14
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       # --- workflow-compiling-service only: provision Python so the verify
       # spec (OperatorBehaviorSpec) can fork real interpreters. These four
       # steps mirror the retired standalone workflow-compiling-service-integration
-      # job; they are no-ops for every other service in the matrix.
+      # job; they are no-ops for every other service in the matrix. They and the
+      # verify step below also skip when precheck leaves run_workflow_to_python
+      # off, so a PR that cannot change either result only boots the service.
       - name: Setup Python for Scala-Python verification tests
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -994,7 +1006,7 @@ jobs:
         # to PYTHONPATH). Install amber's runtime deps, same as amber-integration.
         # dev-requirements.txt provides the betterproto plugin used by
         # bin/python-proto-gen.sh in the proto-generation step below.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
@@ -1005,7 +1017,7 @@ jobs:
         # generated betterproto bindings in amber/src/main/python/proto (gitignored,
         # not checked in). Pin protoc to bin/protoc-version.txt via the upstream
         # release zip. Linux-only: this job runs on ubuntu-latest.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         run: |
           PROTOC_VERSION=$(cat bin/protoc-version.txt)
           curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
@@ -1016,7 +1028,7 @@ jobs:
         # Regenerate amber/src/main/python/proto so the forked py_op_driver can
         # import pyamber; without this Path A fails with ImportError on proto
         # symbols (e.g. ChannelIdentity).
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         run: bash bin/python-proto-gen.sh
       - name: Create Databases
         run: |
@@ -1059,7 +1071,7 @@ jobs:
             -e RUSTFS_ACCESS_KEY=texera_rustfs \
             -e RUSTFS_SECRET_KEY=password \
             -e RUSTFS_REGION=us-west-2 \
-            rustfs/rustfs:1.0.0-rc.6
+            rustfs/rustfs:1.0.0
           for i in $(seq 1 15); do
             curl -sf http://localhost:9000/health && break
             echo "Waiting for RustFS... (attempt $i)"; sleep 1
@@ -1114,7 +1126,7 @@ jobs:
         # operator that cannot run, recorded against an issue in the runner itself.
         # UDF_PYTHON_PATH points the harness at the provisioned interpreter (bare
         # name resolves via PATH); it auto-locates amber/src/main/python.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         env:
           WCS_TEST_FILTER: integration-only
           UDF_PYTHON_PATH: python

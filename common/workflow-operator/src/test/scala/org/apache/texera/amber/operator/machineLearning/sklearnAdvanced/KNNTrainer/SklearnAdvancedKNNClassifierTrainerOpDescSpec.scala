@@ -21,11 +21,13 @@ package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrai
 
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{
   HyperParameters,
-  SklearnMLOperatorDescriptor
+  SklearnTrainerOpDescSpecBehaviors
 }
 import org.scalatest.flatspec.AnyFlatSpec
 
-class SklearnAdvancedKNNClassifierTrainerOpDescSpec extends AnyFlatSpec {
+class SklearnAdvancedKNNClassifierTrainerOpDescSpec
+    extends AnyFlatSpec
+    with SklearnTrainerOpDescSpecBehaviors {
 
   private def hyperParam(
       parameter: SklearnAdvancedKNNParameters,
@@ -46,45 +48,17 @@ class SklearnAdvancedKNNClassifierTrainerOpDescSpec extends AnyFlatSpec {
     d.generatePythonCode()
   }
 
-  "SklearnAdvancedKNNClassifierTrainerOpDesc.getImportStatements" should
-    "return the canonical KNeighborsClassifier import" in {
-    val d = new SklearnAdvancedKNNClassifierTrainerOpDesc
-    assert(d.getImportStatements == "from sklearn.neighbors import KNeighborsClassifier")
-  }
+  trainerDescriptorBehaviors[
+    SklearnAdvancedKNNParameters,
+    SklearnAdvancedKNNClassifierTrainerOpDesc
+  ](
+    "SklearnAdvancedKNNClassifierTrainerOpDesc",
+    () => new SklearnAdvancedKNNClassifierTrainerOpDesc,
+    "from sklearn.neighbors import KNeighborsClassifier",
+    "KNN Classifier",
+    expectedImportToken = "KNeighborsClassifier"
+  )
 
-  "SklearnAdvancedKNNClassifierTrainerOpDesc.getOperatorInfo" should
-    "return 'KNN Classifier'" in {
-    val d = new SklearnAdvancedKNNClassifierTrainerOpDesc
-    assert(d.getOperatorInfo == "KNN Classifier")
-  }
-
-  it should "be stable across two instances (no instance-state interaction)" in {
-    val a = new SklearnAdvancedKNNClassifierTrainerOpDesc
-    val b = new SklearnAdvancedKNNClassifierTrainerOpDesc
-    assert(a.getImportStatements == b.getImportStatements)
-    assert(a.getOperatorInfo == b.getOperatorInfo)
-  }
-
-  "SklearnAdvancedKNNClassifierTrainerOpDesc" should
-    "extend SklearnMLOperatorDescriptor (compile-time enforced)" in {
-    val d: SklearnMLOperatorDescriptor[SklearnAdvancedKNNParameters] =
-      new SklearnAdvancedKNNClassifierTrainerOpDesc
-    assert(d.getImportStatements.contains("KNeighborsClassifier"))
-  }
-
-  it should "be matchable via the SklearnMLOperatorDescriptor type-pattern" in {
-    val any: AnyRef = new SklearnAdvancedKNNClassifierTrainerOpDesc
-    val matched = any match {
-      case _: SklearnMLOperatorDescriptor[_] => true
-      case _                                 => false
-    }
-    assert(matched)
-  }
-
-  // The declared type is emitted as the callable that converts what the user
-  // typed, so a hyperparameter is only usable when that callable can return
-  // something scikit-learn accepts. These two could not: `metric` names a word
-  // from a fixed set, and `metric_params` a mapping.
   "SklearnAdvancedKNNParameters.metric" should
     "convert with str, the accepted metrics being words" in {
     assert(
@@ -105,8 +79,6 @@ class SklearnAdvancedKNNClassifierTrainerOpDescSpec extends AnyFlatSpec {
       hyperParam(SklearnAdvancedKNNParameters.metric, "minkowski"),
       hyperParam(SklearnAdvancedKNNParameters.metric_params, """{"p": 2}""")
     )
-    // The values themselves travel base64-encoded, so what is checked here is
-    // which callable each one is handed to.
     val modelCall = code.linesIterator.find(_.contains("model = KNeighborsClassifier(")).get
     assert(modelCall.contains("metric = str ("))
     assert(modelCall.contains("metric_params = json.loads ("))

@@ -20,7 +20,7 @@ services:
   # Part1: Specification of the storage services used by Texera
   # RustFS is an S3-compatible object storage used to store datasets and files.
   rustfs:
-    image: rustfs/rustfs:1.0.0-rc.6
+    image: rustfs/rustfs:1.0.0
     container_name: texera-rustfs
     ports:
       - "${RUSTFS_PORT:-9000}:9000"
@@ -529,9 +529,31 @@ services:
       retries: 5
       start_period: 15s
 
+  # ResultService serves the results of executions, so they can be read without a computing unit.
+  # It reads them through Lakekeeper, so it needs STORAGE_ICEBERG_CATALOG_TYPE=rest (the default).
+  # With postgres, result tables are the computing unit's local files, which this does not mount.
+  result-service:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-result-service:${IMAGE_TAG:-latest}
+    container_name: result-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      lakekeeper:
+        condition: service_healthy
+      lakekeeper-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9102/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
-    image: nginx:alpine
+    image: nginx:1.30.5-alpine
     container_name: texera-nginx
     depends_on:
       - workflow-compiling-service
@@ -543,13 +565,14 @@ services:
       - workflow-computing-unit-managing-service
       - agent-service
       - notebook-migration-service
+      - result-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "${TEXERA_PORT:-8080}:8080"
 
   startup-message:
-    image: alpine:latest
+    image: alpine:3.24.2
     depends_on:
       nginx:
         condition: service_started
@@ -571,7 +594,7 @@ services:
   # Only runs when the "examples" profile is activated:
   #   docker compose --profile examples up
   example-data-loader:
-    image: alpine:latest
+    image: alpine:3.24.2
     depends_on:
       dashboard-service:
         condition: service_healthy
@@ -781,6 +804,9 @@ services:
     command:
       - "/parca"
       - "--config-path=/parca.yaml"
+      # The default 5s HTTP read timeout cuts off multi-MB debuginfo (symbol) uploads mid-stream;
+      # allow the whole debuginfo-upload-max-duration so symbolized flame graphs actually arrive.
+      - "--http-read-timeout=15m"
     ports:
       - "127.0.0.1:7070:7070"
     deploy:

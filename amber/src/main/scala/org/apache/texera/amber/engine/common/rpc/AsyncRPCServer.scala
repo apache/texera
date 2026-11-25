@@ -86,7 +86,6 @@ class AsyncRPCServer(
         } catch {
           case e: java.lang.reflect.InvocationTargetException =>
             throw Option(e.getCause).getOrElse(e)
-          case e: Throwable => throw e
         }
       result
         .asInstanceOf[Future[ControlReturn]]
@@ -100,12 +99,16 @@ class AsyncRPCServer(
 
     } catch {
       case err: Throwable =>
-        // if error occurs, return it to the sender.
-        logger.error("Exception occurred", err)
+        // Log Errors as warnings, other failures as errors, then return to sender.
+        if (err.isInstanceOf[Error]) {
+          logger.warn(
+            s"RPC handler ${method.getName} raised ${err.getClass.getSimpleName}",
+            err
+          )
+        } else {
+          logger.error("Exception occurred", err)
+        }
         returnResult(senderID, id, mkControlError(err))
-      // if throw this exception right now, the above message might not be able
-      // to be sent out. We do not throw for now.
-      //        throw err
     }
   }
 

@@ -19,14 +19,8 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, WorkflowContext}
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorAsyncRPCHandlerInitializer,
   CoordinatorConfig,
@@ -36,24 +30,12 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   JumpToOperatorRegionRequest
 }
-import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity, Schedule}
+import org.apache.texera.amber.engine.architecture.scheduling.{Region, Schedule}
+import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.flatspec.AnyFlatSpec
 
-class JumpToOperatorRegionHandlerSpec extends AnyFlatSpec {
-
-  // A single-operator Region, matching the construction pattern used by
-  // WorkflowExecutionManagerSpec. The logical operator id (opId) is what the handler
-  // matches against JumpToOperatorRegionRequest.targetOperatorId.
-  private def singleOpRegion(regionId: Long, opId: String): Region = {
-    val physicalOp = PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(opId), "main"),
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      OpExecInitInfo.Empty
-    )
-    Region(RegionIdentity(regionId), Set(physicalOp), Set.empty)
-  }
+class JumpToOperatorRegionHandlerSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
 
   // Build a real CoordinatorProcessor + our own initializer (the processor's own
   // initializer is private/inaccessible). Seed a 3-level, single-op-per-region schedule
@@ -66,9 +48,9 @@ class JumpToOperatorRegionHandlerSpec extends AnyFlatSpec {
       COORDINATOR,
       _ => ()
     )
-    val first = singleOpRegion(1, "first")
-    val second = singleOpRegion(2, "second")
-    val third = singleOpRegion(3, "third")
+    val first = region(1, "first")
+    val second = region(2, "second")
+    val third = region(3, "third")
     cp.workflowExecutionManager.schedule = Schedule(
       Map(
         0 -> Set(first),

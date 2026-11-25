@@ -19,17 +19,18 @@
 
 package org.apache.texera.amber.operator.visualization.ternaryContour
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -55,7 +56,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class TernaryContourOpDesc extends PythonVisualizationOpDesc {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -103,14 +104,6 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
   /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): PythonTemplateBuilder = {
     // Check for any empty data field names
@@ -155,29 +148,26 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg):
-         |        return '''<h1>TernaryContour is not available.</h1>
-         |                  <p>Reasons are: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("TernaryContour is not available.", plural = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
-         |            return
+         |${emptyTableGuard(
+        "No valid rows left (every row has at least 1 missing value).",
+        bodyIndent = 4
+      )}
          |        ${createPlotlyFigure()}
          |        # Convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-         |        yield {'html-content':html}
+         |${plotlyHtmlYield(
+        extraArgs = "auto_play = False",
+        spacesAroundEq = true,
+        compactDict = true
+      )}
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val firstLit = pyStringLiteral(firstVariable)
@@ -187,14 +177,10 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     s"""import plotly.figure_factory as ff
        |import numpy as np
        |
-       |def render_error(error_msg):
-       |    return '''<h1>TernaryContour is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("TernaryContour is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df.copy()
        |    table.dropna(subset=[$firstLit, $secondLit, $thirdLit, $fourthLit], inplace=True)
@@ -202,8 +188,10 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |    s = table[$firstLit] + table[$secondLit] + table[$thirdLit]
        |    table = table[s > 0]
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
        |    else:
        |        A = table[$firstLit].to_numpy()
        |        B = table[$secondLit].to_numpy()
@@ -215,9 +203,7 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |            pole_labels=[$firstLit, $secondLit, $thirdLit],
        |            interp_mode='cartesian'
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Ternary contour saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Ternary contour")}""".stripMargin
   }
 
 }

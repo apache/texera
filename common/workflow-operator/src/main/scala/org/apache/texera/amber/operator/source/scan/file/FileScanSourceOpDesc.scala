@@ -25,17 +25,21 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.{FileDecodingMethod, ScanSourceOpDesc}
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
-class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
+class FileScanSourceOpDesc
+    extends ScanSourceOpDesc
+    with TextSourceOpDesc
+    with StandaloneCodeGenerator {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   @JsonSchemaInject(
@@ -45,10 +49,6 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
     )
   )
-  // Re-declared here rather than inherited so the field can carry the hide
-  // annotation above; `fileEncoding` from ScanSourceOpDesc is suppressed by the
-  // @JsonIgnoreProperties on this class, so this is the only charset that
-  // survives into the executor.
   var encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonProperty(defaultValue = "false")
@@ -68,32 +68,75 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
 
   fileTypeName = Option("")
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
+  override def generateStandaloneCode(): String = {
+    val enc = encoding.toString.replace("_", "-").toLowerCase
+    val colLit = pyStringLiteral(attributeName)
+    val encLit = pyStringLiteral(enc)
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+
+    val readWholeOf =
+      if (TextSourceOpDesc.isBinaryAttribute(attributeType)) "_f.read()"
+      else s"_texera_decode(_f.read(), $encLit)"
+    val linesOf = s"io.StringIO(_texera_decode(_f.read(), $encLit), newline=None)"
+
+    if (extract) {
+      buf += "_rows = []"
+      buf ++= TextSourceOpDesc.buildZipExtractLines(SourceFilePlaceholder)
+      TextSourceOpDesc.appendFileScanRows(
+        buf,
+        " " * 12,
+        "_name",
+        readWholeOf,
+        linesOf,
+        attributeType,
+        outputFileName,
+        fileScanOffset,
+        fileScanLimit
+      )
+      TextSourceOpDesc.appendFileScanDataFrame(buf, attributeType, colLit, outputFileName)
+    } else if (attributeType.isSingle) {
+      val dfCols =
+        if (outputFileName) s"""{"filename": $SourceFilePlaceholder, $colLit: [$readWholeOf]}"""
+        else s"""{$colLit: [$readWholeOf]}"""
+      buf += s"""with open($SourceFilePlaceholder, "rb") as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+      buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
+    } else {
+      val castExpr =
+        TextSourceOpDesc.lineCastExpr(attributeType, "l.rstrip()", """l.rstrip("\n")""")
+      val linesExpr =
+        if (fileScanOffset.isEmpty && fileScanLimit.isEmpty) linesOf
+        else TextSourceOpDesc.sliceLinesExpr(s"$linesOf.readlines()", fileScanOffset, fileScanLimit)
+      val dfCols =
+        if (outputFileName)
+          s"""{"filename": $SourceFilePlaceholder, $colLit: [$castExpr for l in $linesExpr]}"""
+        else s"""{$colLit: [$castExpr for l in $linesExpr]}"""
+      buf += s"""with open($SourceFilePlaceholder, "rb") as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+      buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
+    }
+
+    buf.mkString("\n")
+  }
+
+  override def standaloneHelpers(): Seq[String] =
+    TextSourceOpDesc.fileScanStandaloneHelpers(attributeType, FileScanOpDesc.DecodeHelper)
+
+  override def standaloneImports(): Seq[String] =
+    TextSourceOpDesc.fileScanStandaloneImports(attributeType, extract)
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
-  }
+  ): PhysicalOp =
+    sourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpExec"
+    )
 
-  override def sourceSchema(): Schema = {
-    var schema = Schema()
-    if (outputFileName) {
-      schema = schema.add("filename", AttributeType.STRING)
-    }
-    schema.add(attributeName, attributeType.getType)
-  }
+  override def sourceSchema(): Schema =
+    TextSourceOpDesc.buildFileScanSchema(attributeName, attributeType, outputFileName)
 }

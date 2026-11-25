@@ -27,6 +27,8 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaTitle
 }
 import org.apache.texera.amber.core.state.NoLoopVariable
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 
@@ -50,6 +52,7 @@ trait TextSourceOpDesc {
   @NoLoopVariable
   var attributeName: String = "line"
 
+  @JsonProperty
   @JsonSchemaTitle("Limit (lines)")
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonPropertyDescription(
@@ -68,6 +71,7 @@ trait TextSourceOpDesc {
   )
   var fileScanLimit: Option[Int] = None
 
+  @JsonProperty
   @JsonSchemaTitle("Offset (lines)")
   @JsonPropertyDescription(
     "Number of lines to skip from the start before reading. " +
@@ -85,4 +89,128 @@ trait TextSourceOpDesc {
     )
   )
   var fileScanOffset: Option[Int] = None
+}
+
+object TextSourceOpDesc {
+
+  /** The call the per-line cast makes, over the loop variable the readers share.
+    * A line is read as the BOOLEAN cast reads text, so the cast's helper serves both.
+    */
+  val BooleanParserCall: String = "_texera_cast_boolean(l)"
+
+  /** A TIMESTAMP line is kept as text and parsed once the column is built, as
+    * CSV and JSONL parse theirs. `pd.Timestamp` kept the nanoseconds and the
+    * offset that the engine's DateParserUtils does not.
+    */
+  def parseTimestampColumn(attributeType: FileAttributeType, colLit: String): Seq[String] =
+    if (attributeType == FileAttributeType.TIMESTAMP)
+      Seq(s"out1df[$colLit] = _texera_text_to_timestamp(out1df[$colLit])")
+    else Seq.empty
+
+  /** The helpers the Python above calls for this attribute type. */
+  def lineHelpers(attributeType: FileAttributeType): Seq[String] =
+    attributeType match {
+      case FileAttributeType.INTEGER | FileAttributeType.LONG | FileAttributeType.DOUBLE |
+          FileAttributeType.BOOLEAN | FileAttributeType.TIMESTAMP =>
+        Seq(StandaloneHelpers.AttributeCasts)
+      case _ => Seq.empty
+    }
+
+  private[source] def isBinaryAttribute(attributeType: FileAttributeType): Boolean =
+    attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+
+  private[source] def buildFileScanSchema(
+      attributeName: String,
+      attributeType: FileAttributeType,
+      outputFileName: Boolean
+  ): Schema = {
+    var schema = Schema()
+    if (outputFileName) {
+      schema = schema.add("filename", AttributeType.STRING)
+    }
+    schema.add(attributeName, attributeType.getType)
+  }
+
+  private[source] def lineCastExpr(
+      attributeType: FileAttributeType,
+      timestampExpr: String,
+      defaultExpr: String
+  ): String =
+    attributeType match {
+      case FileAttributeType.INTEGER   => "_texera_parse_int(l, 32)"
+      case FileAttributeType.LONG      => "_texera_parse_int(l, 64)"
+      case FileAttributeType.DOUBLE    => "_texera_java_double(l)"
+      case FileAttributeType.BOOLEAN   => BooleanParserCall
+      case FileAttributeType.TIMESTAMP => timestampExpr
+      case _                           => defaultExpr
+    }
+
+  private[source] def sliceLinesExpr(
+      baseExpr: String,
+      offset: Option[Int],
+      limit: Option[Int]
+  ): String = {
+    val dropped = offset.filter(_ > 0).fold(baseExpr)(o => s"$baseExpr[$o:]")
+    limit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
+  }
+
+  private[source] def appendFileScanRows(
+      buf: scala.collection.mutable.ArrayBuffer[String],
+      indent: String,
+      nameExpr: String,
+      readWholeOf: String,
+      linesOf: String,
+      attributeType: FileAttributeType,
+      emitFilename: Boolean,
+      offset: Option[Int],
+      limit: Option[Int]
+  ): Unit = {
+    if (attributeType.isSingle) {
+      if (emitFilename) buf += s"${indent}_rows.append(($nameExpr, $readWholeOf))"
+      else buf += s"${indent}_rows.append($readWholeOf)"
+    } else {
+      val castExpr = lineCastExpr(attributeType, "l.rstrip()", """l.rstrip("\n")""")
+      val linesExpr =
+        if (offset.isEmpty && limit.isEmpty) linesOf
+        else sliceLinesExpr(s"$linesOf.readlines()", offset, limit)
+      val row = if (emitFilename) s"($nameExpr, $castExpr)" else castExpr
+      buf += s"${indent}_rows.extend($row for l in $linesExpr)"
+    }
+  }
+
+  private[source] def buildZipExtractLines(sourceExpr: String): Seq[String] =
+    Seq(
+      s"with zipfile.ZipFile($sourceExpr) as _z:",
+      "    for _name in _z.namelist():",
+      """        if _name.startswith("__MACOSX"):""",
+      "            continue",
+      "        with _z.open(_name) as _f:"
+    )
+
+  private[source] def appendFileScanDataFrame(
+      buf: scala.collection.mutable.ArrayBuffer[String],
+      attributeType: FileAttributeType,
+      colLit: String,
+      emitFilename: Boolean
+  ): Unit = {
+    if (emitFilename) buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
+    else buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
+    buf ++= parseTimestampColumn(attributeType, colLit)
+  }
+
+  private[source] def fileScanStandaloneHelpers(
+      attributeType: FileAttributeType,
+      decodeHelper: String
+  ): Seq[String] =
+    lineHelpers(attributeType) ++ (if (isBinaryAttribute(attributeType)) Seq.empty
+                                   else Seq(decodeHelper))
+
+  private[source] def fileScanStandaloneImports(
+      attributeType: FileAttributeType,
+      extract: Boolean
+  ): Seq[String] = {
+    val readsLines = !attributeType.isSingle && !isBinaryAttribute(attributeType)
+    (if (readsLines) Seq("import io") else Seq.empty) ++
+      (if (extract) Seq("import zipfile") else Seq.empty)
+  }
 }

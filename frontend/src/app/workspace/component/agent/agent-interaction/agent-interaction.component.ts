@@ -21,6 +21,7 @@ import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges }
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AgentService } from "../../../service/agent/agent.service";
+import { AgentState } from "../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { NgIf, NgFor } from "@angular/common";
@@ -40,6 +41,14 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { IndexedTuple, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
+import type { WebOutputMode } from "../../../types/execute-workflow.interface";
+
+interface TupleDisplayEntry {
+  readonly rowIndex?: number;
+  readonly tuple?: Tuple;
+  readonly isEllipsis: boolean;
+}
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -75,8 +84,8 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
-  @Input() sampleRecords?: Record<string, any>[];
-  @Input() resultStatistics?: Record<string, string>;
+  @Input() sampleTuples?: ReadonlyArray<IndexedTuple>;
+  @Input() resultMode?: WebOutputMode;
 
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
   public selectedAgentId: string | null = null;
@@ -102,10 +111,11 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["sampleRecords"]) {
+    if (changes["sampleTuples"] || changes["resultMode"]) {
       // Only update cached visualization HTML when the actual content changes
-      const newRecords = changes["sampleRecords"].currentValue as Record<string, any>[] | undefined;
-      const newHtml = newRecords?.[0]?.["html-content"] || null;
+      const firstTuple = this.sampleTuples?.[0]?.[1];
+      const htmlContent = firstTuple ? tupleToRecord(firstTuple)["html-content"] : undefined;
+      const newHtml = typeof htmlContent === "string" ? htmlContent : null;
       if (newHtml !== this.cachedVisualizationRawHtml) {
         this.cachedVisualizationRawHtml = newHtml;
         this.cachedVisualizationHtml = newHtml ? this.sanitizer.bypassSecurityTrustHtml(newHtml) : null;
@@ -153,6 +163,13 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
       return;
     }
 
+    // The agent service rejects a prompt while a run is in flight; check first
+    // so the user's text is kept instead of cleared under a false success toast.
+    if (!this.isSelectedAgentAvailable()) {
+      this.notificationService.warning("Agent is busy. Please wait for the current run to finish.");
+      return;
+    }
+
     const agentId = this.selectedAgentId;
     const operatorName = this.operatorDisplayName || this.getOperatorName() || "this operator";
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
@@ -172,116 +189,52 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     }
   }
 
+  public isSelectedAgentAvailable(): boolean {
+    if (!this.selectedAgentId) return false;
+    return this.agentService.getAgentStateSnapshot(this.selectedAgentId) === AgentState.AVAILABLE;
+  }
+
   public canSend(): boolean {
-    return !!this.selectedAgentId && !!this.feedbackMessage.trim();
+    return !!this.selectedAgentId && !!this.feedbackMessage.trim() && this.isSelectedAgentAvailable();
   }
 
-  /**
-   * Check if sample records represent a visualization (has __is_visualization__ flag).
-   */
   public isVisualization(): boolean {
-    if (!this.sampleRecords || this.sampleRecords.length === 0) return false;
-    return this.sampleRecords[0]["__is_visualization__"] === true;
+    return this.resultMode?.type === "SetSnapshotMode";
   }
 
   /**
-   * Get the cached sanitized HTML content from a visualization record for iframe srcdoc.
+   * Get the cached sanitized HTML content from a visualization tuple for iframe srcdoc.
    */
   public getVisualizationHtml(): SafeHtml {
     return this.cachedVisualizationHtml || this.sanitizer.bypassSecurityTrustHtml("");
   }
 
   /**
-   * Get column names from sample records, placing __row_index__ first (displayed as "Row").
+   * Get visible column names from the first sample tuple.
    */
   public getSampleColumns(): string[] {
-    if (!this.sampleRecords || this.sampleRecords.length === 0) return [];
-    const allKeys = Object.keys(this.sampleRecords[0]);
-    const rowIndexKey = allKeys.find(k => k.startsWith("_") && k.includes("row_index"));
-    const otherKeys = allKeys.filter(k => k !== rowIndexKey);
-    return rowIndexKey ? [rowIndexKey, ...otherKeys] : otherKeys;
+    if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
+    return tupleColumns(this.sampleTuples[0][1]);
   }
 
   /**
-   * Get display name for a column header.
+   * Build the operator-result preview while marking gaps between sampled tuples.
    */
-  public getColumnDisplayName(col: string): string {
-    if (col.startsWith("_") && col.includes("row_index")) return "Row";
-    return col;
-  }
+  public getDisplayTuples(): ReadonlyArray<TupleDisplayEntry> {
+    if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
 
-  /**
-   * Parse resultStatistics into displayable column stats.
-   * Each entry in resultStatistics is a JSON string with { data_type, statistics: { ... } }.
-   */
-  public getParsedColumnStats(): Array<{
-    column: string;
-    dataType: string;
-    stats: Array<{ key: string; value: string }>;
-  }> {
-    if (!this.resultStatistics) return [];
-    const sampleCols = this.getSampleColumns().filter(c => !c.startsWith("_") || !c.includes("row_index"));
-    const columns = sampleCols.length > 0 ? sampleCols : Object.keys(this.resultStatistics);
-    const result: Array<{ column: string; dataType: string; stats: Array<{ key: string; value: string }> }> = [];
-    const excludedKeys = new Set(["count", "std", "p25", "median", "p75"]);
-
-    for (const colName of columns) {
-      const statsJson = this.resultStatistics[colName];
-      if (!statsJson) continue;
-      try {
-        const parsed = JSON.parse(statsJson);
-        const dataType: string = parsed.data_type ?? "unknown";
-        const statistics: Record<string, any> = parsed.statistics ?? {};
-        const statEntries: Array<{ key: string; value: string }> = [];
-
-        for (const [key, value] of Object.entries(statistics)) {
-          if (value === undefined || excludedKeys.has(key)) continue;
-          if (key === "top_10" && typeof value === "object") {
-            const topEntries = Object.entries(value as Record<string, any>)
-              .slice(0, 5)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(", ");
-            statEntries.push({ key: "top values", value: topEntries });
-          } else if (value === null || String(value) === "null") {
-            statEntries.push({ key, value: "NaN" });
-          } else if (typeof value !== "object") {
-            const formatted =
-              typeof value === "number" && !Number.isInteger(value)
-                ? Number(value.toPrecision(4)).toString()
-                : String(value);
-            statEntries.push({ key, value: formatted });
-          }
-        }
-        result.push({ column: colName, dataType, stats: statEntries });
-      } catch {
-        // skip unparseable
-      }
-    }
-    return result;
-  }
-
-  public hasColumnStats(): boolean {
-    return this.getParsedColumnStats().length > 0;
-  }
-
-  public getDisplayRows(): Array<{ record?: Record<string, any>; isEllipsis: boolean }> {
-    if (!this.sampleRecords || this.sampleRecords.length === 0) return [];
-    const rowIndexKey = Object.keys(this.sampleRecords[0]).find(k => k.startsWith("_") && k.includes("row_index"));
-    if (!rowIndexKey) {
-      return this.sampleRecords.map(r => ({ record: r, isEllipsis: false }));
-    }
-
-    const rows: Array<{ record?: Record<string, any>; isEllipsis: boolean }> = [];
-    for (let i = 0; i < this.sampleRecords.length; i++) {
+    const entries: TupleDisplayEntry[] = [];
+    for (let i = 0; i < this.sampleTuples.length; i++) {
       if (i > 0) {
-        const prevIdx = this.sampleRecords[i - 1][rowIndexKey];
-        const currIdx = this.sampleRecords[i][rowIndexKey];
-        if (typeof prevIdx === "number" && typeof currIdx === "number" && currIdx - prevIdx > 1) {
-          rows.push({ isEllipsis: true });
+        const prevIdx = this.sampleTuples[i - 1][0];
+        const currIdx = this.sampleTuples[i][0];
+        if (currIdx - prevIdx > 1) {
+          entries.push({ isEllipsis: true });
         }
       }
-      rows.push({ record: this.sampleRecords[i], isEllipsis: false });
+      const [rowIndex, tuple] = this.sampleTuples[i];
+      entries.push({ rowIndex, tuple, isEllipsis: false });
     }
-    return rows;
+    return entries;
   }
 }

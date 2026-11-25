@@ -19,23 +19,23 @@
 
 package org.apache.texera.amber.operator.visualization.funnelPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-class FunnelPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class FunnelPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
@@ -56,14 +56,6 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonPropertyDescription("Column to categorically colorize funnel sections")
   @AutofillAttributeName
   var color: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -100,39 +92,27 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Chart is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val colorArg = if (color.nonEmpty) s""", color=${pyStringLiteral(color)}""" else ""
     val xLit = pyStringLiteral(x)
     val yLit = pyStringLiteral(y)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Chart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    fig = go.Figure(px.funnel(in1df, x=$xLit, y=$yLit$colorArg))
        |    fig.update_layout(
@@ -142,9 +122,7 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |        ),
        |        margin=dict(t=0, b=0, l=0, r=0)
        |    )
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Funnel plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Funnel plot", indent = 4)}""".stripMargin
   }
 
 }

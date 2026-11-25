@@ -47,7 +47,6 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
-  (cdkDragStarted)="handleDragStart()"
   [cdkDragFreeDragPosition]="dragPosition">
   <!-- Minimize Button -->
   <ul
@@ -73,10 +72,13 @@
       AI Agents
     </h4>
 
-    <!-- Tabs -->
+    <!-- Tabs. Not animated: an animated pane is hidden only once its fade-out transition ends,
+         and none ends while this panel is docked ([hidden] above). The panes of the agents
+         loaded meanwhile would stay, invisible, over the registration tab and take its clicks. -->
     <nz-tabs
       [nzSelectedIndex]="selectedTabIndex"
       (nzSelectedIndexChange)="onTabSelectChange($event)"
+      [nzAnimated]="false"
       class="agent-tabs"
       nzType="card">
       <ng-template nzTabBarExtraContent="end">
@@ -98,17 +100,16 @@
       <nz-tab
         *ngFor="let agent of agents; let i = index"
         [nzTitle]="agentTabTitle"
-        [nzForceRender]="true"
-        [nzDisabled]="!canSwitchToAgent(agent)">
+        [nzForceRender]="true">
         <ng-template
           #agentTabTitle
           let-active="active">
           <div
             class="agent-tab-title"
-            [class.workflow-mismatch]="!canSwitchToAgent(agent)">
+            [class.workflow-mismatch]="isOnAnotherWorkflow(agent)">
             <span class="agent-tab-name">{{ agent.name }}</span>
             <i
-              *ngIf="!canSwitchToAgent(agent)"
+              *ngIf="isOnAnotherWorkflow(agent)"
               nz-icon
               nzType="lock"
               nzTheme="outline"
@@ -132,8 +133,30 @@
         </ng-template>
         <ng-template nz-tab>
           <texera-agent-chat
+            *ngIf="!isOnAnotherWorkflow(agent); else onAnotherWorkflow"
             [agentInfo]="agent"
             [isActive]="activeAgentId === agent.id"></texera-agent-chat>
+          <!-- An agent that works on another workflow has no chat here: chatting with it would
+               load its workflow into this canvas. Its tab says where the chat is instead. Only
+               such an agent reaches this template, so its delegate is set. The link is a plain
+               one, so that the browser loads the page: the workspace reads the workflow's id
+               from its address only when it is created, and the router would keep the same
+               workspace for another workflow's address. -->
+          <ng-template #onAnotherWorkflow>
+            <div
+              *ngIf="agent.delegate!.workflowId as workflowId"
+              class="other-workflow-notice">
+              <p>
+                This agent is working on a different workflow: {{ agent.delegate!.workflowName || "#" + workflowId }}.
+              </p>
+              <a
+                nz-button
+                nzType="primary"
+                [href]="workspaceCanvasUrl(workflowId)">
+                Open that workflow
+              </a>
+            </div>
+          </ng-template>
         </ng-template>
       </nz-tab>
     </nz-tabs>

@@ -24,12 +24,17 @@ import com.typesafe.scalalogging.LazyLogging
 import io.opentelemetry.api.trace.StatusCode
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  DocumentNotFoundException,
+  ExecutionResultUris,
+  WarehouseReadGuard
+}
 import org.apache.texera.common.config.{ApplicationConfig, StorageConfig}
 import org.apache.texera.observability.{SpanAttrs, TexeraTracer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.amber.core.WorkflowRuntimeException
-import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.result.iceberg.OnIceberg
 import org.apache.texera.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity,
@@ -41,7 +46,6 @@ import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTIO
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
   FAILED
 }
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
@@ -61,13 +65,13 @@ import org.apache.texera.web.service.WorkflowService.mkWorkflowStateId
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import org.apache.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
-import org.apache.texera.common.compiler.model.LogicalPlan
 import play.api.libs.json.Json
 
 import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
+import scala.util.control.NonFatal
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -103,16 +107,17 @@ object WorkflowService {
       )
     }
     warehouseId.map(id => {
-      val row = SqlServer
+      val lakekeeperWarehouseName = SqlServer
         .getInstance()
         .createDSLContext()
-        .selectFrom(USER_WAREHOUSE)
+        .select(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME)
+        .from(USER_WAREHOUSE)
         .where(USER_WAREHOUSE.WHID.eq(id).and(USER_WAREHOUSE.UID.eq(uid)))
-        .fetchOne()
-      if (row == null) {
+        .fetchOne(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME)
+      if (lakekeeperWarehouseName == null) {
         throw new IllegalArgumentException(s"no warehouse with id $id owned by this user")
       }
-      row.getLakekeeperWarehouseName
+      lakekeeperWarehouseName
     })
   }
   val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs
@@ -172,22 +177,6 @@ class WorkflowService(
       unsubscribeAll()
     }
   )
-
-  var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
-
-  executionService.subscribe { executionService: WorkflowExecutionService =>
-    {
-      executionService.executionStateStore.metadataStore.registerDiffHandler {
-        (oldState, newState) =>
-          {
-            if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-              lastCompletedLogicalPlan = Option.apply(executionService.workflow.logicalPlan)
-            }
-            Iterable.empty
-          }
-      }
-    }
-  }
 
   def connect(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     lifeCycleManager.increaseUserCount()
@@ -316,7 +305,7 @@ class WorkflowService(
           val fromActorOpt = t match {
             case ex: WorkflowRuntimeException =>
               ex.relatedWorkerId
-            case other =>
+            case _ =>
               None
           }
           val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
@@ -357,6 +346,7 @@ class WorkflowService(
           req,
           executionStateStore,
           errorHandler,
+          uid,
           userEmailOpt,
           sessionUri
         )
@@ -419,7 +409,7 @@ class WorkflowService(
     */
   private def clearExecutionResources(eid: ExecutionIdentity): Unit = {
     // Retrieve URIs for all resources associated with this execution
-    val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(eid)
+    val resultUris = ExecutionResultUris.getResultUrisByExecutionId(eid)
     val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
 
     // Remove references from registry first
@@ -430,12 +420,7 @@ class WorkflowService(
     (resultUris ++ consoleMessagesUris).foreach { uri =>
       if (WarehouseReadGuard.skipWhileDisabled(uri)) {
         logger.info(s"skipping cleanup of $uri: per-user warehouses are disabled")
-      } else
-        try DocumentFactory.openDocument(uri)._1.clear()
-        catch {
-          case error: Throwable =>
-            logger.debug(s"Error processing document at $uri: ${error.getMessage}")
-        }
+      } else WorkflowExecutionsResource.clearDocument(uri)
     }
 
     // Expire any Iceberg snapshots for runtime statistics
@@ -453,8 +438,8 @@ class WorkflowService(
               )
           }
         } catch {
-          case error: Throwable =>
-            logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+          case _: DocumentNotFoundException =>
+          case NonFatal(e)                  => logger.warn(s"Could not expire the snapshots of $uri", e)
         }
     }
     // Delete this execution's large binaries

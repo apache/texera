@@ -22,12 +22,13 @@ package org.apache.texera.amber.operator.dictionary
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.state.NoLoopVariable
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{
   InputPort,
   OutputPort,
   PhysicalOp,
+  PortIdentity,
   SchemaPropagationFunc
 }
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
@@ -101,22 +102,26 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       supportReconfiguration = true
     )
 
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     // JVM splits the dictionary on "," and lowercases each entry — no trim,
     // so leading/trailing whitespace around a comma becomes part of the entry.
     val rawDict = Option(dictionary).getOrElse("")
-    val entries = rawDict.split(",").toList.map(_.toLowerCase)
+    val entries = rawDict.split(",").iterator.map(_.toLowerCase).toList
     val resultCol = Option(resultAttribute)
       .filter(_.trim.nonEmpty)
       .getOrElse("matched")
-    val attrPy = pyStringLiteral(Option(attribute).getOrElse(""))
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrPy = pyStringLiteral(
+      columnAsStored(Option(attribute).getOrElse(""), inputSchemas.values.headOption)
+    )
     val resultPy = pyStringLiteral(resultCol)
     val mt = Option(matchingType).getOrElse(MatchingType.SCANBASED)
 
-    val entriesLiteral = entries.map(pyStringLiteral).mkString("[", ", ", "]")
-
     mt match {
       case MatchingType.SCANBASED =>
+        val entriesLiteral = DictionaryMatcherOpDesc.renderEntries(entries)
         // Exact case-insensitive equality between the (lowercased) cell value
         // and any dictionary entry. Null or empty text never matches, matching
         // JVM behavior.
@@ -129,6 +134,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
            |)""".stripMargin
 
       case MatchingType.SUBSTRING =>
+        val entriesLiteral = DictionaryMatcherOpDesc.renderEntries(entries)
         // JVM checks dictionaryEntries.exists(entry => entry.contains(text)) —
         // the cell value (lowercased) is a substring of some dictionary entry,
         // NOT the other way around.
@@ -147,13 +153,14 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
         // effort reproduction: regex \w+ tokens, lowercase, drop the same stop
         // word lists, but NO stemming — morphological variants ("book" vs "books")
         // will diverge from JVM behavior.
-        val tokenSetsLiteral = entries
-          .map(tokenizeForConjunction)
-          .map(toks => toks.toList.sorted.map(pyStringLiteral).mkString("frozenset({", ", ", "})"))
+        val tokenSetsLiteral = entries.iterator
+          .map { entry =>
+            tokenizeForConjunction(entry).toList.sorted.iterator
+              .map(pyStringLiteral)
+              .mkString("frozenset({", ", ", "})")
+          }
           .mkString("[", ", ", "]")
-        val stopWordsLiteral = DictionaryMatcherOpDesc.STOP_WORDS.toList.sorted
-          .map(pyStringLiteral)
-          .mkString("frozenset({", ", ", "})")
+        val stopWordsLiteral = DictionaryMatcherOpDesc.StopWordsLiteral
         s"""import re as _texera_dm_re
            |_TEXERA_DM_STOPWORDS = $stopWordsLiteral
            |def _texera_dm_tokenize(text):
@@ -169,15 +176,22 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   }
 
   private def tokenizeForConjunction(text: String): Set[String] = {
-    val wordRe = "\\w+".r
-    wordRe
+    DictionaryMatcherOpDesc.WordRegex
       .findAllIn(text.toLowerCase)
-      .toSet
       .filterNot(DictionaryMatcherOpDesc.STOP_WORDS.contains)
+      .toSet
   }
 }
 
 private object DictionaryMatcherOpDesc {
+  private val WordRegex = "\\w+".r
+
+  private def renderEntries(entries: List[String]): String =
+    entries.iterator.map(pyStringLiteral).mkString("[", ", ", "]")
+
+  private lazy val StopWordsLiteral: String =
+    STOP_WORDS.toList.sorted.iterator.map(pyStringLiteral).mkString("frozenset({", ", ", "})")
+
   // Mirrors Lucene's EnglishAnalyzer.ENGLISH_STOP_WORDS_SET plus the URL stop
   // words filtered by DictionaryMatcherOpExec.
   val STOP_WORDS: Set[String] = Set(

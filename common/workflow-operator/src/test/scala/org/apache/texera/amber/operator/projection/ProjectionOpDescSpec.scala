@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val schema = new Schema(
     new Attribute("field1", AttributeType.STRING),
@@ -41,88 +42,57 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     projectionOpDesc = new ProjectionOpDesc()
   }
 
+  private def units(pairs: (String, String)*): List[AttributeUnit] =
+    pairs.map { case (orig, alias) => new AttributeUnit(orig, alias) }.toList
+
+  private def deriveSchema(isDrop: Boolean = false)(pairs: (String, String)*): Schema = {
+    projectionOpDesc.isDrop = isDrop
+    projectionOpDesc.attributes ++= units(pairs: _*)
+    projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+  }
+
   it should "take in attribute names" in {
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field1", "f1"),
-      new AttributeUnit("fields2", "f2")
-    )
-
+    projectionOpDesc.attributes ++= units("field1" -> "f1", "fields2" -> "f2")
     assert(projectionOpDesc.attributes.length == 2)
-
   }
 
   it should "filter schema correctly" in {
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field1", "f1"),
-      new AttributeUnit("field2", "f2")
-    )
-    val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    val outputSchema = deriveSchema()("field1" -> "f1", "field2" -> "f2")
     assert(outputSchema.getAttributes.length == 2)
-
   }
 
   it should "reorder schema" in {
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field2", "f2"),
-      new AttributeUnit("field1", "f1")
-    )
-    val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    val outputSchema = deriveSchema()("field2" -> "f2", "field1" -> "f1")
     assert(outputSchema.getAttributes.length == 2)
     assert(outputSchema.getIndex("f2") == 0)
     assert(outputSchema.getIndex("f1") == 1)
-
   }
 
   it should "raise RuntimeException on non-existing fields" in {
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field---5", "f5"),
-      new AttributeUnit("field---6", "f6")
-    )
     assertThrows[RuntimeException] {
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+      deriveSchema()("field---5" -> "f5", "field---6" -> "f6")
     }
-
   }
 
   it should "raise IllegalArgumentException on empty attributes" in {
-
     assertThrows[IllegalArgumentException] {
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+      deriveSchema()()
     }
-
   }
 
   it should "raise RuntimeException on duplicate alias" in {
-
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field2", "f"),
-      new AttributeUnit("field1", "f")
-    )
     assertThrows[RuntimeException] {
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+      deriveSchema()("field2" -> "f", "field1" -> "f")
     }
   }
 
   it should "allow alias to be optional" in {
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field1", "f1"),
-      new AttributeUnit("field2", "")
-    )
-    val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    val outputSchema = deriveSchema()("field1" -> "f1", "field2" -> "")
     assert(outputSchema.getAttributes.length == 2)
-
   }
 
   it should "derive the drop-mode schema with original names, types and order" in {
-    projectionOpDesc.isDrop = true
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field2", "")
-    )
-    val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    val outputSchema = deriveSchema(isDrop = true)("field2" -> "")
     assert(outputSchema.getAttributes.length == 2)
     assert(outputSchema.getIndex("field1") == 0)
     assert(outputSchema.getIndex("field3") == 1)
@@ -131,47 +101,27 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "ignore aliases when deriving the drop-mode schema" in {
-    projectionOpDesc.isDrop = true
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field1", "renamed")
-    )
-    val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    val outputSchema = deriveSchema(isDrop = true)("field1" -> "renamed")
     assert(outputSchema.getAttributeNames == List("field2", "field3"))
   }
 
   it should "raise IllegalArgumentException when dropping a non-existent attribute" in {
     // Unlike the exec, which silently ignores unknown names,
     // Schema.remove rejects them at schema-derivation time.
-    projectionOpDesc.isDrop = true
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field---5", "f5")
-    )
     assertThrows[IllegalArgumentException] {
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+      deriveSchema(isDrop = true)("field---5" -> "f5")
     }
   }
 
   it should "derive an empty schema when dropping every attribute" in {
-    projectionOpDesc.isDrop = true
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field1", ""),
-      new AttributeUnit("field2", ""),
-      new AttributeUnit("field3", "")
-    )
     val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+      deriveSchema(isDrop = true)("field1" -> "", "field2" -> "", "field3" -> "")
     assert(outputSchema.getAttributes.isEmpty)
   }
 
   it should "match drop names case-insensitively when deriving the schema" in {
     // Schema.remove lowercases both sides, matching the exec's behavior.
-    projectionOpDesc.isDrop = true
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("FIELD2", "")
-    )
-    val outputSchema =
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+    val outputSchema = deriveSchema(isDrop = true)("FIELD2" -> "")
     assert(outputSchema.getAttributeNames == List("field1", "field3"))
   }
 
@@ -179,13 +129,8 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     // The exec tolerates duplicates; the schema derivation folds
     // Schema.remove one entry at a time, so the second removal of the same name
     // rejects a now non-existent attribute.
-    projectionOpDesc.isDrop = true
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field2", ""),
-      new AttributeUnit("field2", "")
-    )
     assertThrows[IllegalArgumentException] {
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
+      deriveSchema(isDrop = true)("field2" -> "", "field2" -> "")
     }
   }
 
@@ -220,13 +165,50 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // in the order the user put them in.
   "ProjectionOpDesc.generateStandaloneCode" should "select or drop the named columns" in {
     val keep = new ProjectionOpDesc
-    keep.attributes = List(new AttributeUnit("a", ""), new AttributeUnit("b", ""))
+    keep.attributes = units("a" -> "", "b" -> "")
     assert(keep.generateStandaloneCode().contains("""in1df[["a", "b"]]"""))
 
     val drop = new ProjectionOpDesc
-    drop.attributes = List(new AttributeUnit("a", ""))
+    drop.attributes = units("a" -> "")
     drop.isDrop = true
     assert(drop.generateStandaloneCode() == """out1df = in1df.drop(columns=["a"])""")
+  }
+
+  // The engine reads `FIELD1` from a column `field1`, since Schema ignores case, and
+  // names the kept column as the setting writes it. pandas would raise a KeyError on
+  // `FIELD1`, so the script reads the column as the table spells it.
+  it should "read a column named in a different case from the table" in {
+    val inputSchemas = Map(PortIdentity() -> schema)
+
+    val keep = new ProjectionOpDesc
+    keep.attributes = units("FIELD1" -> "", "Field2" -> "f2")
+    assert(
+      keep.generateStandaloneCode(inputSchemas) ==
+        """out1df = in1df[["field1", "field2"]].set_axis(["FIELD1", "f2"], axis=1)"""
+    )
+
+    val drop = new ProjectionOpDesc
+    drop.attributes = units("FIELD1" -> "")
+    drop.isDrop = true
+    assert(
+      drop.generateStandaloneCode(inputSchemas) == """out1df = in1df.drop(columns=["field1"])"""
+    )
+  }
+
+  // `field1` as `first` and `FIELD1` as `second` read the same column. The engine
+  // keeps both, in order; a rename map keyed by `field1` would keep only `second`,
+  // twice. So the script names the output columns by position.
+  it should "keep both aliases of one column read twice" in {
+    val keep = new ProjectionOpDesc
+    keep.attributes = units("field1" -> "first", "FIELD1" -> "second")
+    assert(
+      keep.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head.getAttributeNames ==
+        List("first", "second")
+    )
+    assert(
+      keep.generateStandaloneCode(Map(PortIdentity() -> schema)) ==
+        """out1df = in1df[["field1", "field1"]].set_axis(["first", "second"], axis=1)"""
+    )
   }
 
   // Schema propagation and the executor both refuse an empty selection, so the
@@ -237,5 +219,4 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(code.startsWith("raise ValueError("))
     assert(code.contains("Please select at least one attribute to project."))
   }
-
 }

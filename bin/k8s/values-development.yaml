@@ -81,7 +81,7 @@ rustfs:
   image:
     rustfs:
       repository: rustfs/rustfs
-      tag: 1.0.0-rc.6
+      tag: 1.0.0
   resources:
     requests:
       memory: "256Mi"
@@ -253,7 +253,7 @@ agentService:
 litellm:
   enabled: true
   name: litellm
-  image: litellm/litellm:main-stable
+  image: ghcr.io/berriai/litellm:v1.83.10-stable
   numOfPods: 1
   service:
     type: ClusterIP
@@ -398,6 +398,8 @@ texeraEnvVars:
     value: "true"
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
+  # Only the starting value of Admin > Settings > Invite Only, stored when config-service first
+  # starts; after that the settings page owns it, and its Reset restores this value.
   - name: USER_SYS_INVITE_ONLY
     value: "true"
   # On by default; set to "false" to accept addresses unproven. This must agree with the

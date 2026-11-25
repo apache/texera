@@ -77,6 +77,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { CompilationState } from "../../types/workflow-compiling.interface";
+import JSZip from "jszip";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -160,6 +161,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
   public showHeatmap: boolean = false;
+  public showResultPreview: boolean = true;
   public heatmapView: HeatmapView = HeatmapView.Runtime;
   public HeatmapView = HeatmapView; // make Angular HTML access enum definition
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
@@ -243,6 +245,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     this.restorePersistedHeatmapOverlay();
+    this.showResultPreview = this.workflowActionService.getJointGraphWrapper().isResultPreviewEnabled();
     // The export flags are reset when a menu is destroyed, which is right when the workspace is
     // left and wrong when a workflow's two views hand over and the results are kept. Recompute
     // from what is in hand, so a menu arriving on retained results does not offer a dead button.
@@ -351,6 +354,10 @@ export class MenuComponent implements OnInit, OnDestroy {
     const width = Math.min(tempSpan.offsetWidth + 20, 800); // +20 for padding
     input.style.width = `${width}px`;
     document.body.removeChild(tempSpan);
+  }
+
+  toggleResultPreview() {
+    this.workflowActionService.getJointGraphWrapper().setResultPreviewEnabled(this.showResultPreview);
   }
 
   toggleNumWorkers() {
@@ -750,6 +757,8 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public isTranslatingToPython = false;
   public pythonCodeForModal = "";
+  public pythonHelpersModuleForModal?: string;
+  public pythonRenamedSourcesForModal: { from: string; to: string }[] = [];
 
   public onClickExportAsPython(): void {
     // Exporting the valid part of the graph answers a workflow with a required
@@ -773,6 +782,8 @@ export class MenuComponent implements OnInit, OnDestroy {
           this.isTranslatingToPython = false;
           if (response.type === "success") {
             this.pythonCodeForModal = response.pythonCode ?? "";
+            this.pythonHelpersModuleForModal = response.helpersModule;
+            this.pythonRenamedSourcesForModal = response.renamedSources ?? [];
             this.modalService.create({
               nzTitle: "Workflow as Python Script",
               nzContent: this.workflowPythonScriptModal ?? "",
@@ -797,10 +808,33 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     try {
       await navigator.clipboard.writeText(this.pythonCodeForModal);
-      this.notificationService.success("Python script copied to clipboard");
+      // The copied script imports its helpers, so it does not run without the module.
+      this.notificationService.success(
+        this.pythonHelpersModuleForModal
+          ? "Python script copied to clipboard. It needs the texera_helpers.py in the zip download next to it."
+          : "Python script copied to clipboard"
+      );
     } catch (error) {
       this.notificationService.error("Failed to copy Python script");
     }
+  }
+
+  /**
+   * The script as a zip, with the `texera_helpers.py` it imports beside it: Python finds a
+   * module in the script's own directory, so the unzipped folder runs with nothing installed.
+   * WorkflowToPythonTranslator keeps sources off both file names, since they unzip beside them.
+   */
+  public async downloadPythonZip(): Promise<void> {
+    if (!this.pythonCodeForModal) {
+      return;
+    }
+    const zip = new JSZip();
+    zip.file("script.py", this.pythonCodeForModal);
+    if (this.pythonHelpersModuleForModal) {
+      zip.file("texera_helpers.py", this.pythonHelpersModuleForModal);
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    this.fileSaverService.saveAs(blob, `${this.currentWorkflowName || "workflow"}.zip`);
   }
 
   public onClickExportWorkflow(): void {

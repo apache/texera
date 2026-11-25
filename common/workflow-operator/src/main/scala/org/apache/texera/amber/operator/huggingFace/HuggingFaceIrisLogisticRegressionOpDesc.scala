@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireNonEmpty,
+  requireNumericInputColumn
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
@@ -137,6 +141,7 @@ class HuggingFaceIrisLogisticRegressionOpDesc
   override def generateStandaloneCode(): String = {
     val lengthLit = pyStringLiteral(petalLengthCmAttribute)
     val widthLit = pyStringLiteral(petalWidthCmAttribute)
+    // The operator's guard: pd.isna answers for a JSON frame's NaN and a Tuple's None.
     s"""import numpy as np
        |import torch
        |import torch.nn as nn
@@ -159,8 +164,6 @@ class HuggingFaceIrisLogisticRegressionOpDesc
        |_classes = []
        |_probs = []
        |for _length, _width in zip(out1df[$lengthLit], out1df[$widthLit]):
-       |    # The operator's guard: pandas answers for the NaN a frame read from
-       |    # JSON holds and for the None a Tuple hands over.
        |    if pd.isna(_length) or pd.isna(_width):
        |        _classes.append(None)
        |        _probs.append(None)
@@ -190,13 +193,13 @@ class HuggingFaceIrisLogisticRegressionOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (
-      predictionClassName == null || predictionClassName.trim.isEmpty ||
-      predictionProbabilityName == null || predictionProbabilityName.trim.isEmpty
-    )
-      throw new RuntimeException("Result attribute name should not be empty")
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireNumericInputColumn(inputSchema, "Petal Length Cm Attribute", petalLengthCmAttribute)
+    requireNumericInputColumn(inputSchema, "Petal Width Cm Attribute", petalWidthCmAttribute)
+    requireNonEmpty("Prediction class name", predictionClassName)
+    requireNonEmpty("Prediction probability name", predictionProbabilityName)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(predictionClassName, AttributeType.STRING)
         .add(predictionProbabilityName, AttributeType.DOUBLE)
     )

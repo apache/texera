@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireInputColumn,
+  requireNonEmpty
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
@@ -100,6 +104,7 @@ class HuggingFaceSpamSMSDetectionOpDesc
     val attributeLit = pyStringLiteral(attribute)
     val spamLit = pyStringLiteral(resultAttributeSpam)
     val probabilityLit = pyStringLiteral(resultAttributeProbability)
+    // An empty cell, which the pipeline rejects, keeps its row with the results left empty.
     s"""from transformers import pipeline
        |import pandas as pd
        |
@@ -107,10 +112,6 @@ class HuggingFaceSpamSMSDetectionOpDesc
        |out1df = in1df.copy()
        |
        |def _classify(_t):
-       |    # An empty cell reaches the frame as None, or as NaN once a column holds
-       |    # nothing else, and the pipeline rejects both. Keep the row and leave the
-       |    # results empty rather than ending the run over a value the model has
-       |    # nothing to say about.
        |    if pd.isna(_t) or (isinstance(_t, str) and not _t.strip()):
        |        return None
        |    return _pipeline(_t)[0]
@@ -132,13 +133,12 @@ class HuggingFaceSpamSMSDetectionOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (
-      resultAttributeSpam == null || resultAttributeSpam.trim.isEmpty ||
-      resultAttributeProbability == null || resultAttributeProbability.trim.isEmpty
-    )
-      return null
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireInputColumn(inputSchema, "Attribute", attribute)
+    requireNonEmpty("Spam result attribute", resultAttributeSpam)
+    requireNonEmpty("Score result attribute", resultAttributeProbability)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttributeSpam, AttributeType.BOOLEAN)
         .add(resultAttributeProbability, AttributeType.DOUBLE)
     )

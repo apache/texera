@@ -49,6 +49,24 @@ object StorageConfig {
   val icebergPostgresCatalogPassword: String =
     conf.getString("storage.iceberg.catalog.postgres.password")
 
+  // Iceberg catalog cache specifics
+  // 0 would make the cache build a catalog on every call and leave it open (Guava evicts it at
+  // once by size, which the cache does not close), and a negative value would fail only at the
+  // first catalog access. Fail fast at load time instead, naming the variable to fix.
+  private[config] def requireAtLeastOne(value: Int, envVar: String): Int = {
+    require(value >= 1, s"$envVar must be at least 1, got $value")
+    value
+  }
+
+  val icebergCatalogCacheMaxSize: Int = requireAtLeastOne(
+    conf.getInt("storage.iceberg.catalog.cache.max-size"),
+    "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE"
+  )
+  val icebergCatalogCacheIdleExpiryMinutes: Int = requireAtLeastOne(
+    conf.getInt("storage.iceberg.catalog.cache.idle-expiry-minutes"),
+    "STORAGE_ICEBERG_CATALOG_CACHE_IDLE_EXPIRY_MINUTES"
+  )
+
   // Iceberg Table specifics
   val icebergTableResultNamespace: String = conf.getString("storage.iceberg.table.result-namespace")
   val icebergTableConsoleMessagesNamespace: String =
@@ -119,26 +137,6 @@ object StorageConfig {
     "STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME"
   val ENV_ICEBERG_CATALOG_POSTGRES_USERNAME = "STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME"
   val ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD = "STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD"
-
-  // Iceberg Table
-  val ENV_ICEBERG_TABLE_RESULT_NAMESPACE = "STORAGE_ICEBERG_TABLE_RESULT_NAMESPACE"
-  val ENV_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE =
-    "STORAGE_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE"
-  val ENV_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE =
-    "STORAGE_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE"
-  val ENV_ICEBERG_TABLE_STATE_NAMESPACE = "STORAGE_ICEBERG_TABLE_STATE_NAMESPACE"
-  val ENV_ICEBERG_TABLE_COMMIT_BATCH_SIZE = "STORAGE_ICEBERG_TABLE_COMMIT_BATCH_SIZE"
-  val ENV_ICEBERG_TABLE_COMMIT_NUM_RETRIES = "STORAGE_ICEBERG_TABLE_COMMIT_NUM_RETRIES"
-  val ENV_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS"
-  val ENV_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS"
-
-  // LakeFS
-  val ENV_LAKEFS_ENDPOINT = "STORAGE_LAKEFS_ENDPOINT"
-  val ENV_LAKEFS_AUTH_API_SECRET = "STORAGE_LAKEFS_AUTH_API_SECRET"
-  val ENV_LAKEFS_AUTH_USERNAME = "STORAGE_LAKEFS_AUTH_USERNAME"
-  val ENV_LAKEFS_AUTH_PASSWORD = "STORAGE_LAKEFS_AUTH_PASSWORD"
-  val ENV_LAKEFS_BLOCK_STORAGE_TYPE = "STORAGE_LAKEFS_BLOCK_STORAGE_TYPE"
-  val ENV_LAKEFS_BLOCK_STORAGE_BUCKET_NAME = "STORAGE_LAKEFS_BLOCK_STORAGE_BUCKET_NAME"
 
   // Staged file cleanup
   val ENV_CLEANUP_ENABLED = "STORAGE_CLEANUP_ENABLED"

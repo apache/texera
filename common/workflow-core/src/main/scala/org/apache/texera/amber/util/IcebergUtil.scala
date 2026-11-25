@@ -43,12 +43,16 @@ import org.apache.iceberg.{
   Schema => IcebergSchema
 }
 import org.apache.iceberg.catalog.Namespace
-import org.apache.iceberg.exceptions.AlreadyExistsException
+import org.apache.iceberg.exceptions.{
+  AlreadyExistsException,
+  NoSuchNamespaceException,
+  NoSuchTableException
+}
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
-import java.time.{LocalDateTime, ZoneId}
+import java.time.LocalDateTime
 import scala.jdk.CollectionConverters._
 
 /**
@@ -230,7 +234,10 @@ object IcebergUtil {
   /**
     * Loads metadata for an existing Iceberg table.
     * - Returns `Some(Table)` if the table exists and is successfully loaded.
-    * - Returns `None` if the table does not exist or cannot be loaded.
+    * - Returns `None` if the table, or its namespace, does not exist.
+    *
+    * Any other failure is thrown, such as a catalog that cannot be reached. Taken for a missing
+    * table, it would make a result that exists look deleted, or a table read as empty.
     *
     * @param catalog the Iceberg catalog to load the table from.
     * @param tableNamespace the namespace of the table.
@@ -246,7 +253,7 @@ object IcebergUtil {
     try {
       Some(catalog.loadTable(identifier))
     } catch {
-      case _: Exception => None
+      case _: NoSuchTableException | _: NoSuchNamespaceException => None
     }
   }
 
@@ -302,9 +309,13 @@ object IcebergUtil {
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val fieldName = encodeLargeBinaryFieldName(attribute.getName, attribute.getType)
+        // A Timestamp is stored as the wall clock it holds, which `Timestamp.valueOf`
+        // in fromRecord hands back. Going through an instant moved a date before
+        // 1883: a Timestamp gives it the zone's standard offset and java.time the
+        // zone's local mean time.
         val value = tuple.getField[AnyRef](index) match {
           case null                        => null
-          case ts: Timestamp               => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case ts: Timestamp               => ts.toLocalDateTime
           case bytes: Array[Byte]          => ByteBuffer.wrap(bytes)
           case largeBinaryPtr: LargeBinary => largeBinaryPtr.getUri
           case other                       => other

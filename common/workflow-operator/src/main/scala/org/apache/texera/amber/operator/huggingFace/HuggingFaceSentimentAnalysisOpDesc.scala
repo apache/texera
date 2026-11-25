@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireInputColumn,
+  requireNonEmpty
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
@@ -121,6 +125,7 @@ class HuggingFaceSentimentAnalysisOpDesc
     val positiveLit = pyStringLiteral(resultAttributePositive)
     val neutralLit = pyStringLiteral(resultAttributeNeutral)
     val negativeLit = pyStringLiteral(resultAttributeNegative)
+    // An empty cell, which the tokenizer rejects, keeps its row with the scores left empty.
     s"""from transformers import AutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
@@ -137,10 +142,6 @@ class HuggingFaceSentimentAnalysisOpDesc
        |for _col in ($positiveLit, $neutralLit, $negativeLit):
        |    out1df[_col] = 0.0
        |for _idx, _text in out1df[${pyStringLiteral(attribute)}].items():
-       |    # An empty cell reaches the frame as None, or as NaN once a column holds
-       |    # nothing else, and the tokenizer rejects both. Keep the row and leave the
-       |    # scores empty rather than ending the run over a value the model has
-       |    # nothing to say about.
        |    if pd.isna(_text) or (isinstance(_text, str) and not _text.strip()):
        |        for _col in ($positiveLit, $neutralLit, $negativeLit):
        |            out1df.at[_idx, _col] = None
@@ -167,14 +168,13 @@ class HuggingFaceSentimentAnalysisOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (
-      resultAttributePositive == null || resultAttributePositive.trim.isEmpty ||
-      resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty ||
-      resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty
-    )
-      return null
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireInputColumn(inputSchema, "Attribute", attribute)
+    requireNonEmpty("Positive result attribute", resultAttributePositive)
+    requireNonEmpty("Neutral result attribute", resultAttributeNeutral)
+    requireNonEmpty("Negative result attribute", resultAttributeNegative)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttributePositive, AttributeType.DOUBLE)
         .add(resultAttributeNeutral, AttributeType.DOUBLE)
         .add(resultAttributeNegative, AttributeType.DOUBLE)

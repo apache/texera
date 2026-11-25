@@ -36,6 +36,13 @@ import org.apache.iceberg.{Schema => IcebergSchema}
 
 import java.net.URI
 
+/**
+  * Signals that a URI addresses a document with no storage behind it, as one whose table was
+  * deleted. A distinct type so callers can tell it from a document that could not be opened. It
+  * is an `IllegalArgumentException` because `openDocument` has always thrown one here.
+  */
+class DocumentNotFoundException(message: String) extends IllegalArgumentException(message)
+
 object DocumentFactory {
 
   val ICEBERG = "iceberg"
@@ -196,7 +203,7 @@ object DocumentFactory {
             storageKey
           )
           .getOrElse(
-            throw new IllegalArgumentException("No storage is found for the given URI")
+            throw new DocumentNotFoundException("No storage is found for the given URI")
           )
 
         val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())

@@ -34,13 +34,19 @@ The directory contains:
 == Container Images ==
 
 Container images are available at:
-  ${IMAGE_REGISTRY}/texera-dashboard-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-workflow-execution-coordinator:${VERSION}
-  ${IMAGE_REGISTRY}/texera-workflow-compiling-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-file-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-config-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-access-control-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-workflow-computing-unit-managing-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-dashboard-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-workflow-execution-coordinator:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-workflow-execution-runner:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-workflow-compiling-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-file-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-config-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-access-control-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-workflow-computing-unit-managing-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-agent-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-notebook-migration-service:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-jupyter:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-mounter:${IMAGE_TAG}
+  ${IMAGE_REGISTRY}/texera-result-service:${IMAGE_TAG}
 
 These images are built from the source tarball included in this release.
 The Dockerfiles are included in the source for audit and verification.
@@ -49,6 +55,16 @@ The Dockerfiles are included in the source for audit and verification.
 
 https://github.com/apache/texera/releases/tag/${TAG_NAME}
 Commit: ${COMMIT_HASH}
+
+== Reproducing the Artifacts ==
+
+Both tarballs are reproducible. To rebuild them from the tag (needs GNU tar)
+and compare against the staged checksums:
+
+  git clone https://github.com/apache/texera.git && cd texera
+  git checkout ${TAG_NAME}
+  ./.github/scripts/create-release-tarballs.sh ${TAG_NAME} ${VERSION} ${IMAGE_REGISTRY} ${IMAGE_TAG} /tmp/texera-rc
+  sha512sum /tmp/texera-rc/*.tar.gz
 
 == Keys ==
 
@@ -70,6 +86,7 @@ The vote will be open for at least 72 hours.
 [ ] All files have ASF license headers where appropriate
 [ ] No unexpected binary files
 [ ] Source tarball matches the Git tag
+[ ] Rebuilt tarballs match the staged SHA512 checksums
 [ ] Can compile from source successfully
 [ ] Docker Compose bundle deploys successfully with the published images
 

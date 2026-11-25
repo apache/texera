@@ -21,7 +21,6 @@ package org.apache.texera.observability
 
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Tracer
-import io.opentelemetry.context.Context
 
 /**
   * Accessor for the Texera OTel tracer.
@@ -50,12 +49,4 @@ object TexeraTracer {
   private val InstrumentationScope = "org.apache.texera"
 
   def tracer: Tracer = GlobalOpenTelemetry.getTracer(InstrumentationScope)
-
-  /**
-    * Snapshot the current OTel ``Context`` so async callbacks can
-    * re-attach it via ``Context.makeCurrent`` later. Useful at the
-    * Scala to Python boundary where the calling thread is not the
-    * receiving thread.
-    */
-  def currentContext: Context = Context.current()
 }

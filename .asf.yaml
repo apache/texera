@@ -83,6 +83,11 @@ github:
             - "refs/heads/release/v1.1"
             - "refs/heads/release/v1.2"
             - "refs/heads/release/v1.3"
+      #only PMC may bypass merge queue, for emergencies and when runners are starved
+      bypass_actors:
+        - {actor_type: Team, bypass_mode: always, actor_id: 118420}            # ASF Infra
+        - {actor_type: User, bypass_mode: pull_request, actor_id: 4305971}     # imaxon
+        - {actor_type: User, bypass_mode: pull_request, actor_id: 11544314}    # linxinyuan
       rules:
         - type: deletion
         - type: non_fast_forward

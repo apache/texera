@@ -103,6 +103,83 @@ append the uid to it, so a bare value would render "http://<origin>jupyter/7". *
 {{- printf "/%s" (trimAll "/" .Values.jupyterPool.basePath) -}}
 {{- end -}}
 
+{{/* Start a release-scoped Deployment; the caller supplies the pod spec. */}}
+{{- define "texera.deploymentHeader" -}}
+{{- $app := printf "%s-" .release.Name -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $app }}{{ .name }}
+  namespace: {{ .release.Namespace }}
+  labels:
+    app: {{ $app }}{{ .name }}
+spec:
+  replicas: {{ .replicas }}
+  {{- if .recreate }}
+  # Single writer bound to one RWO volume; never run two at once.
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ $app }}{{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $app }}{{ .name }}
+{{- end -}}
+
+{{- define "texera.observability.containerSecurityContext" -}}
+securityContext:
+  {{- if . }}
+  readOnlyRootFilesystem: true
+  {{- end }}
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+{{- end -}}
+
+{{- define "texera.observability.service" -}}
+{{- $app := printf "%s-%s" .release.Name .app -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $app }}
+  namespace: {{ .release.Namespace }}
+  labels:
+    app: {{ $app }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $app }}
+  ports:
+    {{- range .ports }}
+    - name: {{ .name }}
+      protocol: TCP
+      port: {{ .port }}
+      targetPort: {{ .port }}
+    {{- end }}
+{{- end -}}
+
+{{- define "texera.observability.dataClaim" -}}
+{{- $app := printf "%s-%s" .release.Name .app -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $app }}-data
+  namespace: {{ .release.Namespace }}
+  labels:
+    app: {{ $app }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .storage.storageClass }}
+  storageClassName: {{ .storage.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .storage.storage }}
+{{- end -}}
+
 {{/* Grafana datasource provisioning body. Kept as a helper so the Deployment's
 checksum/config annotation can hash just this content; hashing the template that
 holds the annotation would make it reference itself and recurse. */}}
@@ -181,3 +258,88 @@ compactor:
   retention_enabled: true
   delete_request_store: filesystem
 {{- end -}}
+{{- define "texera.releaseService" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}-svc
+  namespace: {{ .release.Namespace }}
+spec:
+  type: {{ .serviceType }}
+  selector:
+    app: {{ .release.Name }}-{{ .name }}
+  ports:
+    {{- if .portName }}
+    - name: {{ .portName }}
+      protocol: TCP
+    {{- else }}
+    - protocol: TCP
+    {{- end }}
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      {{- if .useNodePort }}
+      # if service type is set to NodePort, include nodePort attribute
+      {{- if eq .serviceType "NodePort" }}
+      nodePort: {{ .nodePort }}
+      {{- end }}
+      {{- end }}
+{{- end -}}
+
+{{- define "texera.localPersistence" -}}
+{{- $hostBasePath := .hostBasePath }}
+{{- $name := .name }}
+{{- $persistence := .persistence }}
+{{- $volumeName := printf "%s-data-pv" $name }}
+{{- $claimName := printf "%s-data-pvc" $name }}
+{{- $storageClass := $persistence.storageClass | default "local-path" }}
+{{- $size := $persistence.size | default .defaultSize }}
+{{- $hostPath := printf "%s/%s/%s" $hostBasePath $.root.Release.Name $name }}
+
+{{/* Only create PV for local-path storage class */}}
+{{- if and (eq $storageClass "local-path") (ne $hostBasePath "") }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $volumeName }}
+  {{- if not $.root.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    type: local
+    app: {{ $.root.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  capacity:
+    storage: {{ $size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ $hostPath }}
+---
+{{- end }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $claimName }}
+  namespace: {{ $.root.Release.Namespace }}
+  {{- if not $.root.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app: {{ $.root.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ $size }}
+  {{- if and (eq $storageClass "local-path") (ne $hostBasePath "") }}
+  volumeName: {{ $volumeName }}
+  {{- end }}
+{{- end }}

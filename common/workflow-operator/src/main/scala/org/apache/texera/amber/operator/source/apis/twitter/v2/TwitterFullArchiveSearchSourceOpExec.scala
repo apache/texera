@@ -19,12 +19,9 @@
 
 package org.apache.texera.amber.operator.source.apis.twitter.v2
 
-import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.operator.source.apis.twitter.TwitterSourceOpExec
 
 @deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 class TwitterFullArchiveSearchSourceOpExec(
     descString: String
-) extends TwitterSourceOpExec(descString) {
-  override def produceTuple(): Iterator[TupleLike] = Iterator.empty
-}
+) extends TwitterSourceOpExec(descString)

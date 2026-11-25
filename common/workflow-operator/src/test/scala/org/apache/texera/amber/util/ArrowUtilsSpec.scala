@@ -21,15 +21,16 @@ package org.apache.texera.amber.util
 
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, IntervalUnit, TimeUnit}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import java.util
 import scala.jdk.CollectionConverters.IterableHasAsJava
+import scala.util.Using
 class ArrowUtilsSpec extends AnyFlatSpec {
 
   val unsignedShortInt = new ArrowType.Int(16, false)
@@ -42,7 +43,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   val float = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)
   val double = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
   val half = new ArrowType.FloatingPoint(FloatingPointPrecision.HALF)
-  val timestamp = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
+  val timestamp = new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
   val string: ArrowType.Utf8 = ArrowType.Utf8.INSTANCE
 
   val texeraSchema: Schema = Schema()
@@ -65,15 +66,32 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       ).toList.asJava
     )
 
+  private def sampleTuple(longValue: java.lang.Long, time: Timestamp, text: String): Tuple =
+    Tuple
+      .builder(texeraSchema)
+      .addSequentially(Array(Int.box(2), longValue, Boolean.box(true), Double.box(1.1), time, text))
+      .build()
+
+  private def withVectorRoot(schema: ArrowSchema)(test: VectorSchemaRoot => Unit): Unit =
+    Using.Manager { use =>
+      val allocator = use(new RootAllocator())
+      val root = use(VectorSchemaRoot.create(schema, allocator))
+      root.allocateNew()
+      test(root)
+    }.get
+
   behavior of "ArrowUtils"
 
   it should "convert to AttributeTypes correctly" in {
     assert(ArrowUtils.toAttributeType(unsignedShortInt) == AttributeType.INTEGER)
     assert(ArrowUtils.toAttributeType(signedShortInt) == AttributeType.INTEGER)
-    assert(ArrowUtils.toAttributeType(unsignedInt) == AttributeType.INTEGER)
     assert(ArrowUtils.toAttributeType(signedInt) == AttributeType.INTEGER)
-    assert(ArrowUtils.toAttributeType(unsignedLongInt) == AttributeType.LONG)
     assert(ArrowUtils.toAttributeType(signedLongInt) == AttributeType.LONG)
+    // An unsigned column needs the width above its own: read at its own width it
+    // would hand back the storage, and the largest unsigned 32-bit value is
+    // stored as -1. Past 64 bits there is no width above to read it as.
+    assert(ArrowUtils.toAttributeType(unsignedInt) == AttributeType.LONG)
+    assertThrows[AttributeTypeException](ArrowUtils.toAttributeType(unsignedLongInt))
 
     assert(ArrowUtils.toAttributeType(boolean) == AttributeType.BOOLEAN)
 
@@ -81,7 +99,6 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     assert(ArrowUtils.toAttributeType(double) == AttributeType.DOUBLE)
     assert(ArrowUtils.toAttributeType(half) == AttributeType.DOUBLE)
 
-    assert(ArrowUtils.toAttributeType(timestamp) == AttributeType.TIMESTAMP)
     assert(ArrowUtils.toAttributeType(timestamp) == AttributeType.TIMESTAMP)
 
     assert(ArrowUtils.toAttributeType(string) == AttributeType.STRING)
@@ -106,24 +123,16 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   }
 
   it should "raise AttributeTypeException when converting unsupported types" in {
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Null)
-    }
-
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Date(DateUnit.DAY))
-    }
-
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Map(true))
-    }
-
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.List)
-    }
-
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Interval(IntervalUnit.DAY_TIME))
+    Seq[ArrowType](
+      new ArrowType.Null,
+      new ArrowType.Date(DateUnit.DAY),
+      new ArrowType.Map(true),
+      new ArrowType.List,
+      new ArrowType.Interval(IntervalUnit.DAY_TIME)
+    ).foreach { arrowType =>
+      withClue(s"${arrowType}: ") {
+        assertThrows[AttributeTypeException](ArrowUtils.toAttributeType(arrowType))
+      }
     }
   }
 
@@ -141,112 +150,70 @@ class ArrowUtilsSpec extends AnyFlatSpec {
 
   it should "set Arrow Fields from Texera Tuple correctly" in {
 
-    val tuple = Tuple
-      .builder(texeraSchema)
-      .addSequentially(
-        Array(
-          Int.box(2),
-          Long.box(1L),
-          Boolean.box(true),
-          Double.box(1.1),
-          // Stated as a wall clock, which is what a Texera TIMESTAMP holds. Built
-          // from an epoch instead, the wall clock would be whichever one the
-          // machine's zone gives that instant, and what gets stored below would
-          // move with it.
-          Timestamp.valueOf("1970-01-01 00:00:10"),
-          "hello world"
-        )
+    // Texera holds a wall clock. Constructing it from an epoch would make
+    // the stored value depend on the machine's time zone.
+    val tuple = sampleTuple(Long.box(1L), Timestamp.valueOf("1970-01-01 00:00:10"), "hello world")
+
+    withVectorRoot(arrowSchema) { vectorSchemaRoot =>
+      val rowCount = vectorSchemaRoot.getRowCount
+      val index = 1
+
+      // set Tuple into the Vectors
+      ArrowUtils.setTexeraTuple(tuple, index, vectorSchemaRoot)
+
+      assert(vectorSchemaRoot.getVector(0).getObject(index).asInstanceOf[Int] == 2)
+      assert(vectorSchemaRoot.getVector(1).getObject(index).asInstanceOf[Long] == 1L)
+      assert(vectorSchemaRoot.getVector(2).getObject(index).asInstanceOf[Boolean] == true)
+      assert(vectorSchemaRoot.getVector(3).getObject(index).asInstanceOf[Double] == 1.1)
+
+      // The field carries no zone, so the vector holds the wall clock above and
+      // hands it back as one: ten seconds past the epoch, on a server anywhere.
+      assert(
+        vectorSchemaRoot.getVector(4).getObject(index) ==
+          java.time.LocalDateTime.of(1970, 1, 1, 0, 0, 10)
       )
-      .build()
-    val allocator: BufferAllocator = new RootAllocator()
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
 
-    val rowCount = vectorSchemaRoot.getRowCount
-    val index = 1
+      // the arrow storage type of string is Text
+      assert(
+        vectorSchemaRoot.getVector(5).getObject(index) ==
+          new org.apache.arrow.vector.util.Text("hello world")
+      )
 
-    // set Tuple into the Vectors
-    ArrowUtils.setTexeraTuple(tuple, index, vectorSchemaRoot)
+      // should not have more vectors created.
+      assertThrows[IllegalArgumentException](vectorSchemaRoot.getVector(7).getObject(index))
 
-    assert(vectorSchemaRoot.getVector(0).getObject(index).asInstanceOf[Int] == 2)
-    assert(vectorSchemaRoot.getVector(1).getObject(index).asInstanceOf[Long] == 1L)
-    assert(vectorSchemaRoot.getVector(2).getObject(index).asInstanceOf[Boolean] == true)
-    assert(vectorSchemaRoot.getVector(3).getObject(index).asInstanceOf[Double] == 1.1)
+      // other fields at other untouched indices should be null
+      assert(vectorSchemaRoot.getVector(0).getObject(index + 1) == null)
 
-    // The arrow storage type of timestamp is Long, and the field is labelled
-    // UTC, so the wall clock above is stored as the UTC instant of the same
-    // reading: ten seconds past the epoch, on a server anywhere.
-    assert(vectorSchemaRoot.getVector(4).getObject(index).asInstanceOf[Long] == 10000L)
-
-    // the arrow storage type of string is Text
-    assert(
-      vectorSchemaRoot.getVector(5).getObject(index) ==
-        new org.apache.arrow.vector.util.Text("hello world")
-    )
-
-    // should not have more vectors created.
-    assertThrows[IllegalArgumentException](vectorSchemaRoot.getVector(7).getObject(index))
-
-    // other fields at other untouched indices should be null
-    assert(vectorSchemaRoot.getVector(0).getObject(index + 1) == null)
-
-    // now the rowCount should be incremented by 1
-    assert(vectorSchemaRoot.getRowCount == rowCount + 1)
-
+      // now the rowCount should be incremented by 1
+      assert(vectorSchemaRoot.getRowCount == rowCount + 1)
+    }
   }
 
   it should "get Texera Tuple from Arrow Fields correctly" in {
 
-    val tuple = Tuple
-      .builder(texeraSchema)
-      .addSequentially(
-        Array(
-          Int.box(2),
-          Long.box(1L),
-          Boolean.box(true),
-          Double.box(1.1),
-          new Timestamp(10000L),
-          "hello world"
-        )
-      )
-      .build()
-    val allocator: BufferAllocator = new RootAllocator()
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
+    val tuple = sampleTuple(Long.box(1L), new Timestamp(10000L), "hello world")
 
-    // set Tuple into the Vectors
-    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+    withVectorRoot(arrowSchema) { vectorSchemaRoot =>
+      // set Tuple into the Vectors
+      ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // get the Tuple from the Vectors
-    assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
-
+      // get the Tuple from the Vectors
+      assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
+    }
   }
 
   it should "get Texera Tuple from Arrow Fields with null values correctly" in {
 
-    val tuple = Tuple
-      .builder(texeraSchema)
-      .addSequentially(
-        Array(
-          Int.box(2),
-          null,
-          Boolean.box(true),
-          Double.box(1.1),
-          null,
-          null
-        )
-      )
-      .build()
-    val allocator: BufferAllocator = new RootAllocator()
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
+    val tuple = sampleTuple(null, null, null)
 
-    // set Tuple into the Vectors
-    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+    withVectorRoot(arrowSchema) { vectorSchemaRoot =>
+      // set Tuple into the Vectors
+      ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // get the Tuple from the Vectors
-    assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
-
+      // get the Tuple from the Vectors
+      assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
+    }
   }
 
   it should "convert from AttributeType to ArrowType for LARGE_BINARY correctly" in {
@@ -320,22 +287,19 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       )
       .build()
 
-    val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
+    withVectorRoot(ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)) { vectorSchemaRoot =>
+      // Set Tuple into the Vectors
+      ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // Set Tuple into the Vectors
-    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+      // Verify the LARGE_BINARY is stored as string (URI) in Arrow
+      val storedValue = vectorSchemaRoot.getVector(0).getObject(0)
+      assert(storedValue.toString == "s3://test-bucket/path/to/object")
 
-    // Verify the LARGE_BINARY is stored as string (URI) in Arrow
-    val storedValue = vectorSchemaRoot.getVector(0).getObject(0)
-    assert(storedValue.toString == "s3://test-bucket/path/to/object")
-
-    // Get the Tuple from the Vectors
-    val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
-    assert(retrievedTuple.getField[LargeBinary](0) == largeBinary)
-    assert(retrievedTuple.getField[String](1) == "regular string value")
+      // Get the Tuple from the Vectors
+      val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
+      assert(retrievedTuple.getField[LargeBinary](0) == largeBinary)
+      assert(retrievedTuple.getField[String](1) == "regular string value")
+    }
   }
 
   it should "handle null LARGE_BINARY values correctly" in {
@@ -351,20 +315,17 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       )
       .build()
 
-    val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
+    withVectorRoot(ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)) { vectorSchemaRoot =>
+      // Set Tuple into the Vectors
+      ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // Set Tuple into the Vectors
-    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+      // Verify null is stored correctly
+      assert(vectorSchemaRoot.getVector(0).getObject(0) == null)
 
-    // Verify null is stored correctly
-    assert(vectorSchemaRoot.getVector(0).getObject(0) == null)
-
-    // Get the Tuple from the Vectors
-    val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
-    assert(retrievedTuple.getField[LargeBinary](0) == null)
+      // Get the Tuple from the Vectors
+      val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
+      assert(retrievedTuple.getField[LargeBinary](0) == null)
+    }
   }
 
   it should "round-trip LARGE_BINARY schema conversion correctly" in {

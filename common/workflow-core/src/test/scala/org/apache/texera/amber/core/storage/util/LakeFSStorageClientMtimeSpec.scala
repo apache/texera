@@ -57,11 +57,7 @@ import java.nio.charset.StandardCharsets
   * whichever suite ran second talk to the other one's server.
   */
 @NonParallelTest
-class LakeFSStorageClientMtimeSpec
-    extends AnyFlatSpec
-    with Matchers
-    with ForAllTestContainer
-    with org.scalatest.BeforeAndAfterAll {
+class LakeFSStorageClientMtimeSpec extends AnyFlatSpec with Matchers with ForAllTestContainer {
 
   // Shared network so LakeFS can reach Postgres and RustFS by their in-network aliases while
   // the test reaches LakeFS/RustFS via mapped host ports.

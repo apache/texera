@@ -18,9 +18,11 @@
  */
 package org.apache.texera.amber.operator.udf.python
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.operator.udf.{UiUDFParameter, UiUdfParameterContract}
+
 import org.apache.texera.amber.pybuilder.PythonLexerUtils.updateTripleQuotedStringState
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 import scala.util.matching.Regex
@@ -37,72 +39,21 @@ object PythonUdfUiParameterInjector {
   private val InjectedUiParametersHookMethodName = "_texera_injected_ui_parameters"
   private val InjectedUiParametersHookMethodHeader =
     s"def $InjectedUiParametersHookMethodName(self) -> Dict[str, Any]:"
-  private val UnsupportedUiParameterTypes = Set(AttributeType.BINARY, AttributeType.LARGE_BINARY)
-  private val UiParameterTypesRequiringValues = Set(
-    AttributeType.INTEGER,
-    AttributeType.LONG,
-    AttributeType.DOUBLE,
-    AttributeType.BOOLEAN,
-    AttributeType.TIMESTAMP
-  )
-
   // Keep supported user-facing UDF class names in sync with the frontend parser.
   private val SupportedPythonUdfClassHeaderRegex: Regex =
     """(?m)^([ \t]*)class\s+(ProcessTupleOperator|ProcessBatchOperator|ProcessTableOperator|GenerateOperator)\s*\([^)]*\)\s*:\s*(?:#.*)?$""".r
-
-  private def validate(uiParameters: List[UiUDFParameter]): Unit = {
-    val parametersWithAttributes =
-      uiParameters.map(parameter => parameter -> parameterAttribute(parameter))
-    val attributes = parametersWithAttributes.map(_._2)
-    parametersWithAttributes.foreach {
-      case (parameter, attribute) =>
-        validateSupportedType(attribute)
-        validateRequiredValue(parameter, attribute)
-    }
-
-    attributes
-      .groupBy(_.getName)
-      .collectFirst {
-        case (parameterName, matchingAttributes) if matchingAttributes.size > 1 => parameterName
-      }
-      .foreach { duplicateName =>
-        throw new RuntimeException(s"UiParameter name '$duplicateName' is declared more than once.")
-      }
-  }
-
-  private def parameterAttribute(parameter: UiUDFParameter): Attribute =
-    Option(parameter).flatMap(parameter => Option(parameter.attribute)).getOrElse {
-      throw new RuntimeException("UiParameter attribute is required.")
-    }
-
-  private def validateSupportedType(attribute: Attribute): Unit = {
-    if (UnsupportedUiParameterTypes.contains(attribute.getType)) {
-      throw new RuntimeException(
-        s"UiParameter type '${attribute.getType.name()}' is not supported. " +
-          "Use string, integer, long, double, boolean, or timestamp instead."
-      )
-    }
-  }
-
-  private def validateRequiredValue(parameter: UiUDFParameter, attribute: Attribute): Unit = {
-    if (
-      UiParameterTypesRequiringValues.contains(attribute.getType) &&
-      Option(parameter.value).forall(_.trim.isEmpty)
-    ) {
-      throw new RuntimeException(
-        s"UiParameter '${attribute.getName}' requires a value for type '${attribute.getType.name()}'."
-      )
-    }
-  }
+  private val ReservedHookRegex: Regex =
+    ("""(?m)^[ \t]+def\s+""" + Regex.quote(InjectedUiParametersHookMethodName) + """\s*\(""").r
 
   private def buildInjectedParameterEntry(parameter: UiUDFParameter): PythonTemplateBuilder = {
-    pyb"${parameter.attribute.getName}: ${parameter.value}"
+    val encodedValue: EncodableString = parameter.value
+    pyb"${parameter.attribute.getName}: $encodedValue"
   }
 
   private def buildInjectedParametersMap(
       uiParameters: List[UiUDFParameter]
   ): PythonTemplateBuilder = {
-    val entries = uiParameters.map(buildInjectedParameterEntry)
+    val entries = uiParameters.iterator.map(buildInjectedParameterEntry)
     entries.reduceOption((acc, entry) => acc + pyb", " + entry).getOrElse(pyb"")
   }
 
@@ -158,11 +109,8 @@ object PythonUdfUiParameterInjector {
     code.length
   }
 
-  private def containsReservedHook(classBlock: String): Boolean = {
-    val hookRegex =
-      ("""(?m)^[ \t]+def\s+""" + Regex.quote(InjectedUiParametersHookMethodName) + """\s*\(""").r
-    hookRegex.findFirstIn(classBlock).isDefined
-  }
+  private def containsReservedHook(classBlock: String): Boolean =
+    ReservedHookRegex.findFirstIn(classBlock).isDefined
 
   private def injectHookIntoUserClass(userCode: String, hookMethod: String): String = {
     val classHeaderMatch =
@@ -197,13 +145,17 @@ object PythonUdfUiParameterInjector {
   }
 
   private def inferClassBodyIndent(classBlock: String, classIndent: String): Option[String] = {
-    val lines = classBlock.split("\n", -1).toList.drop(1)
-
-    lines.collectFirst {
-      case line if line.trim.nonEmpty =>
+    var lineStart = lineEndIndex(classBlock, 0) + 1
+    while (lineStart < classBlock.length) {
+      val lineEnd = lineEndIndex(classBlock, lineStart)
+      val line = classBlock.substring(lineStart, lineEnd)
+      if (line.trim.nonEmpty) {
         val leading = line.takeWhile(ch => ch == ' ' || ch == '\t')
-        if (leading.length > classIndent.length) leading else classIndent + "    "
+        return Some(if (leading.length > classIndent.length) leading else classIndent + "    ")
+      }
+      lineStart = lineEnd + 1
     }
+    None
   }
 
   /**
@@ -214,7 +166,7 @@ object PythonUdfUiParameterInjector {
     */
   def inject(code: String, uiParameters: List[UiUDFParameter]): String = {
     val parameters = Option(uiParameters).getOrElse(List.empty)
-    validate(parameters)
+    UiUdfParameterContract.validate(parameters)
 
     val userCode = Option(code).getOrElse("")
 

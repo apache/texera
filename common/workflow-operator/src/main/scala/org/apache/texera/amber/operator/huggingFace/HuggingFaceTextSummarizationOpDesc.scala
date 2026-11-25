@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireInputColumn,
+  requireNonEmpty
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
@@ -98,6 +102,7 @@ class HuggingFaceTextSummarizationOpDesc
   // once, generate a summary per row, and add the STRING result column to
   // produce out1df.
   override def generateStandaloneCode(): String = {
+    // An empty cell, which the tokenizer rejects, keeps its row with the summary left empty.
     s"""from transformers import BertTokenizerFast, EncoderDecoderModel
        |import pandas as pd
        |import torch
@@ -110,10 +115,6 @@ class HuggingFaceTextSummarizationOpDesc
        |out1df = in1df.copy()
        |_summaries = []
        |for _text in out1df[${pyStringLiteral(attribute)}]:
-       |    # An empty cell reaches the frame as None, or as NaN once a column holds
-       |    # nothing else, and the tokenizer rejects both. Keep the row and leave the
-       |    # summary empty rather than ending the run over a value the model has
-       |    # nothing to say about.
        |    if pd.isna(_text) or (isinstance(_text, str) and not _text.strip()):
        |        _summaries.append(None)
        |        continue
@@ -137,10 +138,11 @@ class HuggingFaceTextSummarizationOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (resultAttribute == null || resultAttribute.trim.isEmpty)
-      throw new RuntimeException("Result attribute name should be given")
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireInputColumn(inputSchema, "Attribute", attribute)
+    requireNonEmpty("Result attribute name", resultAttribute)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, AttributeType.STRING)
     )
   }

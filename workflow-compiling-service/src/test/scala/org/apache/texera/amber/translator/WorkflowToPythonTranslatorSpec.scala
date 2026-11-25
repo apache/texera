@@ -22,7 +22,13 @@ package org.apache.texera.amber.translator
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.operator.{
+  LogicalOp,
+  PythonOperatorDescriptor,
+  SamplingHelpers,
+  StandaloneCodeGenerator
+}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -59,6 +65,21 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
 
   private def stub(id: String, block: String): LogicalOp = {
     val op = new StubOp(block)
+    op.setOperatorId(id)
+    op
+  }
+
+  /** A stub the engine would run in pyamber, which is all the input adapter asks. */
+  private class PythonStubOp(block: String) extends StubOp(block) with PythonOperatorDescriptor {
+    override def generatePythonCode(): String = ""
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map.empty
+  }
+
+  private def pythonStub(id: String, block: String): LogicalOp = {
+    val op = new PythonStubOp(block)
     op.setOperatorId(id)
     op
   }
@@ -134,6 +155,43 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("df2 = df1.copy()")
   }
 
+  /** pyamber hands a Python operator float64, where a NaN and a null are one value,
+    * and a source can hand the script Float64, which keeps them apart. The
+    * operator reads a converted copy, so the frame another operator reads from the
+    * same upstream is the one the source wrote.
+    */
+  it should "feed a Python operator a converted copy of each input" in {
+    val source = upstream("source")
+    val python = pythonStub("python", "out1df = in1df.copy()")
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(List(source, python), List(link(source, python)))
+    )
+    script should include("df1_python_operator_input = _texera_python_operator_input(df1)")
+    script should include("df2 = df1_python_operator_input.copy()")
+  }
+
+  it should "leave an operator the engine runs on the JVM reading its upstream as it is" in {
+    val first = upstream("first")
+    val second = upstream("second")
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(List(first, second), List(link(first, second)))
+    )
+    script should not include "_texera_python_operator_input"
+  }
+
+  it should "import the Python operator input helper once and leave the upstream frame alone" in {
+    val source = upstream("source")
+    val pythons = List("a", "b").map(id => pythonStub(id, "out1df = in1df.copy()"))
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(source :: pythons, pythons.map(link(source, _)))
+    )
+    script.linesIterator.count(
+      _ == "from texera_helpers import _texera_python_operator_input"
+    ) shouldBe 1
+    script should not include "def _texera_python_operator_input"
+    script should not include "df1 = _texera_python_operator_input("
+  }
+
   /** Nothing stops a column from being named after a placeholder. The
     * substitution rewrites the variable a block reads with, never the column
     * name it asks that variable for.
@@ -182,6 +240,33 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should not include "data-2.csv"
   }
 
+  /** The zip unzips `script.py` and `texera_helpers.py` beside the sources, so a
+    * source by either name would be read back as the exported code.
+    */
+  it should "keep a source off the file names the zip holds" in {
+    val script = translateSources("/alice/v1/texera_helpers.py", "/alice/v1/script.py")
+    script should include("""pd.read_csv("texera_helpers-2.py")""")
+    script should include("""pd.read_csv("script-2.py")""")
+  }
+
+  /** Windows and macOS treat names that differ only in case as one file, so
+    * `Script.py` would still be overwritten by the zip's `script.py`.
+    */
+  it should "compare source file names ignoring case" in {
+    translateSources("/alice/v1/Script.py") should include("""pd.read_csv("Script-2.py")""")
+    val script = translateSources("/alice/sales/v1/Data.csv", "/bob/ops/v3/data.csv")
+    script should include("""pd.read_csv("Data.csv")""")
+    script should include("""pd.read_csv("data-2.csv")""")
+  }
+
+  it should "report the sources it renamed, and only those" in {
+    val plan = sourcesPlan("/alice/v1/Script.py", "/alice/v1/sales.csv", "/bob/v1/sales.csv")
+    new WorkflowToPythonTranslator().renamedSources(plan) shouldBe Seq(
+      "Script.py" -> "Script-2.py",
+      "sales.csv" -> "sales-2.csv"
+    )
+  }
+
   /** A file name is the user's text, so it reaches the script through the escaper
     * the operators use and through the replacement quoting on top of that: a bare
     * `$` in a name is a group reference to `replaceAll`.
@@ -191,7 +276,10 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""pd.read_csv("we\"ird$1\\x.csv")""")
   }
 
-  private def translateSources(paths: String*): String = {
+  private def translateSources(paths: String*): String =
+    new WorkflowToPythonTranslator().translate(sourcesPlan(paths: _*))
+
+  private def sourcesPlan(paths: String*): LogicalPlan = {
     val ops = paths.zipWithIndex.map {
       case (path, i) =>
         val op =
@@ -201,7 +289,32 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
         op.setOperatorId(s"source$i")
         op
     }
-    new WorkflowToPythonTranslator().translate(LogicalPlan(ops.toList, List.empty))
+    LogicalPlan(ops.toList, List.empty)
+  }
+
+  it should "import a helper with the other imports rather than define it" in {
+    val op = new StubOp("_rng = _TexeraJavaRandom(1)\nout1df = in1df.copy()") {
+      override def standaloneHelpers(): Seq[String] = Seq(SamplingHelpers.JavaRandom)
+    }
+    op.setOperatorId("op")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should startWith("import pandas as pd\nfrom texera_helpers import _TexeraJavaRandom\n\n")
+    script should not include "class _TexeraJavaRandom"
+  }
+
+  it should "not import a helper a comment or a string only names" in {
+    val op = stub("op", "# _TexeraJavaRandom\nout1df = in1df.assign(n=\"_TexeraJavaRandom\")")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should not include "from texera_helpers"
+  }
+
+  it should "refuse an operator whose helper the module does not hold" in {
+    val op = new StubOp("out1df = in1df.apply(_texera_missing)") {
+      override def standaloneHelpers(): Seq[String] = Seq("def _texera_missing(x):\n    return x")
+    }
+    op.setOperatorId("op")
+    an[IllegalStateException] should be thrownBy
+      new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
   }
 
   /** The translator's own contract when it meets an operator it cannot render:
