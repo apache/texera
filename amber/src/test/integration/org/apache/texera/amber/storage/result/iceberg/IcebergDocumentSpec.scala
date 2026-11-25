@@ -23,14 +23,18 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import org.apache.texera.amber.core.storage.{DocumentFactory, IcebergCatalogInstance, VFSURIFactory}
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
-  PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.storage.result.iceberg.IcebergDocumentTestSupport.{
+  allTypesSchema,
+  buildAllTypesTuple,
+  openTupleDocument,
+  uniquePortBaseURI
+}
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.exceptions.NoSuchTableException
@@ -41,57 +45,6 @@ import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-object IcebergDocumentSpec {
-
-  val allTypesSchema: Schema = Schema(
-    List(
-      new Attribute("col-string", AttributeType.STRING),
-      new Attribute("col-int", AttributeType.INTEGER),
-      new Attribute("col-bool", AttributeType.BOOLEAN),
-      new Attribute("col-long", AttributeType.LONG),
-      new Attribute("col-double", AttributeType.DOUBLE),
-      new Attribute("col-timestamp", AttributeType.TIMESTAMP),
-      new Attribute("col-binary", AttributeType.BINARY)
-    )
-  )
-
-  def uniquePortBaseURI(prefix: String = "test-table"): URI =
-    VFSURIFactory.createPortBaseURI(
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      GlobalPortIdentity(
-        PhysicalOpIdentity(
-          logicalOpId = OperatorIdentity(s"$prefix-${UUID.randomUUID().toString.replace("-", "")}"),
-          layerName = "main"
-        ),
-        PortIdentity()
-      )
-    )
-
-  def openTupleDocument(uri: URI): VirtualDocument[Tuple] =
-    DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
-
-  def buildAllTypesTuple(
-      strVal: String,
-      intVal: Any,
-      boolVal: Any,
-      longVal: Any,
-      doubleVal: Any,
-      timestampVal: Timestamp,
-      binaryVal: Array[Byte]
-  ): Tuple =
-    Tuple
-      .builder(allTypesSchema)
-      .add("col-string", AttributeType.STRING, strVal)
-      .add("col-int", AttributeType.INTEGER, intVal)
-      .add("col-bool", AttributeType.BOOLEAN, boolVal)
-      .add("col-long", AttributeType.LONG, longVal)
-      .add("col-double", AttributeType.DOUBLE, doubleVal)
-      .add("col-timestamp", AttributeType.TIMESTAMP, timestampVal)
-      .add("col-binary", AttributeType.BINARY, binaryVal)
-      .build()
-}
-
 @IntegrationTest
 class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
 
@@ -100,18 +53,18 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
-    baseURI = IcebergDocumentSpec.uniquePortBaseURI()
+    baseURI = uniquePortBaseURI()
     uri = VFSURIFactory.resultURI(baseURI)
-    DocumentFactory.createDocument(uri, IcebergDocumentSpec.allTypesSchema)
+    DocumentFactory.createDocument(uri, allTypesSchema)
     super.beforeEach()
   }
 
-  override def getDocument: VirtualDocument[Tuple] = IcebergDocumentSpec.openTupleDocument(uri)
+  override def getDocument: VirtualDocument[Tuple] = openTupleDocument(uri)
 
   private def createStateDocument(): VirtualDocument[Tuple] = {
     val stateUri = VFSURIFactory.stateURI(baseURI)
     DocumentFactory.createDocument(stateUri, State.schema)
-    IcebergDocumentSpec.openTupleDocument(stateUri)
+    openTupleDocument(stateUri)
   }
 
   it should "not trigger excessive catalog seeks when reading the last file (lazy file advancement)" in {
@@ -152,7 +105,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
   }
 
   it should "report documentExists=false for a URI that was never created" in {
-    val freshUri = VFSURIFactory.resultURI(IcebergDocumentSpec.uniquePortBaseURI("fresh"))
+    val freshUri = VFSURIFactory.resultURI(uniquePortBaseURI("fresh"))
     assert(!DocumentFactory.documentExists(freshUri))
   }
 
@@ -322,7 +275,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
 
   override def generateSampleItems(): List[Tuple] = {
     val baseTuples = List(
-      IcebergDocumentSpec.buildAllTypesTuple(
+      buildAllTypesTuple(
         strVal = "Hello World",
         intVal = 42,
         boolVal = true,
@@ -331,7 +284,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         timestampVal = new Timestamp(System.currentTimeMillis()),
         binaryVal = Array[Byte](0, 1, 2, 3, 4, 5, 6, 7)
       ),
-      IcebergDocumentSpec.buildAllTypesTuple(
+      buildAllTypesTuple(
         strVal = "",
         intVal = -1,
         boolVal = false,
@@ -340,7 +293,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         timestampVal = new Timestamp(0L),
         binaryVal = Array[Byte](127, -128, 0, 64)
       ),
-      IcebergDocumentSpec.buildAllTypesTuple(
+      buildAllTypesTuple(
         strVal = "Special Characters: \n\t\r",
         intVal = Int.MaxValue,
         boolVal = true,
@@ -358,7 +311,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
     }
 
     val additionalTuples = (1 to 20000).map { i =>
-      IcebergDocumentSpec.buildAllTypesTuple(
+      buildAllTypesTuple(
         if (i % 7 == 0) null else s"Generated String $i",
         if (i % 5 == 0) null else i,
         if (i % 6 == 0) null else i % 2 == 0,

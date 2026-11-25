@@ -91,7 +91,10 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     newDocumentHandle(tableName)
   }
 
-  /** A document over a new table holding `rows`. Each range is written in its own writer session, so it becomes one committed file. */
+  /**
+    * A document over a new table holding `rows`. Each range is written in its own writer
+    * session, so it becomes one committed file.
+    */
   private def newDocumentWith(rows: Range*): IcebergDocument[Tuple] = {
     val doc = newDocument()
     rows.foreach(r => write(doc, r.map(tuple)))
@@ -136,7 +139,10 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     }
   }
 
-  /** A reader-counting document over a new table holding `rows`. Each range is written in its own writer session, so it becomes one committed file. */
+  /**
+    * A reader-counting document over a new table holding `rows`. Each range is written in
+    * its own writer session, so it becomes one committed file.
+    */
   private def newCountingDocument(rows: Range*): ReaderCountingDocument = {
     val tableName = freshTableName()
     createBackingTable(tableName)

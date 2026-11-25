@@ -193,10 +193,12 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   }
 
   test("deleteByExecution removes binaries written via new LargeBinary()") {
-    val pointer1 = createLargeBinary("Object 1")
-    val pointer2 = createLargeBinary("Object 2")
+    createLargeBinary("Object 1")
+    createLargeBinary("Object 2")
 
     LargeBinaryManager.deleteByExecution(TestExecutionId)
+
+    assert(!S3StorageClient.directoryExists("texera-large-binaries", s"objects/$TestExecutionId"))
   }
 
   test("LargeBinaryManager should handle delete with no objects gracefully") {
@@ -204,10 +206,12 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   }
 
   test("deleteByExecution removes multiple binaries for the execution") {
-    val pointer1 = createLargeBinary("Test data")
-    val pointer2 = createLargeBinary("Test data")
+    createLargeBinary("Test data")
+    createLargeBinary("Test data")
 
     LargeBinaryManager.deleteByExecution(TestExecutionId)
+
+    assert(!S3StorageClient.directoryExists("texera-large-binaries", s"objects/$TestExecutionId"))
   }
 
   test("LargeBinaryManager should create bucket if it doesn't exist") {

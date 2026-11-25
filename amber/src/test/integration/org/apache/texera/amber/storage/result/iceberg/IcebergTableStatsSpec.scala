@@ -22,6 +22,12 @@ package org.apache.texera.amber.storage.result.iceberg
 import org.apache.texera.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.storage.result.iceberg.IcebergDocumentTestSupport.{
+  allTypesSchema,
+  buildAllTypesTuple,
+  openTupleDocument,
+  uniquePortBaseURI
+}
 import org.apache.texera.amber.tags.IntegrationTest
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -33,10 +39,10 @@ import java.time.{LocalDate, ZoneId}
 @IntegrationTest
 class IcebergTableStatsSpec extends AnyFlatSpec {
 
-  val uri: URI = VFSURIFactory.resultURI(IcebergDocumentSpec.uniquePortBaseURI())
+  val uri: URI = VFSURIFactory.resultURI(uniquePortBaseURI())
 
   private def writeTuples(tuples: List[Tuple]): VirtualDocument[Tuple] = {
-    val document = IcebergDocumentSpec.openTupleDocument(uri)
+    val document = openTupleDocument(uri)
     VirtualDocumentSpec.withWriter(document)(w => tuples.foreach(w.putOne))
     document
   }
@@ -60,7 +66,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec {
   behavior of "TableStatistics"
 
   it should "get correct statistics after inserting three tuples" in {
-    DocumentFactory.createDocument(uri, IcebergDocumentSpec.allTypesSchema)
+    DocumentFactory.createDocument(uri, allTypesSchema)
 
     val tuples = generateSampleItems(
       List(
@@ -187,7 +193,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec {
   ): List[Tuple] = {
     values.map {
       case (strVal, intVal, boolVal, longVal, doubleVal, timestampVal, binaryVal) =>
-        IcebergDocumentSpec.buildAllTypesTuple(
+        buildAllTypesTuple(
           strVal,
           intVal.orNull,
           boolVal.orNull,
