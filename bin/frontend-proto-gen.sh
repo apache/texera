@@ -27,5 +27,4 @@ protoc --plugin="$GUI_DIR/node_modules/.bin/protoc-gen-ts_proto" \
   --ts_proto_out="$GUI_PROTO_DIR/proto" \
   -I="$PROTOBUF_DIR" \
   "$WORKFLOW_PROTO" \
-  "$VIRTUALIDENTITY_PROTO" \
-  --proto_path="$PROTOBUF_DIR"
+  "$VIRTUALIDENTITY_PROTO"

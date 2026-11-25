@@ -50,7 +50,7 @@ class ProxyClient(FlightClient):
     def call_action(
         self,
         action_name: str,
-        payload: bytes = bytes(),
+        payload: bytes = b"",
         options: Optional[FlightCallOptions] = None,
     ) -> bytes:
         """

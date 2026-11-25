@@ -38,7 +38,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import check_binary_deps as cbd  # noqa: E402
+import check_binary_deps as cbd
 
 
 # --- pure-function tests ---------------------------------------------------

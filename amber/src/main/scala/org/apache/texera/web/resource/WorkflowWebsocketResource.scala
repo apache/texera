@@ -91,7 +91,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       // has to travel back to the client through the same reporting path as a handler failure.
       val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
       request match {
-        case heartbeat: HeartBeatRequest =>
+        case _: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
           workflowStateOpt.foreach(state =>

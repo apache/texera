@@ -28,7 +28,7 @@ import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.apache.texera.web.resource.dashboard.user.model.ModelResource.DashboardModel
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-import org.jooq.{Field, OrderField}
+import org.jooq.OrderField
 
 import java.util
 import javax.ws.rs._
@@ -112,68 +112,42 @@ object DashboardResource {
       query.orderBy(getOrderFields(params): _*).offset(params.offset).limit(params.count + 1)
     val queryResult = finalQuery.fetch()
 
-    val allEntries = queryResult.asScala.toList
-      .take(params.count)
-      .map(record => {
-        val resourceType = record.get("resourceType", classOf[String])
-        resourceType match {
-          case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-            WorkflowSearchQueryBuilder.toEntry(uid, record)
-          case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
-            DatasetSearchQueryBuilder.toEntry(uid, record)
-          case SearchQueryBuilder.MODEL_RESOURCE_TYPE =>
-            ModelSearchQueryBuilder.toEntry(uid, record)
-        }
-      })
-
-    val entries = allEntries.filter(_ != null)
-    val hasMismatch =
-      params.resourceType match {
-        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.MODEL_RESOURCE_TYPE |
-            SearchQueryBuilder.ALL_RESOURCE_TYPE =>
-          allEntries.exists(_ == null)
-        case _ =>
-          false
+    val entries = List.newBuilder[DashboardClickableFileEntry]
+    var omittedEntry = false
+    queryResult.iterator().asScala.take(params.count).foreach { record =>
+      val entry = record.get("resourceType", classOf[String]) match {
+        case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
+          WorkflowSearchQueryBuilder.toEntry(uid, record)
+        case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
+          DatasetSearchQueryBuilder.toEntry(uid, record)
+        case SearchQueryBuilder.MODEL_RESOURCE_TYPE =>
+          ModelSearchQueryBuilder.toEntry(uid, record)
       }
+      if (entry == null) omittedEntry = true
+      else entries += entry
+    }
 
     DashboardSearchResult(
-      results = entries,
+      results = entries.result(),
       more = queryResult.size() > params.count,
-      hasMismatch = hasMismatch
+      hasMismatch = omittedEntry && params.resourceType != SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE
     )
   }
 
-  def getOrderFields(
-      searchQueryParams: SearchQueryParams
-  ): List[OrderField[_]] = {
-    // Regex pattern to extract column name and order direction
-    val pattern = "(Name|CreateTime|EditTime|ExecutionTime)(Asc|Desc)".r
+  private val OrderPattern = "(Name|CreateTime|EditTime|ExecutionTime)(Asc|Desc)".r
 
+  def getOrderFields(searchQueryParams: SearchQueryParams): List[OrderField[_]] =
     searchQueryParams.orderBy match {
-      case pattern(column, order) =>
-        val field = getColumnField(column)
-        field match {
-          case Some(value) =>
-            List(order match {
-              case "Asc"  => value.asc()
-              case "Desc" => value.desc().nullsLast()
-            })
-          case None => List()
+      case OrderPattern(column, order) =>
+        val field = column match {
+          case "Name"          => UnifiedResourceSchema.resourceNameField
+          case "CreateTime"    => UnifiedResourceSchema.resourceCreationTimeField
+          case "EditTime"      => UnifiedResourceSchema.resourceLastModifiedTimeField
+          case "ExecutionTime" => UnifiedResourceSchema.resourceExecutionTimeField
         }
-      case _ => List() // Default case if the orderBy string doesn't match the pattern
+        List(if (order == "Asc") field.asc() else field.desc().nullsLast())
+      case _ => Nil
     }
-  }
-
-  // Helper method to map column names to actual database fields based on resource type
-  private def getColumnField(columnName: String): Option[Field[_]] = {
-    Option(columnName match {
-      case "Name"          => UnifiedResourceSchema.resourceNameField
-      case "CreateTime"    => UnifiedResourceSchema.resourceCreationTimeField
-      case "EditTime"      => UnifiedResourceSchema.resourceLastModifiedTimeField
-      case "ExecutionTime" => UnifiedResourceSchema.resourceExecutionTimeField
-      case _               => null // Default case for unmatched resource types or column names
-    })
-  }
 
 }
 

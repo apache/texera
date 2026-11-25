@@ -167,8 +167,15 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer schema from headerless multi-line-data csv" in {
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesHeaderlessSmallCsvPath)
+    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesHeaderlessMultiLineDataCsvPath)
     assertCountrySalesSchema(csvScanSourceOpDesc, "column-7", "column-10")
+
+    val rows = rowsOf(csvScanSourceOpDesc)(new CSVScanSourceOpExec(_))
+    assert(rows.length == 100)
+    assert(rows.forall(_.length == 14))
+    assert(rows(8)(1) == "Republic,of,the,Congo")
+    assert(rows(53)(2) == "Office\n\n\nSupplies")
+    assert(rows(98)(2) == "Personal\n\nCare")
   }
 
   it should "infer schema from headerless multi-line-data csv with custom delimiter" in {

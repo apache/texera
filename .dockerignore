@@ -64,9 +64,6 @@ amber/src/main/python/proto/
 *.model
 *.pkl
 
-# Ignoring user-generated resources
-user-resources/
-
 # Ignoring Gmail tokens
 gmail/
 

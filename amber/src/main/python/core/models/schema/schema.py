@@ -66,7 +66,7 @@ class Schema:
         :return:
         """
         if attr_name in self._name_type_mapping:
-            raise KeyError(f"Adding a duplicated attribute {repr(attr_name)}.")
+            raise KeyError(f"Adding a duplicated attribute {attr_name!r}.")
         self._name_type_mapping[attr_name] = attr_type
 
     def _from_raw_schema(self, raw_schema: Mapping[str, str]) -> None:
@@ -144,7 +144,7 @@ class Schema:
 
     def __str__(self) -> str:
         content = ",\n".join(
-            f"({index}){repr(attr_name)} -> {attr_type}"
+            f"({index}){attr_name!r} -> {attr_type}"
             for index, (attr_name, attr_type) in enumerate(self.as_key_value_pairs(), 0)
         )
         return f"Schema[\n{content}\n]"

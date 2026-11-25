@@ -59,7 +59,7 @@ class IcebergCatalogInstance:
                     StorageConfig.ICEBERG_POSTGRES_CATALOG_PASSWORD,
                 )
             return cls._catalogs[cls._POSTGRES_KEY]
-        elif catalog_type == "rest":
+        if catalog_type == "rest":
             key = warehouse or StorageConfig.ICEBERG_REST_CATALOG_WAREHOUSE_NAME
             if key not in cls._catalogs:
                 cls._catalogs[key] = create_rest_catalog(
@@ -68,8 +68,7 @@ class IcebergCatalogInstance:
                     StorageConfig.ICEBERG_REST_CATALOG_URI,
                 )
             return cls._catalogs[key]
-        else:
-            raise ValueError(f"Unsupported catalog type: {catalog_type}")
+        raise ValueError(f"Unsupported catalog type: {catalog_type}")
 
     @classmethod
     def replace_instance(cls, catalog: Catalog, warehouse: Optional[str] = None):

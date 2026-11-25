@@ -154,7 +154,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         distinctUntilChanged(), // react only to real changes
         untilDestroyed(this)
       )
-      .subscribe(isConnected => {
+      .subscribe(() => {
         this.refreshComputingUnitList();
       });
   }
@@ -326,11 +326,11 @@ export class ComputingUnitStatusService implements OnDestroy {
     return this.computingUnitService.terminateComputingUnit(cuid).pipe(
       tap(() => {
         // trigger a single refresh; the refresh pipeline will
-        // pull the new list and call updateComputingUnits()
+        // pull the new list and call setComputingUnitsState()
         this.refreshComputingUnitList();
       }),
       map(() => true),
-      catchError((err: unknown) => {
+      catchError(() => {
         return of(false);
       }),
       take(1) // complete after first emission

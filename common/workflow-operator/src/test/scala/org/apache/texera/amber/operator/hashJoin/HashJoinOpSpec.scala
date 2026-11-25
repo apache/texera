@@ -40,7 +40,7 @@ class HashJoinOpSpec extends AnyFlatSpec {
       .add(buildInputSchema)
   }
 
-  def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
+  def tuple(name: String, n: Int, i: Option[Int]): Tuple = {
     Tuple
       .builder(schema(name, n))
       .addSequentially(Array[Any](i.map(_.toString).orNull, i.map(_.toString).orNull))

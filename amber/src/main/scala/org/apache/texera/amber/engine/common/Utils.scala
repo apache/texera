@@ -166,7 +166,7 @@ object Utils extends LazyLogging {
       case WorkflowAggregatedState.COMPLETED     => 3
       case WorkflowAggregatedState.FAILED        => 4
       case WorkflowAggregatedState.KILLED        => 5
-      case other                                 => -1
+      case _                                     => -1
     }
   }
 

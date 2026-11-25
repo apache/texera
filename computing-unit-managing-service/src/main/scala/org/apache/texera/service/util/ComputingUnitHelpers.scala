@@ -84,26 +84,23 @@ object ComputingUnitHelpers {
   private[util] def singleUnitStatusAndReason(
       unit: WorkflowComputingUnit,
       k8s: => KubernetesClient
-  ): (ComputingUnitState, Option[String]) = {
-    unit.getType match {
-      // Local CUs are always “running”
-      case WorkflowComputingUnitTypeEnum.local =>
-        (Running, None)
-
-      // Kubernetes CUs – resolved from the pod's status snapshot
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
+  ): (ComputingUnitState, Option[String]) =
+    statusFrom(
+      unit, {
         val client = k8s
-        kubernetesStatusAndReason(
-          client
-            .getPodByName(client.generatePodName(unit.getCuid))
-            .map(PodStatusSnapshot.fromPod)
-        )
+        client.getPodByName(client.generatePodName(unit.getCuid)).map(PodStatusSnapshot.fromPod)
+      }
+    )
 
-      // Any other (unknown) type is treated as pending
-      case _ =>
-        (Pending, None)
+  private def statusFrom(
+      unit: WorkflowComputingUnit,
+      snapshot: => Option[PodStatusSnapshot]
+  ): (ComputingUnitState, Option[String]) =
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.local      => (Running, None)
+      case WorkflowComputingUnitTypeEnum.kubernetes => kubernetesStatusAndReason(snapshot)
+      case _                                        => (Pending, None)
     }
-  }
 
   // User-facing wording for each failure mode. Deliberately actionable prose, never a raw
   // Kubernetes dump; buildDashboardUnit withholds these unless the caller permits access.
@@ -197,20 +194,17 @@ object ComputingUnitHelpers {
           (Pending, None)
     }
 
-  def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
-    unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val metrics = KubernetesClient.getPodMetrics(unit.getCuid)
-        WorkflowComputingUnitMetrics(
-          metrics.getOrElse("cpu", ""),
-          metrics.getOrElse("memory", "")
-        )
-      case _ =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-    }
-  }
+  def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics =
+    metricsFrom(unit, KubernetesClient.getPodMetrics(unit.getCuid))
+
+  private def metricsFrom(
+      unit: WorkflowComputingUnit,
+      lookup: => Map[String, String]
+  ): WorkflowComputingUnitMetrics =
+    if (isKubernetes(unit)) {
+      val metrics = lookup
+      WorkflowComputingUnitMetrics(metrics.getOrElse("cpu", ""), metrics.getOrElse("memory", ""))
+    } else WorkflowComputingUnitMetrics("NaN", "NaN")
 
   /**
     * Resolves status (and its user-facing reason) from a pre-fetched pod-snapshot map instead
@@ -219,36 +213,21 @@ object ComputingUnitHelpers {
   def getComputingUnitStatusAndReason(
       unit: WorkflowComputingUnit,
       podSnapshots: Map[String, PodStatusSnapshot]
-  ): (ComputingUnitState, Option[String]) = {
-    unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local =>
-        (Running, None)
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        kubernetesStatusAndReason(podSnapshots.get(KubernetesClient.generatePodName(unit.getCuid)))
-      case _ =>
-        (Pending, None)
-    }
-  }
+  ): (ComputingUnitState, Option[String]) =
+    statusFrom(unit, podSnapshots.get(KubernetesClient.generatePodName(unit.getCuid)))
 
   /** Resolves metrics from a pre-fetched pod-metrics map instead of a per-unit cluster call. */
   def getComputingUnitMetrics(
       unit: WorkflowComputingUnit,
       podMetrics: Map[String, Map[String, String]]
-  ): WorkflowComputingUnitMetrics = {
-    unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val metrics = podMetrics
-          .getOrElse(KubernetesClient.generatePodName(unit.getCuid), Map.empty[String, String])
-        WorkflowComputingUnitMetrics(
-          metrics.getOrElse("cpu", ""),
-          metrics.getOrElse("memory", "")
-        )
-      case _ =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-    }
-  }
+  ): WorkflowComputingUnitMetrics =
+    metricsFrom(
+      unit,
+      podMetrics.getOrElse(
+        KubernetesClient.generatePodName(unit.getCuid),
+        Map.empty[String, String]
+      )
+    )
 
   private def isKubernetes(unit: WorkflowComputingUnit): Boolean =
     unit.getType match {
