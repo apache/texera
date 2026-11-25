@@ -767,7 +767,7 @@ describe("sendMessage", () => {
       return new MockLanguageModelV4({
         doGenerate: async () => {
           n++;
-          if (n > 20) throw new Error("runaway");
+          if (n > 50) throw new Error("runaway");
           options.onCall?.(n);
           const callsTool = n <= toolCalls;
           return {
@@ -813,6 +813,17 @@ describe("sendMessage", () => {
       expect(res.stopped).toBe(false);
       expect(res.error).toBeUndefined();
       expect(agent.getState()).toBe(AgentState.AVAILABLE);
+    });
+
+    test("stops a looping model at the default step limit", async () => {
+      // Nothing sets maxSteps here, so the default is all that bounds a model that never stops
+      // calling tools.
+      const model = toolCallingModel(Infinity);
+      const agent = makeAgentWith(model);
+      expect(agent.getSettings().maxSteps).toBe(25);
+      await agent.sendMessage("go");
+      expect(model.doGenerateCalls).toHaveLength(25);
+      expect(agent.getAllSteps().at(-1)?.content).toBe(notice("25 steps"));
     });
 
     test("adds nothing when the model answers on the last allowed step", async () => {

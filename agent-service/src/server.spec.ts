@@ -332,6 +332,19 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
     expect(reread.maxSteps).toBe(7);
     expect(reread.toolTimeoutSeconds).toBe(30);
   });
+
+  test("refuses a step limit above 50, the settings dialog's maximum", async () => {
+    const created = await readJson<{ id: string }>(await createAgent());
+    const settingsPath = `${API}/agents/${created.id}/settings`;
+    const readMaxSteps = async () => (await readJson<{ maxSteps: number }>(await getJson(settingsPath))).maxSteps;
+    const before = await readMaxSteps();
+
+    expect((await patchJson(settingsPath, { maxSteps: 51 })).status).toBe(400);
+    expect(await readMaxSteps()).toBe(before);
+
+    expect((await patchJson(settingsPath, { maxSteps: 50 })).status).toBe(200);
+    expect(await readMaxSteps()).toBe(50);
+  });
 });
 
 describe("agent creation edge cases", () => {
@@ -348,6 +361,15 @@ describe("agent creation edge cases", () => {
     const body = await readJson<{ settings: { maxSteps: number; toolTimeoutSeconds: number } }>(res);
     expect(body.settings.maxSteps).toBe(9);
     expect(body.settings.toolTimeoutSeconds).toBe(12);
+  });
+
+  test("refuses an initial step limit above 50 without creating the agent", async () => {
+    expect((await createAgent({ settings: { maxSteps: 51 } })).status).toBe(400);
+    expect((await readJson<{ agents: unknown[] }>(await getJson(`${API}/agents`))).agents).toHaveLength(0);
+
+    const res = await createAgent({ settings: { maxSteps: 50 } });
+    expect(res.status).toBe(200);
+    expect((await readJson<{ settings: { maxSteps: number } }>(res)).settings.maxSteps).toBe(50);
   });
 
   test("creates the agent even when the workflow load fails (non-fatal)", async () => {
