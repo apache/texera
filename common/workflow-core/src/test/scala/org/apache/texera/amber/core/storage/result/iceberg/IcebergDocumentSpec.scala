@@ -36,6 +36,7 @@ import org.scalatest.matchers.should.Matchers
 import java.sql.Timestamp
 import java.util.UUID
 import java.util.zip.ZipInputStream
+import scala.util.Using
 
 /**
   * Unit-level tests for [[IcebergDocument]] running against a local Hadoop-backed
@@ -71,8 +72,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   private def freshTableName(): String =
     s"tbl_${UUID.randomUUID().toString.replace("-", "")}"
 
-  /** Create the backing table and return a document handle for it. */
-  private def newDocument(tableName: String = freshTableName()): IcebergDocument[Tuple] = {
+  private def createBackingTable(tableName: String): Unit =
     IcebergUtil.createTable(
       IcebergCatalogInstance.getInstance(),
       tableNamespace,
@@ -80,7 +80,25 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
       icebergSchema,
       overrideIfExists = true
     )
+
+  /** A document for `tableName`, without creating its table. */
+  private def newDocumentHandle(tableName: String = freshTableName()): IcebergDocument[Tuple] =
     new IcebergDocument[Tuple](tableNamespace, tableName, icebergSchema, serde, deserde)
+
+  /** Create the backing table and return a document handle for it. */
+  private def newDocument(tableName: String = freshTableName()): IcebergDocument[Tuple] = {
+    createBackingTable(tableName)
+    newDocumentHandle(tableName)
+  }
+
+  /**
+    * A document over a new table holding `rows`. Each range is written in its own writer
+    * session, so it becomes one committed file.
+    */
+  private def newDocumentWith(rows: Range*): IcebergDocument[Tuple] = {
+    val doc = newDocument()
+    rows.foreach(r => write(doc, r.map(tuple)))
+    doc
   }
 
   private def tuple(id: Int): Tuple =
@@ -121,10 +139,16 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     }
   }
 
-  private def newCountingDocument(): ReaderCountingDocument = {
+  /**
+    * A reader-counting document over a new table holding `rows`. Each range is written in
+    * its own writer session, so it becomes one committed file.
+    */
+  private def newCountingDocument(rows: Range*): ReaderCountingDocument = {
     val tableName = freshTableName()
-    newDocument(tableName)
-    new ReaderCountingDocument(tableName)
+    createBackingTable(tableName)
+    val doc = new ReaderCountingDocument(tableName)
+    rows.foreach(r => write(doc, r.map(tuple)))
+    doc
   }
 
   /** Write the given tuples through a single writer session (one committed file). */
@@ -134,6 +158,9 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     tuples.foreach(writer.putOne)
     writer.close()
   }
+
+  private def idsOf(tuples: Iterator[Tuple]): List[Int] =
+    tuples.toList.map(_.getField[Int]("id"))
 
   "IcebergDocument" should "resolve the table location through getURI for an existing table" in {
     val doc = newDocument()
@@ -153,13 +180,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "throw NoSuchTableException from getURI when the table does not exist" in {
-    val doc = new IcebergDocument[Tuple](
-      tableNamespace,
-      freshTableName(),
-      icebergSchema,
-      serde,
-      deserde
-    )
+    val doc = newDocumentHandle()
     intercept[NoSuchTableException] {
       doc.getURI
     }
@@ -172,69 +193,51 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "return count 0 for a table that was never created" in {
-    val doc = new IcebergDocument[Tuple](
-      tableNamespace,
-      freshTableName(),
-      icebergSchema,
-      serde,
-      deserde
-    )
-    doc.getCount shouldBe 0L
+    newDocumentHandle().getCount shouldBe 0L
   }
 
   it should "count and read back all written records" in {
-    val doc = newDocument()
-    val tuples = (0 until 10).map(tuple)
-    write(doc, tuples)
+    val doc = newDocumentWith(0 until 10)
 
     doc.getCount shouldBe 10L
-    val read = doc.get().toList
+    val read = idsOf(doc.get())
     read should have size 10
-    read.map(_.getField[Int]("id")).toSet shouldBe (0 until 10).toSet
+    read.toSet shouldBe (0 until 10).toSet
   }
 
   it should "read records in file-sequence order within a single committed file" in {
-    val doc = newDocument()
-    val tuples = (0 until 6).map(tuple)
-    write(doc, tuples)
+    val doc = newDocumentWith(0 until 6)
 
-    doc.get().toList.map(_.getField[Int]("id")) shouldBe (0 until 6).toList
+    idsOf(doc.get()) shouldBe (0 until 6).toList
   }
 
   it should "return only the requested range via getRange" in {
-    val doc = newDocument()
-    write(doc, (0 until 10).map(tuple))
+    val doc = newDocumentWith(0 until 10)
 
-    doc.getRange(2, 5).toList.map(_.getField[Int]("id")) shouldBe List(2, 3, 4)
+    idsOf(doc.getRange(2, 5)) shouldBe List(2, 3, 4)
   }
 
   it should "return records from an offset (inclusive) via getAfter" in {
-    val doc = newDocument()
-    write(doc, (0 until 5).map(tuple))
+    val doc = newDocumentWith(0 until 5)
 
-    doc.getAfter(3).toList.map(_.getField[Int]("id")) shouldBe List(3, 4)
+    idsOf(doc.getAfter(3)) shouldBe List(3, 4)
   }
 
   it should "project only the requested columns via getRange" in {
-    val doc = newDocument()
-    write(doc, (0 until 4).map(tuple))
+    val doc = newDocumentWith(0 until 4)
 
-    val projected = doc.getRange(0, 4, Some(Seq("id"))).toList
-    projected.map(_.getField[Int]("id")) shouldBe List(0, 1, 2, 3)
+    idsOf(doc.getRange(0, 4, Some(Seq("id")))) shouldBe List(0, 1, 2, 3)
   }
 
   it should "read incrementally across multiple committed files" in {
-    val doc = newDocument()
-    write(doc, (0 until 5).map(tuple))
-    write(doc, (5 until 10).map(tuple))
+    val doc = newDocumentWith(0 until 5, 5 until 10)
 
     doc.getCount shouldBe 10L
-    doc.get().toList.map(_.getField[Int]("id")).toSet shouldBe (0 until 10).toSet
+    idsOf(doc.get()).toSet shouldBe (0 until 10).toSet
   }
 
   it should "throw NoSuchElementException when advancing an exhausted iterator" in {
-    val doc = newDocument()
-    write(doc, Seq(tuple(1)))
+    val doc = newDocumentWith(1 to 1)
     val it = doc.get()
     it.next()
     it.hasNext shouldBe false
@@ -244,8 +247,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "open no reader when an iterator is only probed with hasNext" in {
-    val doc = newCountingDocument()
-    write(doc, (0 until 5).map(tuple))
+    val doc = newCountingDocument(0 until 5)
 
     doc.get().hasNext shouldBe true
     doc.getRange(1, 3).hasNext shouldBe true
@@ -258,8 +260,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "close the reader exactly once when the final getRange element is consumed" in {
-    val doc = newCountingDocument()
-    write(doc, (0 until 5).map(tuple))
+    val doc = newCountingDocument(0 until 5)
 
     val it = doc.getRange(0, 2)
     it.next().getField[Int]("id") shouldBe 0
@@ -279,37 +280,31 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "close the reader when a getRange result is collected with toList" in {
-    val doc = newCountingDocument()
-    write(doc, (0 until 10).map(tuple))
+    val doc = newCountingDocument(0 until 10)
 
-    doc.getRange(2, 5).toList.map(_.getField[Int]("id")) shouldBe List(2, 3, 4)
+    idsOf(doc.getRange(2, 5)) shouldBe List(2, 3, 4)
     doc.opens shouldBe 1
     doc.closes shouldBe 1
   }
 
   it should "open and close one reader per file on a full read across files" in {
-    val doc = newCountingDocument()
-    write(doc, (0 until 3).map(tuple))
-    write(doc, (3 until 6).map(tuple))
+    val doc = newCountingDocument(0 until 3, 3 until 6)
 
-    doc.get().toList.map(_.getField[Int]("id")).toSet shouldBe (0 until 6).toSet
+    idsOf(doc.get()).toSet shouldBe (0 until 6).toSet
     doc.opens shouldBe 2
     doc.closes shouldBe 2
   }
 
   it should "skip whole files by metadata without opening them" in {
-    val doc = newCountingDocument()
-    write(doc, (0 until 3).map(tuple))
-    write(doc, (3 until 6).map(tuple))
+    val doc = newCountingDocument(0 until 3, 3 until 6)
 
-    doc.getAfter(4).toList.map(_.getField[Int]("id")) shouldBe List(4, 5)
+    idsOf(doc.getAfter(4)) shouldBe List(4, 5)
     doc.opens shouldBe 1
     doc.closes shouldBe 1
   }
 
   it should "compute per-field statistics for numeric, string and timestamp columns" in {
-    val doc = newDocument()
-    write(doc, (1 to 5).map(tuple))
+    val doc = newDocumentWith(1 to 5)
 
     val stats = doc.getTableStatistics
     stats.keySet should contain allOf ("id", "amount", "score", "name", "ts")
@@ -332,30 +327,17 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "throw NoSuchTableException from getTableStatistics when the table is missing" in {
-    val doc = new IcebergDocument[Tuple](
-      tableNamespace,
-      freshTableName(),
-      icebergSchema,
-      serde,
-      deserde
-    )
+    val doc = newDocumentHandle()
     intercept[NoSuchTableException] {
       doc.getTableStatistics
     }
   }
 
   it should "report a positive total file size after writes and throw when missing" in {
-    val doc = newDocument()
-    write(doc, (0 until 8).map(tuple))
+    val doc = newDocumentWith(0 until 8)
     doc.getTotalFileSize should be > 0L
 
-    val missing = new IcebergDocument[Tuple](
-      tableNamespace,
-      freshTableName(),
-      icebergSchema,
-      serde,
-      deserde
-    )
+    val missing = newDocumentHandle()
     intercept[NoSuchTableException] {
       missing.getTotalFileSize
     }
@@ -363,43 +345,30 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   it should "expose an empty stream for an empty table via asInputStream" in {
     val doc = newDocument()
-    val stream = doc.asInputStream()
-    try {
-      stream.readAllBytes() shouldBe empty
-    } finally {
-      stream.close()
-    }
+    Using.resource(doc.asInputStream())(_.readAllBytes() shouldBe empty)
   }
 
   it should "expose written rows as a non-empty ZIP archive via asInputStream" in {
-    val doc = newDocument()
-    write(doc, (0 until 3).map(tuple))
+    val doc = newDocumentWith(0 until 3)
 
-    val stream = doc.asInputStream()
-    try {
+    Using.resource(doc.asInputStream()) { stream =>
       val bytes = stream.readAllBytes()
       bytes.length should be > 0
       // ZIP local-file-header magic bytes: 0x50 0x4B ("PK").
       bytes(0) shouldBe 0x50.toByte
       bytes(1) shouldBe 0x4b.toByte
-    } finally {
-      stream.close()
     }
 
     // The archive should carry at least one .parquet entry, named by its zero-padded index.
-    val zip = new ZipInputStream(doc.asInputStream())
-    try {
+    Using.resource(new ZipInputStream(doc.asInputStream())) { zip =>
       val entry = zip.getNextEntry
       entry should not be null
       entry.getName shouldBe "part-00000.parquet"
-    } finally {
-      zip.close()
     }
   }
 
   it should "drop the table on clear so it no longer exists and counts as empty" in {
-    val doc = newDocument()
-    write(doc, (0 until 4).map(tuple))
+    val doc = newDocumentWith(0 until 4)
     doc.getCount shouldBe 4L
 
     doc.clear()
@@ -411,14 +380,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "be a no-op when clearing a table that does not exist" in {
-    val doc = new IcebergDocument[Tuple](
-      tableNamespace,
-      freshTableName(),
-      icebergSchema,
-      serde,
-      deserde
-    )
-    noException should be thrownBy doc.clear()
+    noException should be thrownBy newDocumentHandle().clear()
   }
 
   it should "expose the constructed table identity and behave as a VirtualDocument" in {

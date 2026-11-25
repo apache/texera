@@ -19,18 +19,9 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.storage.IcebergCatalogInstance
-import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
-import org.apache.iceberg.data.IcebergGenerics
 import org.apache.iceberg.exceptions.NoSuchTableException
-import org.apache.iceberg.{Schema => IcebergSchema, Table}
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
 
-import java.nio.file.{Files, Path}
-import java.util.UUID
 import scala.jdk.CollectionConverters._
 
 /**
@@ -38,7 +29,7 @@ import scala.jdk.CollectionConverters._
   * through a minimal concrete implementation and a local Hadoop-backed catalog
   * (temp `file:/` warehouse), so no REST catalog or S3 endpoint is needed.
   */
-class OnIcebergSpec extends AnyFlatSpec with BeforeAndAfterAll {
+class OnIcebergSpec extends LocalHadoopIcebergSpecSupport {
 
   /** The smallest possible OnIceberg implementation: it only supplies the three abstract members. */
   private case class TestOnIceberg(
@@ -47,83 +38,22 @@ class OnIcebergSpec extends AnyFlatSpec with BeforeAndAfterAll {
       tableName: String
   ) extends OnIceberg
 
-  private val tableNamespace = "on_iceberg_spec"
-  private var warehouseDir: Path = _
-  private var catalog: Catalog = _
-
-  private val amberSchema: Schema = Schema()
-    .add("id", AttributeType.INTEGER)
-    .add("name", AttributeType.STRING)
-
-  private val icebergSchema: IcebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
-
-  // The writer resolves its catalog from the shared cache per use (#7290), so the
-  // spec's local catalog is registered under a spec-unique warehouse name.
-  private val specWarehouse = "on-iceberg-spec"
-
-  override def beforeAll(): Unit = {
-    warehouseDir = Files.createTempDirectory("on-iceberg-spec")
-    catalog = IcebergUtil.createHadoopCatalog("on-iceberg-spec", warehouseDir)
-    IcebergCatalogInstance.replaceInstance(catalog, Some(specWarehouse))
-  }
-
-  override def afterAll(): Unit = {
-    catalog match {
-      case closeable: AutoCloseable => closeable.close()
-      case _                        =>
-    }
-  }
-
-  private def freshTableName(): String =
-    s"table_${UUID.randomUUID().toString.replace("-", "")}"
-
-  private def createTable(tableName: String): Unit = {
-    IcebergUtil.createTable(
-      catalog,
-      tableNamespace,
-      tableName,
-      icebergSchema,
-      overrideIfExists = true
-    )
-  }
-
-  private def loadTable(tableName: String): Table =
-    IcebergUtil.loadTableMetadata(catalog, tableNamespace, tableName).get
+  override protected val tableNamespace = "on_iceberg_spec"
+  override protected val specWarehouse = "on-iceberg-spec"
 
   /** Commits one snapshot holding the given ids. */
   private def appendSnapshot(tableName: String, ids: Seq[Int]): Unit = {
-    val writer = new IcebergTableWriter[Tuple](
-      s"writer_${UUID.randomUUID().toString.replace("-", "")}",
-      Some(specWarehouse),
-      tableNamespace,
-      tableName,
-      icebergSchema,
-      IcebergUtil.toGenericRecord
-    )
+    val writer = newWriter(tableName, freshTableName("writer"))
     writer.open()
-    ids.foreach(id =>
-      writer.putOne(
-        Tuple.builder(amberSchema).addSequentially(Array(Int.box(id), s"name-$id")).build()
-      )
-    )
+    ids.foreach(id => writer.putOne(tuple(id)))
     writer.close()
   }
 
   private def snapshotCount(tableName: String): Int =
     loadTable(tableName).snapshots().asScala.size
 
-  private def readIds(tableName: String): List[Int] = {
-    val records = IcebergGenerics.read(loadTable(tableName)).build()
-    try {
-      records
-        .iterator()
-        .asScala
-        .map(IcebergUtil.fromRecord(_, amberSchema).getField[Int]("id"))
-        .toList
-    } finally {
-      records.close()
-    }
-  }
+  private def readIds(tableName: String): List[Int] =
+    readTuples(tableName).map(_.getField[Int]("id"))
 
   "OnIceberg.expireSnapshots" should "retain only the most recent snapshot" in {
     val tableName = freshTableName()

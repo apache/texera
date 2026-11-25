@@ -27,6 +27,15 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
+object VirtualDocumentSpec {
+  def withWriter[A](doc: VirtualDocument[A])(write: BufferedItemWriter[A] => Unit): Unit = {
+    val writer = doc.writer(UUID.randomUUID().toString)
+    writer.open()
+    write(writer)
+    writer.close()
+  }
+}
+
 /**
   * A trait for testing VirtualDocument implementations.
   * Provides common read/write test cases and hooks for subclasses to customize.
@@ -47,14 +56,13 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     document = getDocument
   }
 
+  protected def withWriter[A](doc: VirtualDocument[A])(write: BufferedItemWriter[A] => Unit): Unit =
+    VirtualDocumentSpec.withWriter(doc)(write)
+
   "VirtualDocument" should "write and read items successfully" in {
     val items = generateSampleItems()
 
-    // Get writer and write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    items.foreach(writer.putOne)
-    writer.close()
+    withWriter(document)(w => items.foreach(w.putOne))
 
     // Read items back
     val retrievedItems = document.get().toList
@@ -73,20 +81,14 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     assert(!reader.hasNext, "Reader should initially have no data.")
 
     // Write the first batch
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    batch1.foreach(writer.putOne)
-    writer.close()
+    withWriter(document)(w => batch1.foreach(w.putOne))
 
     // The reader should detect and read the first batch
     val retrievedBatch1 = reader.take(batch1.length).toList
     assert(retrievedBatch1.toSet == batch1.toSet, "Reader should read the first batch correctly.")
 
     // Write the second batch
-    val writer2 = document.writer(UUID.randomUUID().toString)
-    writer2.open()
-    batch2.foreach(writer2.putOne)
-    writer2.close()
+    withWriter(document)(w => batch2.foreach(w.putOne))
 
     // The reader should detect and read the second batch
     val retrievedBatch2 = reader.toList
@@ -95,11 +97,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
   it should "clear the document" in {
     val items = generateSampleItems()
 
-    // Write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    items.foreach(writer.putOne)
-    writer.close()
+    withWriter(document)(w => items.foreach(w.putOne))
 
     // Ensure items are written
     assert(document.get().nonEmpty, "The document should contain items before clearing.")
@@ -139,10 +137,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     // Perform concurrent writes
     val writeFutures = itemBatches.map { batch =>
       Future {
-        val writer = document.writer(UUID.randomUUID().toString)
-        writer.open()
-        batch.foreach(writer.putOne)
-        writer.close()
+        withWriter(document)(w => batch.foreach(w.putOne))
       }
     }
 
@@ -216,11 +211,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
   it should "read all items using ranges correctly" in {
     val allItems = generateSampleItems()
 
-    // Write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    allItems.foreach(writer.putOne)
-    writer.close()
+    withWriter(document)(w => allItems.foreach(w.putOne))
 
     // Read all items using ranges
     val batchSize = 1500
@@ -241,11 +232,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
   it should "retrieve items correctly using getAfter" in {
     val allItems = generateSampleItems()
 
-    // Write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    allItems.foreach(writer.putOne)
-    writer.close()
+    withWriter(document)(w => allItems.foreach(w.putOne))
 
     // Test getAfter for various offsets
     val offsets = List(0, allItems.length / 2, allItems.length - 1)
@@ -275,11 +262,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
   it should "get the count of records correctly" in {
     val allItems = generateSampleItems()
 
-    // Write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    allItems.foreach(writer.putOne)
-    writer.close()
+    withWriter(document)(w => allItems.foreach(w.putOne))
 
     assert(
       allItems.length == document.getCount,

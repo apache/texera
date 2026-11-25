@@ -27,23 +27,9 @@ import java.io.{ByteArrayInputStream, IOException}
 import scala.util.Random
 
 @NonParallelTest
-class LargeBinaryInputStreamSpec extends AnyFunSuite with S3StorageTestBase {
+class LargeBinaryInputStreamSpec extends AnyFunSuite with S3BucketTestBase {
 
-  private val testBucketName = "test-large-binary-input-stream"
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    S3StorageClient.createBucketIfNotExist(testBucketName)
-  }
-
-  override def afterAll(): Unit = {
-    try {
-      S3StorageClient.deleteDirectory(testBucketName, "")
-    } catch {
-      case _: Exception => // Ignore cleanup errors
-    }
-    super.afterAll()
-  }
+  protected val testBucketName = "test-large-binary-input-stream"
 
   // Helper methods
   private def createTestObject(key: String, data: Array[Byte]): LargeBinary = {
