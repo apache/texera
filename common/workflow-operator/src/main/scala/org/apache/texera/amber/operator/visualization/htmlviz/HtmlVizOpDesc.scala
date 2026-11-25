@@ -62,7 +62,7 @@ class HtmlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas => {
+        SchemaPropagationFunc(_ => {
           val outputSchema = Schema().add("html-content", AttributeType.STRING)
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })

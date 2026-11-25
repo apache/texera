@@ -89,7 +89,7 @@ object ComputingUnitMaster {
         case Nil => map
         case "--cluster" :: value :: tail =>
           nextOption(map ++ Map(Symbol("cluster") -> value.toBoolean), tail)
-        case option :: tail =>
+        case _ :: _ =>
           throw new InvalidArgumentException("unknown command-line arg")
       }
     }

@@ -40,7 +40,7 @@ class WebsocketInput(errorHandler: Throwable => Unit) {
             case throwable: Throwable =>
               errorHandler(throwable)
           }
-        case other =>
+        case _ =>
         // skip this one because it doesn't match the type we want
       }
     })

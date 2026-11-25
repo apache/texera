@@ -354,21 +354,20 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
   protected def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
-        var result: Number = null
         val preparedStatement = connection.prepareStatement(
           "SELECT " + side + "(" + attribute.getName + ") FROM " + desc.table + ";"
         )
         val resultSet = preparedStatement.executeQuery
         resultSet.next
-        schema.getAttribute(attribute.getName).getType match {
+        val result: Number = schema.getAttribute(attribute.getName).getType match {
           case AttributeType.INTEGER =>
-            result = resultSet.getInt(1)
+            resultSet.getInt(1)
           case AttributeType.LONG =>
-            result = resultSet.getLong(1)
+            resultSet.getLong(1)
           case AttributeType.TIMESTAMP =>
-            result = resultSet.getTimestamp(1).getTime
+            resultSet.getTimestamp(1).getTime
           case AttributeType.DOUBLE =>
-            result = resultSet.getDouble(1)
+            resultSet.getDouble(1)
           case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
