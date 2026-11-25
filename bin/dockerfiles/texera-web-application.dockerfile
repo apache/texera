@@ -24,7 +24,7 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM docker.io/library/node:24.19.0-bookworm@sha256:4196d66a565c6f195728d9952f161f4adfe2ad753052a08b7ec7f1c5a6bda42b AS build-frontend
+FROM docker.io/library/node:24.22.3-bookworm@sha256:49f7adaf9f1574bc45c20ea317139b39a59d7e758d0e93745e112fd85cb42623 AS build-frontend
 
 ARG PACKAGE_SNAPSHOT
 RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
@@ -107,7 +107,7 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
         amber/LICENSE-binary-java \
         amber/LICENSE-binary-frontend
 
-FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:97137382c6f0c30427d9b7c44ad8b2d55ac823b0768c171d81a643ed219023c5 AS runtime
+FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:c6a5dd70fb24f4e07ef88cbda8efb613a5a649a1af071a41de8eaabd1ee6b5da AS runtime
 
 WORKDIR /texera/amber
 # Copy built frontend files from the build-frontend stage to match FileAssetsBundle path (../../frontend/dist from /texera/amber)
