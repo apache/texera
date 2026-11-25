@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.observability
 
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -47,7 +46,7 @@ import java.util.concurrent.ConcurrentHashMap
   *  - the always-polled `texera.workflow.active` gauge is sourced from the
   *    live WorkflowService registry via the supplier registered in [[init]].
   */
-object WorkflowMetricsRecorder extends LazyLogging {
+object WorkflowMetricsRecorder {
 
   // Start time + kind per in-flight run, so a terminal transition can emit
   // a duration and attribute the outcome. Keyed by the execution identity.

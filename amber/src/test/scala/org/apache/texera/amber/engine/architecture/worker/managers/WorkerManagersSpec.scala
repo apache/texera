@@ -19,8 +19,6 @@
 
 package org.apache.texera.amber.engine.architecture.worker.managers
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -35,17 +33,11 @@ class WorkerManagersSpec extends AnyFlatSpec {
   // StatisticsManager
   // ---------------------------------------------------------------------------
 
-  // Minimal OperatorExecutor instance — StatisticsManager.getStatistics ignores
-  // its argument today, so any concrete impl works.
-  private val nullExec: OperatorExecutor = new OperatorExecutor {
-    override def processTuple(t: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
-  }
-
   "StatisticsManager" should "default all counters to zero" in {
     val sm = new StatisticsManager()
     assert(sm.getInputTupleCount == 0L)
     assert(sm.getOutputTupleCount == 0L)
-    val s = sm.getStatistics(nullExec)
+    val s = sm.getStatistics()
     assert(s.inputTupleMetrics.isEmpty)
     assert(s.outputTupleMetrics.isEmpty)
     assert(s.dataProcessingTime == 0L)
@@ -61,7 +53,7 @@ class WorkerManagersSpec extends AnyFlatSpec {
     sm.increaseInputStatistics(PortIdentity(1), 25)
     assert(sm.getInputTupleCount == 3L)
     val byPort = sm
-      .getStatistics(nullExec)
+      .getStatistics()
       .inputTupleMetrics
       .map(m => m.portId -> (m.tupleMetrics.count, m.tupleMetrics.size))
       .toMap
@@ -83,7 +75,7 @@ class WorkerManagersSpec extends AnyFlatSpec {
     sm.increaseOutputStatistics(PortIdentity(1), 25)
     assert(sm.getOutputTupleCount == 3L)
     val byPort = sm
-      .getStatistics(nullExec)
+      .getStatistics()
       .outputTupleMetrics
       .map(m => m.portId -> (m.tupleMetrics.count, m.tupleMetrics.size))
       .toMap
@@ -102,7 +94,7 @@ class WorkerManagersSpec extends AnyFlatSpec {
     val sm = new StatisticsManager()
     sm.increaseDataProcessingTime(100)
     sm.increaseDataProcessingTime(50)
-    assert(sm.getStatistics(nullExec).dataProcessingTime == 150L)
+    assert(sm.getStatistics().dataProcessingTime == 150L)
     assertThrows[IllegalArgumentException] {
       sm.increaseDataProcessingTime(-1)
     }
@@ -112,7 +104,7 @@ class WorkerManagersSpec extends AnyFlatSpec {
     val sm = new StatisticsManager()
     sm.increaseControlProcessingTime(20)
     sm.increaseControlProcessingTime(40)
-    assert(sm.getStatistics(nullExec).controlProcessingTime == 60L)
+    assert(sm.getStatistics().controlProcessingTime == 60L)
     assertThrows[IllegalArgumentException] {
       sm.increaseControlProcessingTime(-1)
     }
@@ -124,7 +116,7 @@ class WorkerManagersSpec extends AnyFlatSpec {
     sm.increaseDataProcessingTime(200L)
     sm.increaseControlProcessingTime(100L)
     sm.updateTotalExecutionTime(2000L)
-    val s = sm.getStatistics(nullExec)
+    val s = sm.getStatistics()
     assert(s.dataProcessingTime == 200L)
     assert(s.controlProcessingTime == 100L)
     assert(s.idleTime == 2000L - 1000L - 200L - 100L)

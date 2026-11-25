@@ -396,14 +396,15 @@ object ArrowFlightActorBench {
 
       val totalTuples = cfg.numBatches.toLong * cfg.batchSize.toLong
       val totalBytes = cfg.numBatches.toLong * approxBytesPerBatch
+      val sortedLatencies = latencies.sorted
       val result = BenchResult(
         cfg,
         totalWallNs = totalNs,
         totalTuples = totalTuples,
         totalBytesApprox = totalBytes,
-        latencyP50Ns = percentile(latencies, 0.50),
-        latencyP95Ns = percentile(latencies, 0.95),
-        latencyP99Ns = percentile(latencies, 0.99)
+        latencyP50Ns = percentile(sortedLatencies, 0.50),
+        latencyP95Ns = percentile(sortedLatencies, 0.95),
+        latencyP99Ns = percentile(sortedLatencies, 0.99)
       )
 
       printOne(result)
@@ -485,10 +486,9 @@ object ArrowFlightActorBench {
     }
   }
 
-  private def percentile(values: Array[Long], q: Double): Long = {
-    if (values.isEmpty) 0L
+  private def percentile(sorted: Array[Long], q: Double): Long = {
+    if (sorted.isEmpty) 0L
     else {
-      val sorted = values.sorted
       val idx = math.min(sorted.length - 1, math.max(0, (sorted.length * q).toInt))
       sorted(idx)
     }
