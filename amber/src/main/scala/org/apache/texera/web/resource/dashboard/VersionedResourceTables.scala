@@ -91,6 +91,13 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       Some(if (uid == null) DSL.falseCondition() else access.uidColumn.eq(uid))
     )
 
+  /**
+    * Every column [[hydrate]] reads: a query that selects fewer leaves the owner's email or the
+    * privilege null without an error.
+    */
+  final def hydrationFields: Seq[Field[_]] =
+    table.fields().toSeq ++ Seq(USER.EMAIL, access.privilegeColumn)
+
   /** `None` when LakeFS cannot size the resource; callers drop it and report a mismatch. */
   final def hydrate(
       record: Record,

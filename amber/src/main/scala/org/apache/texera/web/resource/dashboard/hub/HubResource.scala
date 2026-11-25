@@ -294,7 +294,7 @@ object HubResource {
       uid: Integer
   ) =
     context
-      .select((tables.table.fields().toSeq ++ Seq(USER.EMAIL, tables.access.privilegeColumn)): _*)
+      .select(tables.hydrationFields: _*)
       .from(tables.joinWithViewerAccessAndOwner(uid))
       .where(tables.idColumn.in(ids: _*))
 
