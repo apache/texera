@@ -149,7 +149,7 @@ class TestProxyClient:
         self, data_queue: Queue, server_with_dp, client, data_table
     ):
         # send the pyarrow table to server as a flight
-        client.send_data(bytes(), data_table)
+        client.send_data(b"", data_table)
 
         assert data_queue.qsize() == 4
         for _, row in data_table.to_pandas().iterrows():
