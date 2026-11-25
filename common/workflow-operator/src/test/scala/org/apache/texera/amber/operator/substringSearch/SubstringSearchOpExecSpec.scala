@@ -19,27 +19,20 @@
 
 package org.apache.texera.amber.operator.substringSearch
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.operator.FilterSearchSpecSupport
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.flatspec.AnyFlatSpec
 
-class SubstringSearchOpExecSpec extends AnyFlatSpec {
+class SubstringSearchOpExecSpec extends FilterSearchSpecSupport {
 
-  // ---------------------------------------------------------------------------
-  // Fixture builders
-  // ---------------------------------------------------------------------------
-
-  private val attr = new Attribute("body", AttributeType.STRING)
-  private val schema: Schema = Schema().add(attr)
-  private def tuple(text: String): Tuple =
-    Tuple.builder(schema).add(attr, text).build()
-
-  private def descJson(substring: String, isCaseSensitive: Boolean = false): String = {
+  private def execFor(
+      substring: String,
+      isCaseSensitive: Boolean = false
+  ): SubstringSearchOpExec = {
     val desc = new SubstringSearchOpDesc
     desc.attribute = "body"
     desc.substring = substring
     desc.isCaseSensitive = isCaseSensitive
-    objectMapper.writeValueAsString(desc)
+    new SubstringSearchOpExec(objectMapper.writeValueAsString(desc))
   }
 
   // ---------------------------------------------------------------------------
@@ -47,19 +40,16 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "SubstringSearchOpExec" should "yield the input tuple when the substring is present" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "hello"))
-    val t = tuple("hello world")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("hello"), "hello world")
   }
 
   it should "yield nothing when the substring is absent" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "missing"))
-    assert(exec.processTuple(tuple("hello world"), port = 0).toList.isEmpty)
+    assertMisses(execFor("missing"), "hello world")
   }
 
   it should
     "match when the substring sits anywhere in the value (start / middle / end)" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "abc"))
+    val exec = execFor("abc")
     assert(exec.processTuple(tuple("abc xx"), port = 0).toList.nonEmpty)
     assert(exec.processTuple(tuple("xx abc xx"), port = 0).toList.nonEmpty)
     assert(exec.processTuple(tuple("xx abc"), port = 0).toList.nonEmpty)
@@ -71,27 +61,20 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
 
   "SubstringSearchOpExec with isCaseSensitive = true" should
     "match case-sensitively (case mismatch is rejected)" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "HELLO", isCaseSensitive = true))
-    assert(exec.processTuple(tuple("hello world"), port = 0).toList.isEmpty)
+    assertMisses(execFor("HELLO", isCaseSensitive = true), "hello world")
   }
 
   it should "yield the tuple when the case matches under case-sensitive mode" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "HELLO", isCaseSensitive = true))
-    val t = tuple("Say HELLO loudly")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("HELLO", isCaseSensitive = true), "Say HELLO loudly")
   }
 
   "SubstringSearchOpExec with isCaseSensitive = false" should
     "match case-insensitively (production lowercases both sides before String.contains)" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "HELLO", isCaseSensitive = false))
-    val t = tuple("hello world")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("HELLO", isCaseSensitive = false), "hello world")
   }
 
   it should "still match identical-case values under case-insensitive mode" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "world", isCaseSensitive = false))
-    val t = tuple("hello world")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("world", isCaseSensitive = false), "hello world")
   }
 
   // ---------------------------------------------------------------------------
@@ -99,17 +82,15 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   it should "yield nothing when the column is empty" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "hello"))
     // A blank CSV cell arrives as null. This used to throw a NullPointerException on
     // the toString instead of answering the filter.
-    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+    assertMisses(execFor("hello"), null)
   }
 
   it should "yield nothing when the column is empty and the substring is empty too" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = ""))
     // The empty substring matches every value, but a row with no value has none to
     // match, so it is filtered out rather than kept.
-    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+    assertMisses(execFor(""), null)
   }
 
   // ---------------------------------------------------------------------------
@@ -117,12 +98,10 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   it should "treat the empty substring as matching every value (Java String.contains(\"\") == true)" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = ""))
-    val t = tuple("any non-empty text")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    val exec = execFor("")
+    assertMatches(exec, "any non-empty text")
     // Even an empty value contains the empty substring.
-    val empty = tuple("")
-    assert(exec.processTuple(empty, port = 0).toList == List(empty))
+    assertMatches(exec, "")
   }
 
   // ---------------------------------------------------------------------------
@@ -130,12 +109,10 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   it should "produce stable results across repeated processTuple calls" in {
-    val exec = new SubstringSearchOpExec(descJson(substring = "match"))
-    val hit = tuple("match here")
-    val miss = tuple("no signal")
-    assert(exec.processTuple(hit, port = 0).toList == List(hit))
-    assert(exec.processTuple(miss, port = 0).toList.isEmpty)
-    assert(exec.processTuple(hit, port = 0).toList == List(hit))
+    val exec = execFor("match")
+    assertMatches(exec, "match here")
+    assertMisses(exec, "no signal")
+    assertMatches(exec, "match here")
   }
 
   // ---------------------------------------------------------------------------
