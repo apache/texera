@@ -101,9 +101,10 @@ class PveResourceSpec
   // install/uninstall/freeze) so the spec is hermetic — no real venv, no pip,
   // no network. ScalaMock expectations are per-test, so expectProcessCalls() is
   // called at the top of each test that exercises a process. The single handler
-  // dispatches on the command: a venv create fabricates <dir>/bin/{python,pip},
-  // freeze emits the system set, install/uninstall just return the configured
-  // exit code. PveManager still owns the metadata files and queue messages.
+  // dispatches on the command: a venv create fabricates python and pip where this
+  // platform's venv keeps them (see venvExecutable), freeze emits the system set,
+  // install/uninstall just return the configured exit code. PveManager still owns
+  // the metadata files and queue messages.
   private val runProcessMock =
     mockFunction[Seq[String], Seq[(String, String)], ProcessLogger, Int]
 
@@ -114,10 +115,10 @@ class PveResourceSpec
         recordedCommands += command
         if (command.contains("venv")) {
           if (venvExit == 0) {
-            val bin = Paths.get(command.last).resolve("bin")
-            Files.createDirectories(bin)
+            val venv = Paths.get(command.last)
             Seq("python", "pip").foreach { exe =>
-              val f = bin.resolve(exe)
+              val f = venvExecutable(venv, exe)
+              Files.createDirectories(f.getParent)
               Files.write(f, Array.emptyByteArray)
               f.toFile.setExecutable(true)
             }
@@ -177,12 +178,17 @@ class PveResourceSpec
     PveManager.deleteEnvironments(testCuid)
   }
 
+  /**
+    * Where a venv keeps an executable on this platform: `<venv>/bin/<name>` on POSIX,
+    * `<venv>/Scripts/<name>.exe` on Windows. For `python` this is PveManager's own rule.
+    */
+  private def venvExecutable(venv: Path, name: String): Path =
+    if (SystemUtils.IS_OS_WINDOWS) venv.resolve("Scripts").resolve(s"$name.exe")
+    else venv.resolve("bin").resolve(name)
+
   /** Where PveManager looks for a venv's interpreter on this platform. */
-  private def pythonBinFor(pveName: String): Path = {
-    val venv = testRoot.resolve(pveName).resolve("pve")
-    if (SystemUtils.IS_OS_WINDOWS) venv.resolve("Scripts").resolve("python.exe")
-    else venv.resolve("bin").resolve("python")
-  }
+  private def pythonBinFor(pveName: String): Path =
+    venvExecutable(testRoot.resolve(pveName).resolve("pve"), "python")
 
   private def queueText(): String = {
     queue.iterator().asScala.toList.mkString("\n")
@@ -190,9 +196,7 @@ class PveResourceSpec
 
   /**
     * Puts just the interpreter where PveManager looks for it, without going through
-    * `createNewPve`. The mocked venv creation fabricates a POSIX `bin/python` layout,
-    * so the create flow cannot stand a PVE up on a platform whose interpreter lives
-    * somewhere else; `pythonBinFor` asks PveManager's own question instead.
+    * `createNewPve`: no process is run and no metadata file is written.
     */
   private def fabricatePve(pveName: String): Path = {
     val python = pythonBinFor(pveName)
@@ -245,8 +249,8 @@ class PveResourceSpec
     logs should include(s"[PVE] Created new environment for cuid = $testCuid")
 
     val pvePath = testRoot.resolve(testPveName).resolve("pve")
-    val pythonPath = pvePath.resolve("bin").resolve("python")
-    val pipPath = pvePath.resolve("bin").resolve("pip")
+    val pythonPath = venvExecutable(pvePath, "python")
+    val pipPath = venvExecutable(pvePath, "pip")
 
     Files.exists(pvePath) shouldBe true
     Files.exists(pythonPath) shouldBe true
@@ -400,7 +404,7 @@ class PveResourceSpec
 
     val result = PveManager.getPythonBin(testCuid, testPveName)
     result shouldBe defined
-    result.get.toString should endWith(s"$testPveName/pve/bin/python")
+    result.get.toString should endWith(testRoot.relativize(pythonBinFor(testPveName)).toString)
   }
 
   it should "return None when the venv does not exist" in {
