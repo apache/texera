@@ -50,15 +50,15 @@ import scala.jdk.CollectionConverters._
   * Both paths of these charts are assembled from shared Python fragments, and a
   * fragment that reads a name its caller never bound still compiles: only running
   * it fails. Each case runs both paths and expects the same figures, or the same
-  * refusal; the values pinned below keep the two from drifting together. Every
-  * value typed into a setting carries a quote, which the operator decodes at
+  * refusal; the values pinned below keep the two from drifting together. Each
+  * chart has settings whose text carries a quote, which the operator decodes at
   * runtime and the exported script has to spell as an escaped literal.
   */
 class RuntimeStandaloneParitySpec extends AnyFlatSpec with Matchers {
 
   private def networkGraph: NetworkGraphOpDesc = {
     val op = new NetworkGraphOpDesc
-    op.source = "from node"
+    op.source = "from's \"node\""
     op.destination = "to's \"node\""
     op.title = "Friends \"graph\""
     op
@@ -158,8 +158,10 @@ class RuntimeStandaloneParitySpec extends AnyFlatSpec with Matchers {
     val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImport(python, "pandas", "plotly", "networkx")) {
-      cancel(s"'$python' cannot import pandas, plotly and networkx; skipping runtime verification")
+    // networkx stays out of the gate: only the network graph imports it, inside each
+    // path's try, so without it those two cases fail instead of all ten cancelling.
+    if (!canImport(python, "pandas", "plotly")) {
+      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
     withDriver(
@@ -429,11 +431,11 @@ class RuntimeStandaloneParitySpec extends AnyFlatSpec with Matchers {
       |CASES = {
       |    "network_graph": {
       |        "drawn": pd.DataFrame({
-      |            "from node": ["a", "a", "b", None],
+      |            'from\'s "node"': ["a", "a", "b", None],
       |            'to\'s "node"': ["b", "c", "c", "d"],
       |        }),
       |        "no_complete_edge": pd.DataFrame({
-      |            "from node": ["a", None],
+      |            'from\'s "node"': ["a", None],
       |            'to\'s "node"': [None, "b"],
       |        }),
       |    },
