@@ -110,12 +110,10 @@ def test_strip_ansi_idempotent(tui):
 
 # ─────────────────── source_hash() / is_dirty() ───────────────────
 
-def _seed_jvm_layout(repo: Path, svc_own_src: str, version: str = "9.9.9-T") -> None:
+def _seed_jvm_layout(repo: Path, svc_own_src: str) -> None:
     """Drop the directory layout source_hash() / is_dirty() walk.
 
-    Six shared `common/*/src` dirs + the per-service src dir + the dist
-    artifact jar at `target/<svc>-<version>/lib/...` so the artifact-mtime
-    lookup works."""
+    Six shared `common/*/src` dirs + the per-service src dir."""
     for d in ["dao", "config", "auth", "workflow-core", "workflow-operator", "pybuilder"]:
         p = repo / "common" / d / "src"
         p.mkdir(parents=True, exist_ok=True)

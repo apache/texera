@@ -139,9 +139,7 @@ def needs_per_dep_file(license_text: str, copyright_count: int) -> bool:
         return True
     if "licenses for included components" in license_text.lower():
         return True
-    if copyright_count >= 4:
-        return True
-    return False
+    return copyright_count >= 4
 
 
 def main() -> int:

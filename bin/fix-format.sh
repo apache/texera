@@ -58,7 +58,7 @@ case "$TARGET" in
   --scala)    run_scala=true ;;
   --frontend) run_frontend=true ;;
   --python)   run_python=true ;;
-  ""|--all|all) run_scala=true; run_frontend=true; run_python=true ;;
+  --all|all) run_scala=true; run_frontend=true; run_python=true ;;
   *)
     tx_error "Unknown option: $TARGET"
     echo "Usage: bin/fix-format.sh [--scala | --frontend | --python | --all]"

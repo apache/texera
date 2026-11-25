@@ -44,7 +44,7 @@ import sys
 import traceback
 
 
-def _compile_one(source: str, name: str) -> "dict[str, object]":
+def _compile_one(source: str, name: str) -> dict[str, object]:
     """Compile one generated module. `name` is the filename the traceback shows,
     so a report names the descriptor rather than a temp path.
     """

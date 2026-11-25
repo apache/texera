@@ -27,7 +27,7 @@ import org.apache.texera.amber.translator.verify.tags.IntegrationTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 import java.sql.Timestamp
 import java.util.Base64
 import scala.sys.process._
@@ -39,114 +39,107 @@ import scala.sys.process._
 @IntegrationTest
 class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
 
+  /** A Python operator with one input and one output port that declares one
+    * output column and runs the code it is given.
+    */
+  private class InlinePythonOpDesc(
+      name: String,
+      desc: String,
+      outName: String,
+      outType: AttributeType,
+      pythonCode: String
+  ) extends PythonOperatorDescriptor {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        userFriendlyName = name,
+        operatorDescription = desc,
+        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort())
+      )
+
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map(operatorInfo.outputPorts.head.id -> Schema().add(new Attribute(outName, outType)))
+
+    override def generatePythonCode(): String = pythonCode
+  }
+
+  /** Puts `bodyLines` inside `process_tuple`, or inside `process_table` when
+    * `tableOp` is set.
+    */
+  private def inlinePyOp(
+      name: String,
+      desc: String,
+      outName: String,
+      outType: AttributeType,
+      bodyLines: Seq[String],
+      tableOp: Boolean = false
+  ): PythonOperatorDescriptor = {
+    val header =
+      if (tableOp)
+        """class ProcessTableOperator(UDFTableOperator):
+          |
+          |    @overrides
+          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:""".stripMargin
+      else
+        """class ProcessTupleOperator(UDFOperatorV2):
+          |
+          |    @overrides
+          |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:""".stripMargin
+    val body = bodyLines.map("        " + _).mkString("\n")
+    val code =
+      s"""from pytexera import *
+         |
+         |$header
+         |$body
+         |""".stripMargin
+    new InlinePythonOpDesc(name, desc, outName, outType, code)
+  }
+
   /** Yields one dict twice, changing it in between. `DataProcessor` reads a
     * yield where it happens, so the engine records 1 and then 2; a driver that
     * collects the yields first and converts them afterwards sees the same
     * object twice and records 2 twice.
     */
-  private class MutatingYieldOpDesc extends PythonOperatorDescriptor {
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        userFriendlyName = "Mutating Yield",
-        operatorDescription = "yields one dict twice, changing it in between",
-        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-        inputPorts = List(InputPort()),
-        outputPorts = List(OutputPort())
-      )
-
-    override def getOutputSchemas(
-        inputSchemas: Map[PortIdentity, Schema]
-    ): Map[PortIdentity, Schema] =
-      Map(
-        operatorInfo.outputPorts.head.id -> Schema().add(new Attribute("x", AttributeType.INTEGER))
-      )
-
-    override def generatePythonCode(): String =
-      """from pytexera import *
-        |
-        |class ProcessTableOperator(UDFTableOperator):
-        |
-        |    @overrides
-        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        |        row = {"x": 1}
-        |        yield row
-        |        row["x"] = 2
-        |        yield row
-        |""".stripMargin
-  }
+  private val mutatingYieldOpDesc: PythonOperatorDescriptor = inlinePyOp(
+    name = "Mutating Yield",
+    desc = "yields one dict twice, changing it in between",
+    outName = "x",
+    outType = AttributeType.INTEGER,
+    bodyLines = Seq("""row = {"x": 1}""", "yield row", """row["x"] = 2""", "yield row"),
+    tableOp = true
+  )
 
   /** Reports the column names of the table it was handed, as one row. */
-  private class TableColumnsOpDesc extends PythonOperatorDescriptor {
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        userFriendlyName = "Table Columns",
-        operatorDescription = "yields the column names of its input table",
-        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-        inputPorts = List(InputPort()),
-        outputPorts = List(OutputPort())
-      )
+  private val tableColumnsOpDesc: PythonOperatorDescriptor = inlinePyOp(
+    name = "Table Columns",
+    desc = "yields the column names of its input table",
+    outName = "columns",
+    outType = AttributeType.STRING,
+    bodyLines = Seq("""yield {"columns": ",".join(table.columns)}"""),
+    tableOp = true
+  )
 
-    override def getOutputSchemas(
-        inputSchemas: Map[PortIdentity, Schema]
-    ): Map[PortIdentity, Schema] =
-      Map(
-        operatorInfo.outputPorts.head.id -> Schema().add(
-          new Attribute("columns", AttributeType.STRING)
-        )
-      )
-
-    override def generatePythonCode(): String =
-      """from pytexera import *
-        |
-        |class ProcessTableOperator(UDFTableOperator):
-        |
-        |    @overrides
-        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        |        yield {"columns": ",".join(table.columns)}
-        |""".stripMargin
-  }
-
-  /** Reports the timestamp it was handed, as Python prints it. */
-  private class TimestampTextOpDesc extends BinaryTypeOpDesc {
-    override def generatePythonCode(): String =
-      """from pytexera import *
-        |
-        |class ProcessTupleOperator(UDFOperatorV2):
-        |
-        |    @overrides
-        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        |        yield {"kind": str(tuple_["ts"])}
-        |""".stripMargin
-  }
+  private def kindOp(desc: String, expr: String): PythonOperatorDescriptor =
+    inlinePyOp(
+      name = "Binary Type",
+      desc = desc,
+      outName = "kind",
+      outType = AttributeType.STRING,
+      bodyLines = Seq(s"""yield {"kind": $expr}""")
+    )
 
   /** Declares one INTEGER column `x` and yields `row`, a Python dict literal. */
-  private class YieldOpDesc(row: String) extends PythonOperatorDescriptor {
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        userFriendlyName = "Yield",
-        operatorDescription = "yields one row as given",
-        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-        inputPorts = List(InputPort()),
-        outputPorts = List(OutputPort())
-      )
-
-    override def getOutputSchemas(
-        inputSchemas: Map[PortIdentity, Schema]
-    ): Map[PortIdentity, Schema] =
-      Map(
-        operatorInfo.outputPorts.head.id -> Schema().add(new Attribute("x", AttributeType.INTEGER))
-      )
-
-    override def generatePythonCode(): String =
-      s"""from pytexera import *
-         |
-         |class ProcessTupleOperator(UDFOperatorV2):
-         |
-         |    @overrides
-         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-         |        yield $row
-         |""".stripMargin
-  }
+  private def yieldOp(row: String): PythonOperatorDescriptor =
+    inlinePyOp(
+      name = "Yield",
+      desc = "yields one row as given",
+      outName = "x",
+      outType = AttributeType.INTEGER,
+      bodyLines = Seq(s"yield $row")
+    )
 
   /** Reads a LARGE_BINARY column and writes out the reference it holds.
     *
@@ -154,89 +147,17 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
     * points at them, so an operator can be handed one, and can hand one back,
     * without any storage being reachable.
     */
-  private class LargeBinaryOpDesc(readsInput: Boolean) extends PythonOperatorDescriptor {
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        userFriendlyName = "Large Binary",
-        operatorDescription = "reads or writes a reference to a large binary",
-        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-        inputPorts = List(InputPort()),
-        outputPorts = List(OutputPort())
+  private def largeBinaryOp(readsInput: Boolean): PythonOperatorDescriptor =
+    inlinePyOp(
+      name = "Large Binary",
+      desc = "reads or writes a reference to a large binary",
+      outName = if (readsInput) "uri" else "blob",
+      outType = if (readsInput) AttributeType.STRING else AttributeType.LARGE_BINARY,
+      bodyLines = Seq(
+        if (readsInput) """yield {"uri": tuple_["blob"].uri}"""
+        else """yield {"blob": largebinary(tuple_["uri"])}"""
       )
-
-    override def getOutputSchemas(
-        inputSchemas: Map[PortIdentity, Schema]
-    ): Map[PortIdentity, Schema] =
-      Map(
-        operatorInfo.outputPorts.head.id ->
-          (if (readsInput) Schema().add(new Attribute("uri", AttributeType.STRING))
-           else Schema().add(new Attribute("blob", AttributeType.LARGE_BINARY)))
-      )
-
-    override def generatePythonCode(): String =
-      if (readsInput)
-        """from pytexera import *
-          |
-          |class ProcessTupleOperator(UDFOperatorV2):
-          |
-          |    @overrides
-          |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-          |        yield {"uri": tuple_["blob"].uri}
-          |""".stripMargin
-      else
-        """from pytexera import *
-          |
-          |class ProcessTupleOperator(UDFOperatorV2):
-          |
-          |    @overrides
-          |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-          |        yield {"blob": largebinary(tuple_["uri"])}
-          |""".stripMargin
-  }
-
-  /** Reports the Python type of the BINARY cell it is handed. */
-  private class BinaryTypeOpDesc extends PythonOperatorDescriptor {
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        userFriendlyName = "Binary Type",
-        operatorDescription = "reports the type of a binary cell",
-        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-        inputPorts = List(InputPort()),
-        outputPorts = List(OutputPort())
-      )
-
-    override def getOutputSchemas(
-        inputSchemas: Map[PortIdentity, Schema]
-    ): Map[PortIdentity, Schema] =
-      Map(
-        operatorInfo.outputPorts.head.id -> Schema().add(
-          new Attribute("kind", AttributeType.STRING)
-        )
-      )
-
-    override def generatePythonCode(): String =
-      """from pytexera import *
-        |
-        |class ProcessTupleOperator(UDFOperatorV2):
-        |
-        |    @overrides
-        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        |        yield {"kind": type(tuple_["blob"]).__name__}
-        |""".stripMargin
-  }
-
-  /** Calls predict on the BINARY cell it is handed, as a model's consumer does. */
-  private class ModelPredictOpDesc extends BinaryTypeOpDesc {
-    override def generatePythonCode(): String =
-      """from pytexera import *
-        |
-        |class ProcessTupleOperator(UDFOperatorV2):
-        |
-        |    @overrides
-        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        |        yield {"kind": str(tuple_["blob"].predict([[1.0]])[0])}
-        |""".stripMargin
-  }
+    )
 
   // A fitted DecisionTreeClassifier behind the marker the cast writes, pickled
   // by the interpreter the harness runs so the two share a sklearn. The script
@@ -256,64 +177,95 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
     Base64.getDecoder.decode(encoded.trim)
   }
 
-  private def binaryCellKind(
-      cell: Array[Byte],
-      opDesc: PythonOperatorDescriptor = new BinaryTypeOpDesc
-  ): String = {
-    val dir = Files.createTempDirectory("py-op-harness-binary-")
-    val inputSchema = Schema().add(new Attribute("blob", AttributeType.BINARY))
+  private def writeInputPort0(
+      prefix: String,
+      inputSchema: Schema,
+      rows: Seq[Tuple]
+  ): (Path, Path) = {
+    val dir = Files.createTempDirectory(prefix)
     val input = dir.resolve("input_port_0.jsonl")
-    val row = Tuple.builder(inputSchema).add("blob", AttributeType.BINARY, cell).build()
-    TupleIO.writeTuples(input, Iterator(row), inputSchema)
+    TupleIO.writeTuples(input, rows.iterator, inputSchema)
+    (dir, input)
+  }
 
+  private def singleColRow(col: String, tpe: AttributeType, value: Any): (Schema, Seq[Tuple]) = {
+    val schema = Schema().add(new Attribute(col, tpe))
+    val row = Tuple.builder(schema).add(col, tpe, value).build()
+    (schema, Seq(row))
+  }
+
+  private def runSinglePort[T](
+      prefix: String,
+      inputSchema: Schema,
+      rows: Seq[Tuple],
+      opDesc: PythonOperatorDescriptor,
+      readField: Tuple => T
+  ): Seq[T] = {
+    val (dir, input) = writeInputPort0(prefix, inputSchema, rows)
     val result = PyOpExecHarness.execute(
       opDesc,
       inputs = Map(PortIdentity(0) -> input),
       outputDir = dir.resolve("actual")
     )
-
     val out = result.outputs(PortIdentity(0))
-    TupleIO
-      .readTuples(out, TupleIO.readSchemaSidecar(out))
-      .map(_.getField[String]("kind"))
-      .toSeq
-      .head
+    TupleIO.readTuples(out, TupleIO.readSchemaSidecar(out)).map(readField).toSeq
+  }
+
+  private def runSingleCell[T](
+      prefix: String,
+      col: String,
+      tpe: AttributeType,
+      value: Any,
+      opDesc: PythonOperatorDescriptor,
+      readField: Tuple => T
+  ): Seq[T] = {
+    val (schema, rows) = singleColRow(col, tpe, value)
+    runSinglePort(prefix, schema, rows, opDesc, readField)
   }
 
   // A model column arrives as the marker followed by the pickle, and the worker
   // unpickles it before the operator sees it, so predict works on it.
   "PyOpExecHarness" should "hand a pickled model cell to the operator as the model" in {
-    binaryCellKind(fittedTreeCell(), new ModelPredictOpDesc) shouldBe "1"
+    val modelPredictOp = kindOp(
+      "calls predict on a binary model cell",
+      """str(tuple_["blob"].predict([[1.0]])[0])"""
+    )
+    runSingleCell(
+      "py-op-harness-binary-",
+      "blob",
+      AttributeType.BINARY,
+      fittedTreeCell(),
+      modelPredictOp,
+      _.getField[String]("kind")
+    ).head shouldBe "1"
   }
 
   it should "hand any other binary cell to the operator as bytes" in {
-    binaryCellKind(Array[Byte](0, 1, 2)) shouldBe "bytes"
+    val binaryTypeOp =
+      kindOp("reports the type of a binary cell", """type(tuple_["blob"]).__name__""")
+    runSingleCell(
+      "py-op-harness-binary-",
+      "blob",
+      AttributeType.BINARY,
+      Array[Byte](0, 1, 2),
+      binaryTypeOp,
+      _.getField[String]("kind")
+    ).head shouldBe "bytes"
   }
 
   // The worker gets the wall clock as a zoneless Arrow microsecond timestamp,
   // so the operator holds a naive datetime cut to the microsecond, and a year
   // past pandas' nanosecond range reaches it all the same.
   it should "hand a timestamp to the operator as the worker hands it" in {
-    val dir = Files.createTempDirectory("py-op-harness-timestamp-")
-    val inputSchema = Schema().add(new Attribute("ts", AttributeType.TIMESTAMP))
-    val input = dir.resolve("input_port_0.jsonl")
-    val row = Tuple
-      .builder(inputSchema)
-      .add("ts", AttributeType.TIMESTAMP, Timestamp.valueOf("2500-01-01 00:00:00.123456789"))
-      .build()
-    TupleIO.writeTuples(input, Iterator(row), inputSchema)
-
-    val result = PyOpExecHarness.execute(
-      new TimestampTextOpDesc,
-      inputs = Map(PortIdentity(0) -> input),
-      outputDir = dir.resolve("actual")
-    )
-
-    val out = result.outputs(PortIdentity(0))
-    TupleIO
-      .readTuples(out, TupleIO.readSchemaSidecar(out))
-      .map(_.getField[String]("kind"))
-      .toSeq shouldBe Seq("2500-01-01 00:00:00.123456")
+    val timestampTextOp = kindOp("reports a timestamp cell", """str(tuple_["ts"])""")
+    runSingleCell(
+      "py-op-harness-timestamp-",
+      "ts",
+      AttributeType.TIMESTAMP,
+      Timestamp.valueOf("2500-01-01 00:00:00.123456789"),
+      timestampTextOp,
+      _.getField[String]("kind")
+    ) shouldBe Seq("2500-01-01 00:00:00.123456")
   }
 
   private val someObject = "s3://a-bucket/a/large/object"
@@ -322,63 +274,39 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
   // well as out. The operator reads the reference itself, which a column handed
   // over as plain text could not answer for.
   "PyOpExecHarness" should "hand a large binary column to the operator as a reference" in {
-    val dir = Files.createTempDirectory("py-op-harness-large-binary-in-")
-    val inputSchema = Schema().add(new Attribute("blob", AttributeType.LARGE_BINARY))
-    val input = dir.resolve("input_port_0.jsonl")
-    val row = Tuple
-      .builder(inputSchema)
-      .add("blob", AttributeType.LARGE_BINARY, new LargeBinary(someObject))
-      .build()
-    TupleIO.writeTuples(input, Iterator(row), inputSchema)
-
-    val result = PyOpExecHarness.execute(
-      new LargeBinaryOpDesc(readsInput = true),
-      inputs = Map(PortIdentity(0) -> input),
-      outputDir = dir.resolve("actual")
-    )
-
-    val out = result.outputs(PortIdentity(0))
-    TupleIO
-      .readTuples(out, TupleIO.readSchemaSidecar(out))
-      .map(_.getField[String]("uri"))
-      .toSeq shouldBe Seq(someObject)
+    runSingleCell(
+      "py-op-harness-large-binary-in-",
+      "blob",
+      AttributeType.LARGE_BINARY,
+      new LargeBinary(someObject),
+      largeBinaryOp(readsInput = true),
+      _.getField[String]("uri")
+    ) shouldBe Seq(someObject)
   }
 
   it should "write back a large binary the operator made" in {
-    val dir = Files.createTempDirectory("py-op-harness-large-binary-out-")
-    val inputSchema = Schema().add(new Attribute("uri", AttributeType.STRING))
-    val input = dir.resolve("input_port_0.jsonl")
-    val row = Tuple.builder(inputSchema).add("uri", AttributeType.STRING, someObject).build()
-    TupleIO.writeTuples(input, Iterator(row), inputSchema)
-
-    val result = PyOpExecHarness.execute(
-      new LargeBinaryOpDesc(readsInput = false),
-      inputs = Map(PortIdentity(0) -> input),
-      outputDir = dir.resolve("actual")
-    )
-
-    val out = result.outputs(PortIdentity(0))
     // Read back as a LargeBinary and not as the text of one: the column is
     // declared large_binary, and this is the type the rest of the pipeline gets.
-    TupleIO
-      .readTuples(out, TupleIO.readSchemaSidecar(out))
-      .map(_.getField[LargeBinary]("blob").getUri)
-      .toSeq shouldBe Seq(someObject)
+    runSingleCell(
+      "py-op-harness-large-binary-out-",
+      "uri",
+      AttributeType.STRING,
+      someObject,
+      largeBinaryOp(readsInput = false),
+      _.getField[LargeBinary]("blob").getUri
+    ) shouldBe Seq(someObject)
   }
 
   // The worker finalizes each yielded row against the output schema, and so
   // does the driver: a value the cast cannot bring to the declared type, and a
   // field the schema does not have or lacks, end the run in both.
   "PyOpExecHarness" should "refuse a row the output schema does not describe" in {
-    val dir = Files.createTempDirectory("py-op-harness-finalize-")
-    val inputSchema = Schema().add(new Attribute("seed", AttributeType.INTEGER))
-    val input = dir.resolve("input_port_0.jsonl")
-    val seed = Tuple.builder(inputSchema).add("seed", AttributeType.INTEGER, Int.box(1)).build()
-    TupleIO.writeTuples(input, Iterator(seed), inputSchema)
+    val (inputSchema, rows) = singleColRow("seed", AttributeType.INTEGER, Int.box(1))
+    val (dir, input) = writeInputPort0("py-op-harness-finalize-", inputSchema, rows)
 
     def run(row: String): Unit =
       PyOpExecHarness.execute(
-        new YieldOpDesc(row),
+        yieldOp(row),
         inputs = Map(PortIdentity(0) -> input),
         outputDir = dir.resolve("actual")
       )
@@ -392,23 +320,14 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
   }
 
   "PyOpExecHarness" should "record each yield as it was yielded" in {
-    val dir = Files.createTempDirectory("py-op-harness-")
-    val inputSchema = Schema().add(new Attribute("seed", AttributeType.INTEGER))
-    val input = dir.resolve("input_port_0.jsonl")
-    val seed = Tuple.builder(inputSchema).add("seed", AttributeType.INTEGER, Int.box(1)).build()
-    TupleIO.writeTuples(input, Iterator(seed), inputSchema)
-
-    val result = PyOpExecHarness.execute(
-      new MutatingYieldOpDesc,
-      inputs = Map(PortIdentity(0) -> input),
-      outputDir = dir.resolve("actual")
+    val (inputSchema, rows) = singleColRow("seed", AttributeType.INTEGER, Int.box(1))
+    val values = runSinglePort(
+      "py-op-harness-",
+      inputSchema,
+      rows,
+      mutatingYieldOpDesc,
+      _.getField[Integer]("x")
     )
-
-    val out = result.outputs(PortIdentity(0))
-    val values = TupleIO
-      .readTuples(out, TupleIO.readSchemaSidecar(out))
-      .map(_.getField[Integer]("x"))
-      .toSeq
     withClue(s"schema was $inputSchema\n") {
       values shouldBe Seq(1, 2)
     }
@@ -417,23 +336,15 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
   // A port that carried no rows gives the table no tuples to read column names
   // off, so the worker hands the operator the port's declared schema instead.
   "PyOpExecHarness" should "hand a port that carried no rows its declared columns" in {
-    val dir = Files.createTempDirectory("py-op-harness-empty-")
     val inputSchema = Schema()
       .add(new Attribute("name", AttributeType.STRING))
       .add(new Attribute("n", AttributeType.INTEGER))
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(input, Iterator.empty, inputSchema)
-
-    val result = PyOpExecHarness.execute(
-      new TableColumnsOpDesc,
-      inputs = Map(PortIdentity(0) -> input),
-      outputDir = dir.resolve("actual")
-    )
-
-    val out = result.outputs(PortIdentity(0))
-    TupleIO
-      .readTuples(out, TupleIO.readSchemaSidecar(out))
-      .map(_.getField[String]("columns"))
-      .toSeq shouldBe Seq("name,n")
+    runSinglePort(
+      "py-op-harness-empty-",
+      inputSchema,
+      Seq.empty,
+      tableColumnsOpDesc,
+      _.getField[String]("columns")
+    ) shouldBe Seq("name,n")
   }
 }

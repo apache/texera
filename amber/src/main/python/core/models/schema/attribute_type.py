@@ -146,7 +146,7 @@ def _named_local_zone():
     return _zone_by_name(os.environ.get("TZ"))
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _zone_by_name(tz):
     # TZ names the zone when it is set, and /etc/localtime links to it when
     # not. A zone neither of them names is left to localtime.

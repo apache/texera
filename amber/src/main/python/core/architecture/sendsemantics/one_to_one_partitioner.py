@@ -35,7 +35,7 @@ class OneToOnePartitioner(Partitioner):
     def __init__(self, partitioning: OneToOnePartitioning, worker_id: str):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
-        self.batch: list[Tuple] = list()
+        self.batch: list[Tuple] = []
         for channel in partitioning.channels:
             if channel.from_worker_id.name == worker_id:
                 self.receiver = channel.to_worker_id
@@ -72,4 +72,4 @@ class OneToOnePartitioner(Partitioner):
 
     @overrides
     def reset(self) -> None:
-        self.batch = list()
+        self.batch = []
