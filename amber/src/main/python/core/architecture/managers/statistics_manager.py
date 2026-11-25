@@ -16,7 +16,6 @@
 # under the License.
 
 from collections import defaultdict
-from typing import DefaultDict
 
 from loguru import logger
 
@@ -31,10 +30,10 @@ from proto.org.apache.texera.amber.engine.architecture.worker import (
 class StatisticsManager:
     def __init__(self) -> None:
         # Initialize metrics with default values
-        self._input_tuple_metrics: DefaultDict[PortIdentity, TupleMetrics] = (
+        self._input_tuple_metrics: defaultdict[PortIdentity, TupleMetrics] = (
             defaultdict(lambda: (0, 0))
         )
-        self._output_tuple_metrics: DefaultDict[PortIdentity, TupleMetrics] = (
+        self._output_tuple_metrics: defaultdict[PortIdentity, TupleMetrics] = (
             defaultdict(lambda: (0, 0))
         )
         self._data_processing_time: int = 0

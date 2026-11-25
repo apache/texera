@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
+import { generateText, type ModelMessage, type LanguageModel } from "ai";
 import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
@@ -63,6 +63,8 @@ export interface TexeraAgentConfig {
   systemPrompt?: string;
   /** JWT of the user the agent acts for, sent on backend calls that are not tied to a workflow. */
   userToken?: string;
+  /** uid of the user who created the agent, the only one it is listed for and answers to. */
+  ownerUid: number;
 }
 
 export interface AgentMessageResult {
@@ -74,6 +76,18 @@ export interface AgentMessageResult {
 }
 
 type ReActStepCallback = (step: ReActStep) => void;
+
+/**
+ * What the agent says when the step limit ends a turn. Such a turn stops on a tool call, with no
+ * closing answer from the model, so without this the chat would only go quiet.
+ */
+function stepLimitNotice(maxSteps: number): string {
+  const limit = maxSteps === 1 ? "1 step" : `${maxSteps} steps`;
+  return (
+    `I stopped because I reached the limit of ${limit} for one message, so the task may be unfinished. ` +
+    "Send another message to continue, or raise the limit in the agent's settings."
+  );
+}
 
 /**
  * A single Texera agent instance.
@@ -89,6 +103,7 @@ export class TexeraAgent {
   readonly agentName: string;
   readonly modelType: string;
   readonly createdAt: Date;
+  readonly ownerUid: number;
 
   private state: AgentStateEnum = AgentStateEnum.AVAILABLE;
   private workflowState: WorkflowState;
@@ -135,6 +150,7 @@ export class TexeraAgent {
     this.agentName = config.agentName || `Agent-${config.agentId}`;
     this.modelType = config.modelType;
     this.createdAt = new Date();
+    this.ownerUid = config.ownerUid;
     this.model = config.model;
     this.userToken = config.userToken;
     this.systemPrompt = config.systemPrompt || "";
@@ -504,18 +520,43 @@ export class TexeraAgent {
   }
 
   async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
-    const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
-    let stepIndex = 0;
-
-    await this.refreshWorkflowFromBackend();
-
+    // State flips synchronously, before the first await below, so a second
+    // prompt arriving while this one is mid-flight (e.g. during
+    // refreshWorkflowFromBackend) sees GENERATING and is rejected instead of
+    // interleaving with this run's head/abortController/currentMessageId (#8711).
+    if (this.state !== AgentStateEnum.AVAILABLE) {
+      throw new Error("Agent is busy processing another message");
+    }
+    this.state = AgentStateEnum.GENERATING;
     this.abortController = new AbortController();
 
-    this.state = AgentStateEnum.GENERATING;
+    const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
+    let stepIndex = 0;
+    // Ends the turn with a step that says how it ended: at the step limit, stopped, or failed.
+    const addClosingStep = (content: string): void => {
+      stepIndex++;
+      const step: ReActStep = {
+        id: this.generateStepId(),
+        parentId: this.head,
+        messageId,
+        stepId: stepIndex,
+        timestamp: Date.now(),
+        role: "agent",
+        content,
+        isBegin: false,
+        isEnd: true,
+      };
+      this.addStep(step);
+      this.head = step.id;
+    };
 
     this.currentMessageId = messageId;
 
     try {
+      // Inside the try so the finally below always resets state, even if the
+      // refresh ever starts throwing.
+      await this.refreshWorkflowFromBackend();
+
       let beforeStepContent = this.workflowState.getWorkflowContent();
 
       const estimatedInputTokens = Math.ceil(userMessage.length / 4);
@@ -542,6 +583,15 @@ export class TexeraAgent {
       this.addStep(userStep);
       this.head = userStepId;
 
+      // The limit for this turn: one saved while the turn is in flight applies from the next
+      // message on.
+      const maxSteps = this.settings.maxSteps;
+      // Whether the limit is what ended the turn. The AI SDK asks `stopWhen` only after a step
+      // whose tool calls were executed, when the loop would otherwise go on, so its answer says
+      // so exactly. The last step's finish reason does not: it is the provider's word, and the
+      // SDK goes on after a tool call that a provider reported as a plain "stop".
+      let stoppedAtStepLimit = false;
+
       let isFirstStep = true;
       let lastPreparedMessages: ModelMessage[] | undefined;
 
@@ -554,7 +604,10 @@ export class TexeraAgent {
         messages: currentUserMessage,
         tools: this.getEnabledTools(),
         temperature: 0.2,
-        stopWhen: stepCountIs(this.settings.maxSteps),
+        stopWhen: ({ steps }) => {
+          stoppedAtStepLimit = steps.length >= maxSteps;
+          return stoppedAtStepLimit;
+        },
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
           let compilationResult: WorkflowCompilationResponse | null = null;
           if (this.workflowState.getAllOperators().length > 0) {
@@ -671,6 +724,14 @@ export class TexeraAgent {
         },
       });
 
+      // A stop that lands on the last allowed step lets `generateText` return normally, since the
+      // stop condition ends the loop before another model call can see the abort. Such a turn ends
+      // like a stop on an earlier step, in the catch below.
+      this.abortController?.signal.throwIfAborted();
+
+      // A turn the limit cut short has no closing answer, so the agent says why it stopped.
+      if (stoppedAtStepLimit) addClosingStep(stepLimitNotice(maxSteps));
+
       const msgSteps = this.reActStepsByMessageId.get(messageId);
       if (msgSteps && msgSteps.length > 0) {
         const lastStep = msgSteps[msgSteps.length - 1];
@@ -697,22 +758,7 @@ export class TexeraAgent {
       const isAborted = error?.name === "AbortError" || this.abortController?.signal.aborted;
 
       if (isAborted) {
-        stepIndex++;
-        const stoppedStepId = this.generateStepId();
-        const stoppedStep: ReActStep = {
-          id: stoppedStepId,
-          parentId: this.head,
-          messageId,
-          stepId: stepIndex,
-          timestamp: Date.now(),
-          role: "agent",
-          content: "Generation stopped by user.",
-          isBegin: false,
-          isEnd: true,
-        };
-        this.addStep(stoppedStep);
-        this.head = stoppedStepId;
-
+        addClosingStep("Generation stopped by user.");
         return {
           response: "",
           messages: [],
@@ -721,22 +767,7 @@ export class TexeraAgent {
         };
       }
 
-      stepIndex++;
-      const errorStepId = this.generateStepId();
-      const errorStep: ReActStep = {
-        id: errorStepId,
-        parentId: this.head,
-        messageId,
-        stepId: stepIndex,
-        timestamp: Date.now(),
-        role: "agent",
-        content: `Error: ${errorMessage}`,
-        isBegin: false,
-        isEnd: true,
-      };
-      this.addStep(errorStep);
-      this.head = errorStepId;
-
+      addClosingStep(`Error: ${errorMessage}`);
       return {
         response: "",
         messages: [],
@@ -761,6 +792,11 @@ export class TexeraAgent {
   }
 
   stop(): void {
+    // Only a run in flight can be stopped. An idle agent has no finally to
+    // reset STOPPING, so setting it here would wedge sendMessage's busy guard.
+    if (this.state !== AgentStateEnum.GENERATING) {
+      return;
+    }
     this.state = AgentStateEnum.STOPPING;
     if (this.abortController) {
       this.abortController.abort();

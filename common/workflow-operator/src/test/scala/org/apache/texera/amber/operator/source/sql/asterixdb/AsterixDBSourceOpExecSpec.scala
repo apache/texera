@@ -147,6 +147,64 @@ class AsterixDBSourceOpExecSpec
     queryBuilder.result()
   }
 
+  private def keywordFilter(
+      column: Option[String] = Some("text"),
+      kw: Option[String] = Some("['hello', 'world'], {'mode':'any'}"),
+      enabled: Option[Boolean] = Some(true)
+  ): String =
+    filterQuery { desc =>
+      desc.keywordSearch = enabled
+      desc.keywordSearchByColumn = column
+      desc.keywords = kw
+    }
+
+  private def regexFilter(
+      column: Option[String] = Some("text"),
+      pattern: Option[String] = Some("^a.*z$"),
+      enabled: Option[Boolean] = Some(true)
+  ): String =
+    filterQuery { desc =>
+      desc.regexSearch = enabled
+      desc.regexSearchByColumn = column
+      desc.regex = pattern
+    }
+
+  private def geoFilter(
+      cols: List[String] = List("place.bbox"),
+      bbox: List[String] = List("1,2", "3,4"),
+      enabled: Option[Boolean] = Some(true)
+  ): String =
+    filterQuery { desc =>
+      desc.geoSearch = enabled
+      desc.geoSearchByColumns = cols
+      desc.geoSearchBoundingBox = bbox
+    }
+
+  private def predicateFilter(
+      predicates: List[FilterPredicate],
+      enabled: Option[Boolean] = Some(true)
+  ): String =
+    filterQuery { desc =>
+      desc.filterCondition = enabled
+      desc.filterPredicates = predicates
+    }
+
+  private def batchLiteral(attrName: String, attrType: AttributeType, value: Number): String = {
+    val exec = newExec()
+    exec.batchByAttribute = Some(new Attribute(attrName, attrType))
+    exec.batchAttributeToString(value)
+  }
+
+  private def expectUnsupportedBatch(attrName: String, attrType: AttributeType): String =
+    intercept[IllegalArgumentException](
+      batchLiteral(attrName, attrType, java.lang.Long.valueOf(1L))
+    ).getMessage
+
+  private val sampleCsvRows = Seq(
+    "1,2023-11-13T10:15:30,1,1.0,first,true",
+    "2,2023-11-13T10:15:30,2,2.0,second,true"
+  )
+
   private def drain(exec: AsterixDBSourceOpExec): List[Tuple] =
     exec.produceTuple().map(_.asInstanceOf[Tuple]).toList
 
@@ -201,41 +259,27 @@ class AsterixDBSourceOpExecSpec
   }
 
   it should "emit an ftcontains predicate for a keyword search on a string column" in {
-    filterQuery { desc =>
-      desc.keywordSearch = Some(true)
-      desc.keywordSearchByColumn = Some("text")
-      desc.keywords = Some("['hello', 'world'], {'mode':'any'}")
-    } shouldBe " AND ftcontains(text, ['hello', 'world'], {'mode':'any'}) "
+    keywordFilter() shouldBe " AND ftcontains(text, ['hello', 'world'], {'mode':'any'}) "
   }
 
   it should "reject a keyword search on a non-string column" in {
-    val ex = intercept[IllegalArgumentException] {
-      filterQuery { desc =>
-        desc.keywordSearch = Some(true)
-        desc.keywordSearchByColumn = Some("id")
-        desc.keywords = Some("['hello'], {'mode':'any'}")
-      }
-    }
+    val ex = intercept[IllegalArgumentException](
+      keywordFilter(column = Some("id"), kw = Some("['hello'], {'mode':'any'}"))
+    )
     ex.getMessage should startWith("Can't do keyword search on type")
   }
 
   it should "skip the keyword search when the column or the keywords are missing" in {
-    filterQuery { desc =>
-      desc.keywordSearch = Some(true)
-      desc.keywordSearchByColumn = Some("text")
-    } shouldBe ""
-    filterQuery { desc =>
-      desc.keywordSearch = Some(true)
-      desc.keywords = Some("['hello'], {'mode':'any'}")
-    } shouldBe ""
+    keywordFilter(kw = None) shouldBe ""
+    keywordFilter(column = None, kw = Some("['hello'], {'mode':'any'}")) shouldBe ""
   }
 
   it should "skip the keyword search when the toggle is off even if it is fully configured" in {
-    filterQuery { desc =>
-      desc.keywordSearch = Some(false)
-      desc.keywordSearchByColumn = Some("id")
-      desc.keywords = Some("['hello'], {'mode':'any'}")
-    } shouldBe ""
+    keywordFilter(
+      column = Some("id"),
+      kw = Some("['hello'], {'mode':'any'}"),
+      enabled = Some(false)
+    ) shouldBe ""
   }
 
   // ---------------------------------------------------------------------------
@@ -243,41 +287,23 @@ class AsterixDBSourceOpExecSpec
   // ---------------------------------------------------------------------------
 
   it should "emit a regexp_contains predicate with the regex quoted, for a string column" in {
-    filterQuery { desc =>
-      desc.regexSearch = Some(true)
-      desc.regexSearchByColumn = Some("text")
-      desc.regex = Some("^a.*z$")
-    } shouldBe " AND regexp_contains(text, \"^a.*z$\") "
+    regexFilter() shouldBe " AND regexp_contains(text, \"^a.*z$\") "
   }
 
   it should "reject a regex search on a non-string column" in {
-    val ex = intercept[IllegalArgumentException] {
-      filterQuery { desc =>
-        desc.regexSearch = Some(true)
-        desc.regexSearchByColumn = Some("score")
-        desc.regex = Some("a.*")
-      }
-    }
+    val ex = intercept[IllegalArgumentException](
+      regexFilter(column = Some("score"), pattern = Some("a.*"))
+    )
     ex.getMessage should startWith("Can't do regex search on type")
   }
 
   it should "skip the regex search when the column or the pattern is missing" in {
-    filterQuery { desc =>
-      desc.regexSearch = Some(true)
-      desc.regexSearchByColumn = Some("text")
-    } shouldBe ""
-    filterQuery { desc =>
-      desc.regexSearch = Some(true)
-      desc.regex = Some("a.*")
-    } shouldBe ""
+    regexFilter(pattern = None) shouldBe ""
+    regexFilter(column = None, pattern = Some("a.*")) shouldBe ""
   }
 
   it should "skip the regex search when the toggle is off even if it is fully configured" in {
-    filterQuery { desc =>
-      desc.regexSearch = Some(false)
-      desc.regexSearchByColumn = Some("id")
-      desc.regex = Some("a.*")
-    } shouldBe ""
+    regexFilter(column = Some("id"), pattern = Some("a.*"), enabled = Some(false)) shouldBe ""
   }
 
   // ---------------------------------------------------------------------------
@@ -285,66 +311,38 @@ class AsterixDBSourceOpExecSpec
   // ---------------------------------------------------------------------------
 
   it should "build a create_rectangle shape from exactly two bounding box corners" in {
-    filterQuery { desc =>
-      desc.geoSearch = Some(true)
-      desc.geoSearchByColumns = List("place.bbox")
-      desc.geoSearchBoundingBox = List("-118.4,33.9", "-117.5,34.5")
-    } shouldBe " AND (spatial_intersect(place.bbox, create_rectangle(" +
-      "create_point(-118.400000,33.900000), create_point(-117.500000,34.500000))) ) "
+    geoFilter(bbox = List("-118.4,33.9", "-117.5,34.5")) shouldBe
+      " AND (spatial_intersect(place.bbox, create_rectangle(" +
+        "create_point(-118.400000,33.900000), create_point(-117.500000,34.500000))) ) "
   }
 
   it should "build a create_polygon shape from more than two bounding box points" in {
-    filterQuery { desc =>
-      desc.geoSearch = Some(true)
-      desc.geoSearchByColumns = List("place.bbox")
-      desc.geoSearchBoundingBox = List("1,2", "3,4", "5.5,6")
-    } shouldBe " AND (spatial_intersect(place.bbox, create_polygon(" +
-      "[1.000000,2.000000,3.000000,4.000000,5.500000,6.000000])) ) "
+    geoFilter(bbox = List("1,2", "3,4", "5.5,6")) shouldBe
+      " AND (spatial_intersect(place.bbox, create_polygon(" +
+        "[1.000000,2.000000,3.000000,4.000000,5.500000,6.000000])) ) "
   }
 
   it should "OR one spatial_intersect per geo column against the same shape" in {
-    val result = filterQuery { desc =>
-      desc.geoSearch = Some(true)
-      desc.geoSearchByColumns = List("place.bbox", "coordinate")
-      desc.geoSearchBoundingBox = List("1,2", "3,4")
-    }
+    val result = geoFilter(cols = List("place.bbox", "coordinate"))
     val shape = "create_rectangle(create_point(1.000000,2.000000), create_point(3.000000,4.000000))"
     result shouldBe s" AND (spatial_intersect(place.bbox, $shape) OR " +
       s"spatial_intersect(coordinate, $shape) ) "
   }
 
   it should "skip the geo search when the bounding box has fewer than two points" in {
-    filterQuery { desc =>
-      desc.geoSearch = Some(true)
-      desc.geoSearchByColumns = List("place.bbox")
-      desc.geoSearchBoundingBox = List("1,2")
-    } shouldBe ""
+    geoFilter(bbox = List("1,2")) shouldBe ""
   }
 
   it should "skip the geo search when no geo column is selected" in {
-    filterQuery { desc =>
-      desc.geoSearch = Some(true)
-      desc.geoSearchByColumns = List.empty
-      desc.geoSearchBoundingBox = List("1,2", "3,4")
-    } shouldBe ""
+    geoFilter(cols = List.empty) shouldBe ""
   }
 
   it should "skip the geo search when the toggle is off even if it is fully configured" in {
-    filterQuery { desc =>
-      desc.geoSearch = Some(false)
-      desc.geoSearchByColumns = List("place.bbox")
-      desc.geoSearchBoundingBox = List("1,2", "3,4")
-    } shouldBe ""
+    geoFilter(enabled = Some(false)) shouldBe ""
   }
 
   it should "fail loudly on a bounding box point that is not numeric" in {
-    intercept[NumberFormatException] {
-      filterQuery { desc =>
-        desc.geoSearch = Some(true)
-        desc.geoSearchByColumns = List("place.bbox")
-        desc.geoSearchBoundingBox = List("1,2", "3,north")
-      }
-    }
+    intercept[NumberFormatException](geoFilter(bbox = List("1,2", "3,north")))
   }
 
   // ---------------------------------------------------------------------------
@@ -352,28 +350,24 @@ class AsterixDBSourceOpExecSpec
   // ---------------------------------------------------------------------------
 
   it should "OR the general filter predicates inside a single parenthesised group" in {
-    filterQuery { desc =>
-      desc.filterCondition = Some(true)
-      desc.filterPredicates = List(
+    predicateFilter(
+      List(
         new FilterPredicate("id", ComparisonType.GREATER_THAN, "5"),
         new FilterPredicate("text", ComparisonType.EQUAL_TO, "'x'"),
         new FilterPredicate("score", ComparisonType.LESS_THAN_OR_EQUAL_TO, "1.5")
       )
-    } shouldBe " AND ( (id > 5) OR (text = 'x') OR (score <= 1.5) ) "
+    ) shouldBe " AND ( (id > 5) OR (text = 'x') OR (score <= 1.5) ) "
   }
 
   it should "skip the general filter when the predicate list is empty" in {
-    filterQuery { desc =>
-      desc.filterCondition = Some(true)
-      desc.filterPredicates = List.empty
-    } shouldBe ""
+    predicateFilter(List.empty) shouldBe ""
   }
 
   it should "skip the general filter when the toggle is off even if predicates exist" in {
-    filterQuery { desc =>
-      desc.filterCondition = Some(false)
-      desc.filterPredicates = List(new FilterPredicate("id", ComparisonType.GREATER_THAN, "5"))
-    } shouldBe ""
+    predicateFilter(
+      List(new FilterPredicate("id", ComparisonType.GREATER_THAN, "5")),
+      enabled = Some(false)
+    ) shouldBe ""
   }
 
   // ---------------------------------------------------------------------------
@@ -444,49 +438,32 @@ class AsterixDBSourceOpExecSpec
 
   "AsterixDBSourceOpExec.batchAttributeToString" should
     "render numeric batch columns as plain literals" in {
-    val exec = newExec()
-    exec.batchByAttribute = Some(new Attribute("id", AttributeType.LONG))
-    exec.batchAttributeToString(java.lang.Long.valueOf(42L)) shouldBe "42"
-    exec.batchByAttribute = Some(new Attribute("count", AttributeType.INTEGER))
-    exec.batchAttributeToString(java.lang.Integer.valueOf(42)) shouldBe "42"
-    exec.batchByAttribute = Some(new Attribute("score", AttributeType.DOUBLE))
-    exec.batchAttributeToString(java.lang.Double.valueOf(1.5d)) shouldBe "1.5"
+    batchLiteral("id", AttributeType.LONG, java.lang.Long.valueOf(42L)) shouldBe "42"
+    batchLiteral("count", AttributeType.INTEGER, java.lang.Integer.valueOf(42)) shouldBe "42"
+    batchLiteral("score", AttributeType.DOUBLE, java.lang.Double.valueOf(1.5d)) shouldBe "1.5"
   }
 
   it should "render a timestamp batch column as a UTC datetime() constructor" in {
-    val exec = newExec()
-    exec.batchByAttribute = Some(new Attribute("created_at", AttributeType.TIMESTAMP))
     // 1699870530000 == 2023-11-13T10:15:30Z; the formatter pins UTC, so the
     // rendering must not drift with the JVM default time zone.
-    exec.batchAttributeToString(java.lang.Long.valueOf(1699870530000L)) shouldBe
-      "datetime('2023-11-13T10:15:30')"
+    batchLiteral(
+      "created_at",
+      AttributeType.TIMESTAMP,
+      java.lang.Long.valueOf(1699870530000L)
+    ) shouldBe "datetime('2023-11-13T10:15:30')"
   }
 
   it should "reject batch columns whose type cannot be incremented" in {
-    val exec = newExec()
-    exec.batchByAttribute = Some(new Attribute("text", AttributeType.STRING))
-    intercept[IllegalArgumentException] {
-      exec.batchAttributeToString(java.lang.Long.valueOf(1L))
-    }.getMessage should startWith("Unexpected type:")
-    exec.batchByAttribute = Some(new Attribute("verified", AttributeType.BOOLEAN))
-    intercept[IllegalArgumentException] {
-      exec.batchAttributeToString(java.lang.Long.valueOf(1L))
-    }.getMessage should startWith("Unexpected type:")
+    expectUnsupportedBatch("text", AttributeType.STRING) should startWith("Unexpected type:")
+    expectUnsupportedBatch("verified", AttributeType.BOOLEAN) should startWith("Unexpected type:")
   }
 
   it should "reject a batch column whose type is untyped or opaque" in {
     // ANY and BINARY cannot come out of an AsterixDB datatype today, but the
     // catch-all has to keep rejecting them rather than rendering them into the
     // sliding-window predicate as a bare literal.
-    val exec = newExec()
-    exec.batchByAttribute = Some(new Attribute("anything", AttributeType.ANY))
-    intercept[IllegalArgumentException] {
-      exec.batchAttributeToString(java.lang.Long.valueOf(1L))
-    }.getMessage should startWith("Unexpected type:")
-    exec.batchByAttribute = Some(new Attribute("blob", AttributeType.BINARY))
-    intercept[IllegalArgumentException] {
-      exec.batchAttributeToString(java.lang.Long.valueOf(1L))
-    }.getMessage shouldBe "Unexpected type: binary"
+    expectUnsupportedBatch("anything", AttributeType.ANY) should startWith("Unexpected type:")
+    expectUnsupportedBatch("blob", AttributeType.BINARY) shouldBe "Unexpected type: binary"
   }
 
   it should "reject the call when no batch column is resolved" in {
@@ -610,10 +587,7 @@ class AsterixDBSourceOpExecSpec
 
   it should "answer a repeated hasNext from the cached row instead of consuming another" in {
     val exec = newExec()
-    dataRows = Seq(
-      "1,2023-11-13T10:15:30,1,1.0,first,true",
-      "2,2023-11-13T10:15:30,2,2.0,second,true"
-    )
+    dataRows = sampleCsvRows
     val iterator = exec.produceTuple()
     // The first peek pulls a row into the cache; every further peek has to read
     // that cache, or the peeked row is dropped on the floor.
@@ -718,10 +692,7 @@ class AsterixDBSourceOpExecSpec
 
   "AsterixDBSourceOpExec.close" should "discard the in-flight result iterator and query" in {
     val exec = newExec()
-    dataRows = Seq(
-      "1,2023-11-13T10:15:30,1,1.0,first,true",
-      "2,2023-11-13T10:15:30,2,2.0,second,true"
-    )
+    dataRows = sampleCsvRows
     val iterator = exec.produceTuple()
     iterator.next().asInstanceOf[Tuple].getField[Any]("text") shouldBe "first"
     exec.close()
@@ -742,10 +713,7 @@ class AsterixDBSourceOpExecSpec
 
   it should "leave a partially consumed scan resumable when it is not closed" in {
     val exec = newExec()
-    dataRows = Seq(
-      "1,2023-11-13T10:15:30,1,1.0,first,true",
-      "2,2023-11-13T10:15:30,2,2.0,second,true"
-    )
+    dataRows = sampleCsvRows
     val iterator = exec.produceTuple()
     iterator.next().asInstanceOf[Tuple].getField[Any]("text") shouldBe "first"
     exec.produceTuple().next().asInstanceOf[Tuple].getField[Any]("text") shouldBe "second"

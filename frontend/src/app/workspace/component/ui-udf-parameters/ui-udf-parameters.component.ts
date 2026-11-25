@@ -27,12 +27,13 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import {
+  DATASET_INPUT_TYPE,
+  MODEL_INPUT_TYPE,
   UiUdfParametersEditError,
   UiUdfParametersParseError,
 } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UI_PARAMETER_TYPES } from "../../service/code-editor/ui-udf-parameter";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
 import { fieldOperatorID, renderedInFormView, renderedReadOnly } from "../../util/custom-formly-type";

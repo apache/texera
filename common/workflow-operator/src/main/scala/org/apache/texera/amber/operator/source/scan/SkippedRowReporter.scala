@@ -46,9 +46,6 @@ class SkippedRowReporter(maxDetailed: Int = SkippedRowReporter.DefaultMaxDetaile
     if (detailed.size < maxDetailed) detailed += warning
   }
 
-  /** Total number of rows skipped so far. */
-  def count: Int = total
-
   /**
     * The warnings to surface: one line per detailed row, plus a trailing summary line
     * when more rows were skipped than the cap allows. Empty when nothing was skipped.

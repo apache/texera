@@ -83,10 +83,10 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     .toArray
   private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
   private val logManager: ReplayLogManager =
-    ReplayLogManager.createLogManager(logStorage, "none", x => {})
+    ReplayLogManager.createLogManager(logStorage, "none", _ => {})
 
   /** Poll `cond` until it holds or the budget runs out. Returns the final value. */
-  private def awaitCond(cond: => Boolean, budgetMs: Int = 5000): Boolean = {
+  private def awaitCond(cond: => Boolean, budgetMs: Int): Boolean = {
     val deadline = System.currentTimeMillis() + budgetMs
     while (!cond && System.currentTimeMillis() < deadline) {
       Thread.sleep(20)
@@ -357,7 +357,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "DP Thread" should "treat a second start() as a no-op" in {
     withStartedDPThread(dpFactory = q => {
-      val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = q)
+      val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = q)
       dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
       dp
     }) { (_, _, dpThread) =>
@@ -411,7 +411,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     // service nor the thread future exists yet, so both guards must short-circuit
     // rather than dereference a null.
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
 
     // The entire contract on this path is that the call does not blow up. Asserting

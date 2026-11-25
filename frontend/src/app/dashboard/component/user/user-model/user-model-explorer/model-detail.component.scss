@@ -21,10 +21,6 @@
 
 // Mirrors dataset-detail.component.scss; the two detail pages are the same layout.
 
-nz-layout {
-  height: 100%;
-}
-
 nz-select {
   flex-grow: 1;
 }
@@ -47,8 +43,7 @@ nz-select {
 
 @include detail.tab-bar;
 
-.data-card-tab-content,
-.versions-tab-content {
+.data-card-tab-content {
   @include detail.scrollable-tab;
 }
 

@@ -40,7 +40,7 @@ class IntervalOpExecSpec extends AnyFlatSpec {
 
   var opDesc: IntervalJoinOpDesc = _
 
-  def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {
+  def newTuple[T](name: String, n: Int, i: T, attributeType: AttributeType): Tuple = {
     Tuple
       .builder(schema(name, attributeType, n))
       .add(new Attribute(name, attributeType), i)
@@ -48,7 +48,7 @@ class IntervalOpExecSpec extends AnyFlatSpec {
       .build()
   }
 
-  def doubleTuple(name: String, n: Int = 1, i: Double): Tuple =
+  def doubleTuple(name: String, n: Int, i: Double): Tuple =
     newTuple[Double](name, n, i, AttributeType.DOUBLE)
 
   def schema(name: String, attributeType: AttributeType, n: Int = 1): Schema = {
@@ -58,7 +58,7 @@ class IntervalOpExecSpec extends AnyFlatSpec {
 
   }
 
-  def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple =
+  def timeStampTuple(name: String, n: Int, i: Timestamp): Tuple =
     newTuple[Timestamp](name, n, i, AttributeType.TIMESTAMP)
 
   def bruteForceJoin[T](

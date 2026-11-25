@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowI
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.translator.WorkflowToPythonTranslator
 import org.apache.texera.auth.SessionUser
 
@@ -47,7 +48,18 @@ import org.apache.texera.auth.SessionUser
 )
 sealed trait WorkflowToPythonResponse
 
-case class WorkflowToPythonSuccess(pythonCode: String) extends WorkflowToPythonResponse
+/** An input the script reads under a name other than its own. */
+case class RenamedSource(from: String, to: String)
+
+/**
+  * @param helpersModule the `texera_helpers.py` the script imports from, when it imports any.
+  * @param renamedSources the inputs that must be saved under a new name next to the script.
+  */
+case class WorkflowToPythonSuccess(
+    pythonCode: String,
+    helpersModule: Option[String] = None,
+    renamedSources: Seq[RenamedSource] = Seq.empty
+) extends WorkflowToPythonResponse
 
 case class WorkflowToPythonFailure(errorMessage: String) extends WorkflowToPythonResponse
 
@@ -75,7 +87,13 @@ class WorkflowToPythonResource extends LazyLogging {
       // column was DECLARED as, which the file it reads cannot carry.
       val pythonCode =
         translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo, user.getUid))
-      WorkflowToPythonSuccess(pythonCode)
+      WorkflowToPythonSuccess(
+        pythonCode,
+        Option.when(pythonCode.contains("from texera_helpers import"))(
+          StandaloneHelpers.helpersModule
+        ),
+        translator.renamedSources(logicalPlan).map { case (from, to) => RenamedSource(from, to) }
+      )
     } catch {
       case e: Exception =>
         logger.error("Failed to translate workflow to Python", e)

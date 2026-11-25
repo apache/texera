@@ -101,7 +101,7 @@ class Group:
     # Keyed by (sub_license, header). Two subsections with the same header
     # (e.g. "Scala/Java jars:") under different sub-licenses (CDDL 1.0 vs
     # CDDL 1.1) are distinct entries — that's why we key on the tuple.
-    subsections: "OrderedDict[tuple[str | None, str], Subsection]" = field(default_factory=OrderedDict)
+    subsections: OrderedDict[tuple[str | None, str], Subsection] = field(default_factory=OrderedDict)
 
     def has_entries(self) -> bool:
         return any(s.entries for s in self.subsections.values())
@@ -201,7 +201,7 @@ def parse(path: Path) -> tuple[str, list[Group]]:
 
 def merge(parsed: list[tuple[str, list[Group]]]) -> tuple[str, list[Group]]:
     apache_header = parsed[0][0]
-    merged: "OrderedDict[str, Group]" = OrderedDict()
+    merged: OrderedDict[str, Group] = OrderedDict()
     for _, groups in parsed:
         for g in groups:
             if g.title not in merged:
@@ -229,7 +229,7 @@ def merge(parsed: list[tuple[str, list[Group]]]) -> tuple[str, list[Group]]:
     # order by SUBSECTION_ORDER.
     for mg in merged.values():
         sub_license_order: list[str | None] = []
-        by_sub_license: "OrderedDict[str | None, list[tuple[tuple[str | None, str], Subsection]]]" = OrderedDict()
+        by_sub_license: OrderedDict[str | None, list[tuple[tuple[str | None, str], Subsection]]] = OrderedDict()
         for key, sub in mg.subsections.items():
             sl = sub.sub_license
             if sl not in by_sub_license:
@@ -237,7 +237,7 @@ def merge(parsed: list[tuple[str, list[Group]]]) -> tuple[str, list[Group]]:
                 sub_license_order.append(sl)
             by_sub_license[sl].append((key, sub))
 
-        ordered: "OrderedDict[tuple[str | None, str], Subsection]" = OrderedDict()
+        ordered: OrderedDict[tuple[str | None, str], Subsection] = OrderedDict()
         for sl in sub_license_order:
             bucket = by_sub_license[sl]
             placed: set[tuple[str | None, str]] = set()

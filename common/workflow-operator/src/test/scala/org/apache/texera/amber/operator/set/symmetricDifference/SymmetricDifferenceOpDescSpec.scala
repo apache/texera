@@ -19,12 +19,7 @@
 
 package org.apache.texera.amber.operator.set.symmetricDifference
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  runSource
-}
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -101,27 +96,11 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
   // dtype, which is what an Arrow file is read into.
   "SymmetricDifferenceOpDesc.generateStandaloneCode" should
     "keep the NaN row that a null row does not cancel" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
-
-    val driver =
-      s"""import pandas as pd, numpy as np
-         |
-         |def col(vals, mask):
-         |    return pd.arrays.FloatingArray(np.array(vals), np.array(mask))
-         |
-         |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
-         |in2df = pd.DataFrame({"v": col([0.0], [True])})
-         |${exported()}
-         |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
-         |""".stripMargin
-
-    val (exitCode, out) = runSource(python, "symmetric-difference-null-nan-", driver)
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      exitCode shouldBe 0
-      out.trim shouldBe "1 ['nan']"
-    }
+    SetRows.verifyNullVsNan(
+      new SymmetricDifferenceOpDesc,
+      "symmetric-difference-null-nan-",
+      "1 ['nan']"
+    )
   }
 
   // The engine's HashSet compares rows with Scala's ==, under which NaN equals
@@ -129,22 +108,10 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
   // double's bits, so 0.0 and -0.0 are each in one. A finite value and a null
   // on both sides are the controls.
   it should "match rows by the engine's equality for NaN and signed zero" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
-
-    val exec = new SymmetricDifferenceOpExec
-    exec.open()
-    SetRows.left.foreach(t => exec.processTuple(t, 0))
-    SetRows.right.foreach(t => exec.processTuple(t, 1))
-    exec.onFinish(0)
-    val engine = SetRows.rendered(exec.onFinish(1))
-
-    val out = SetRows.runExport(python, exported(), "symmetric-difference-nan-zero-")
-    withClue(s"script:\n${exported()}")(out shouldBe engine)
-  }
-
-  private def exported(): String = {
-    val desc = new SymmetricDifferenceOpDesc
-    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
+    SetRows.verifyNanAndSignedZeroParity(
+      new SymmetricDifferenceOpDesc,
+      new SymmetricDifferenceOpExec,
+      "symmetric-difference-nan-zero-"
+    )
   }
 }

@@ -345,13 +345,12 @@ jobs:
                 }
                 const cutoffDate = baselineDate - 7 * 24 * 60 * 60 * 1000;
                 const averageSums = new Map();
-                const addBench = (target, suite, bench, extra = {}) => {
+                const addBench = (target, suite, bench) => {
                   const value = Number(bench.value);
                   if (!bench.name || !Number.isFinite(value)) return;
                   target.set(`${suite}\0${bench.name}`, {
                     value,
                     unit: String(bench.unit || ""),
-                    ...extra,
                   });
                 };
                 const addAverage = (suite, bench) => {
@@ -376,17 +375,11 @@ jobs:
                   for (const bench of latest?.benches || []) {
                     const value = Number(bench.value);
                     if (!bench.name || !Number.isFinite(value)) continue;
-                    addBench(latestBenches, suite, bench, {
-                        commit: String(latest.commit?.id || "").slice(0, 7),
-                        date: Number(latest.date || 0),
-                      });
+                    addBench(latestBenches, suite, bench);
                     if (suite === "Arrow Flight E2E Throughput") {
                       const mbps = derivedMbpsBench(bench);
                       if (mbps) {
-                        addBench(latestBenches, "Arrow Flight E2E MB/s", mbps, {
-                          commit: String(latest.commit?.id || "").slice(0, 7),
-                          date: Number(latest.date || 0),
-                        });
+                        addBench(latestBenches, "Arrow Flight E2E MB/s", mbps);
                       }
                     }
                   }
@@ -405,13 +398,10 @@ jobs:
                 }
                 const average7d = new Map();
                 for (const [key, item] of averageSums.entries()) {
-                  if (item.count > 0) {
-                    average7d.set(key, {
-                      value: item.total / item.count,
-                      unit: item.unit,
-                      count: item.count,
-                    });
-                  }
+                  average7d.set(key, {
+                    value: item.total / item.count,
+                    unit: item.unit,
+                  });
                 }
                 return { latest: latestBenches, average7d, commit: baselineCommit, date: baselineDate };
               } catch (e) {
@@ -431,11 +421,11 @@ jobs:
 
             const deltaInfo = (bench, baseline) => {
               if (!baseline || !Number.isFinite(baseline.value) || baseline.value === 0) {
-                return { status: "missing", label: "no baseline", emoji: "⚪", text: "n/a" };
+                return { status: "missing", emoji: "⚪", text: "n/a" };
               }
               const pct = ((bench.value - baseline.value) / baseline.value) * 100;
               if (!Number.isFinite(pct)) {
-                return { status: "missing", label: "no baseline", emoji: "⚪", text: "n/a" };
+                return { status: "missing", emoji: "⚪", text: "n/a" };
               }
               const status =
                 Math.abs(pct) <= NOISE_THRESHOLD_PCT
@@ -447,11 +437,6 @@ jobs:
                     : pct < 0
                       ? "better"
                       : "worse";
-              const labels = {
-                better: "better",
-                worse: "worse",
-                noise: "noise",
-              };
               const emojis = {
                 better: "🟢",
                 worse: "🔴",
@@ -460,7 +445,6 @@ jobs:
               const sign = pct > 0 ? "+" : "";
               return {
                 status,
-                label: labels[status],
                 emoji: emojis[status],
                 text: `${sign}${pct.toFixed(1)}%`,
               };
@@ -469,7 +453,6 @@ jobs:
             const comparisonToTable = (rows, baseline) => {
               if (rows.length === 0 || !baseline) return null;
               const counts = { better: 0, worse: 0, noise: 0, missing: 0 };
-              const metricKeys = ["throughput", "mbps", "p50", "p95", "p99"];
               const lines = [
                 "| | config | throughput | MB/s | latency | max Δ latest / 7d |",
                 "|---|---|---:|---:|---:|---:|",
@@ -483,34 +466,34 @@ jobs:
                 const main = baseline.latest.get(key);
                 const average = baseline.average7d.get(key);
                 const delta = deltaInfo(bench, main);
+                const averageDelta = deltaInfo(bench, average);
                 counts[delta.status] += 1;
                 baselineLines.push(
                   `| ${escapeCell(config)} | ${escapeCell(metricLabel)} | ` +
                     `${escapeCell(fmtValue(bench.value, bench.unit))} | ` +
                     `${escapeCell(main ? fmtValue(main.value, main.unit || bench.unit) : "n/a")} | ` +
                     `${escapeCell(average ? fmtValue(average.value, average.unit || bench.unit) : "n/a")} | ` +
-                    `${escapeCell(delta.text)} | ${escapeCell(deltaInfo(bench, average).text)} |`
+                    `${escapeCell(delta.text)} | ${escapeCell(averageDelta.text)} |`
                 );
-                return { delta, averageDelta: deltaInfo(bench, average), value: fmtNumber(bench.value) };
+                return { delta, averageDelta, value: fmtNumber(bench.value) };
               };
               for (const row of rows) {
-                const statuses = metricKeys.map((key) => deltaInfo(row[key], baseline.latest.get(`${row[key].suite}\0${row[key].name}`)));
-                const status = statuses.some((item) => item.status === "worse")
-                  ? "🔴"
-                  : statuses.some((item) => item.status === "better")
-                    ? "🟢"
-                    : statuses.every((item) => item.status === "missing")
-                      ? "⚪"
-                      : "⚪";
                 const throughput = metricInfo(row.config, "throughput", row.throughput);
                 const mbps = metricInfo(row.config, "MB/s", row.mbps);
                 const p50 = metricInfo(row.config, "p50", row.p50);
                 const p95 = metricInfo(row.config, "p95", row.p95);
                 const p99 = metricInfo(row.config, "p99", row.p99);
-                const material = [throughput, mbps, p50, p95, p99]
-                  .map((item) => item.delta)
-                  .filter((delta) => delta.status === "better" || delta.status === "worse");
-                const averageMaterial = [throughput, mbps, p50, p95, p99]
+                const metrics = [throughput, mbps, p50, p95, p99];
+                const statuses = metrics.map((item) => item.delta);
+                const status = statuses.some((item) => item.status === "worse")
+                  ? "🔴"
+                  : statuses.some((item) => item.status === "better")
+                    ? "🟢"
+                    : "⚪";
+                const material = statuses.filter(
+                  (delta) => delta.status === "better" || delta.status === "worse"
+                );
+                const averageMaterial = metrics
                   .map((item) => item.averageDelta)
                   .filter((delta) => delta.status === "better" || delta.status === "worse");
                 const maxByAbs = (items) =>
@@ -575,7 +558,7 @@ jobs:
               }
             }
             const comparison = comparisonToTable(prRows, baseline);
-            const tableMd = csv ? csvToTable(csv) : null;
+            const tableMd = !comparison && csv ? csvToTable(csv) : null;
             const bodyParts = [
               marker,
               `## ${comparison?.verdict || "📊 Arrow Flight E2E bench"}`,

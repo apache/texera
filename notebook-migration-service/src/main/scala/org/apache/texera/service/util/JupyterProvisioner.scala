@@ -68,7 +68,7 @@ class JupyterProvisioner(
     if (!jupyterEnabled) return Some(fallback)
 
     val token = JupyterTokenDeriver.derive(uid, tokenSecret)
-    JupyterEndpointResolver.resolve(uid, jupyterEnabled = true, tokenSecret = tokenSecret) match {
+    JupyterEndpointResolver.resolveRegistered(uid, token) match {
       case Some(endpoints) if accepts(endpoints.internalUrl, token) => Some(endpoints)
       case Some(endpoints)                                          =>
         // Either the pod is gone, or it predates a token-secret rotation and no longer

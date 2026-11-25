@@ -59,5 +59,3 @@ class BackpressureHandler(ActorCommandHandler):
                     ),
                 )
             )
-
-        return None

@@ -59,8 +59,8 @@ def _post(url, payload):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return r.status
+    with urllib.request.urlopen(req, timeout=10):
+        pass
 
 
 def _get(url):
@@ -102,7 +102,7 @@ def emit(service, run_id):
     }]})
 
     # TRACE -> traces pipeline -> Jaeger
-    trace_id = (uuid.uuid4().hex + uuid.uuid4().hex)[:32]
+    trace_id = uuid.uuid4().hex
     span_id = uuid.uuid4().hex[:16]
     _post(f"{COLLECTOR}/v1/traces", {"resourceSpans": [{
         "resource": resource,
@@ -187,7 +187,6 @@ def main():
     if len(services) >= 2:
         a, b = services[0], services[1]
         a_run = emitted[a][0]
-        leaked = False
         try:
             leaked = loki_has(b, a_run)   # a's marker should not be under b
         except Exception:

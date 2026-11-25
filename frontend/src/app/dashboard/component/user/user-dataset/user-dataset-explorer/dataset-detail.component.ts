@@ -234,7 +234,7 @@ export class DatasetDetailComponent implements OnInit {
         .updateDatasetPublicity(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.datasetIsPublic = checked;
             let state = "public";
             if (!this.datasetIsPublic) {
@@ -242,7 +242,7 @@ export class DatasetDetailComponent implements OnInit {
             }
             this.notificationService.success(`Dataset ${this.datasetName} is now ${state}`);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Fail to change the dataset publicity");
           },
         });
@@ -256,7 +256,7 @@ export class DatasetDetailComponent implements OnInit {
         .updateDatasetDownloadable(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.datasetIsDownloadable = checked;
             let state = "allowed";
             if (!this.datasetIsDownloadable) {
@@ -264,7 +264,7 @@ export class DatasetDetailComponent implements OnInit {
             }
             this.notificationService.success(`Dataset downloads are now ${state}`);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Failed to change the dataset download permission");
           },
         });
@@ -440,13 +440,13 @@ export class DatasetDetailComponent implements OnInit {
         .deleteDatasetFile(this.did, relativePath)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
             this.versionsFilesBrowser?.notePathStaged(relativePath);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Failed to delete the file");
           },
         });

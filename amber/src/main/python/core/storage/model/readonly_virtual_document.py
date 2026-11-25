@@ -37,7 +37,6 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
         Get the URI of the corresponding document.
         :return: the URI of the document as a ParseResult object
         """
-        pass
 
     @abstractmethod
     def get_item(self, i: int) -> T:
@@ -46,7 +45,6 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
         :param i: index starting from 0
         :return: data item of type T
         """
-        pass
 
     @abstractmethod
     def get(self) -> Iterator[T]:
@@ -54,7 +52,6 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
         Get an iterator that iterates over all indexed items.
         :return: an iterator that returns data items of type T
         """
-        pass
 
     @abstractmethod
     def get_range(self, from_index: int, until_index: int) -> Iterator[T]:
@@ -65,7 +62,6 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
         :param until_index: the ending index (exclusive)
         :return: an iterator that returns data items of type T
         """
-        pass
 
     @abstractmethod
     def get_after(self, offset: int) -> Iterator[T]:
@@ -74,7 +70,6 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
         :param offset: the starting index (exclusive)
         :return: an iterator that returns data items of type T
         """
-        pass
 
     @abstractmethod
     def get_count(self) -> int:
@@ -82,4 +77,3 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
         Get the count of items in the document.
         :return: the count of items
         """
-        pass

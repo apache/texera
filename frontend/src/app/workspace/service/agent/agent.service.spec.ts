@@ -26,6 +26,7 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { TOKEN_KEY } from "../../../common/service/user/auth.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -496,6 +497,22 @@ describe("AgentService", () => {
 
         expect(service.activateAgent("agent-1")).toBe(true);
         expect(FakeWebSocket.instances.length).toBe(1);
+      });
+
+      it("sends the signed-in user's token in the websocket query, where the agent service reads it", () => {
+        // The agent service opens the socket only for the agent's owner; a browser cannot set
+        // headers on a WebSocket, so the token has to travel in the URL.
+        localStorage.setItem(TOKEN_KEY, "header.payload.signature+/=");
+        try {
+          seedAgent("agent-1");
+          service.activateAgent("agent-1");
+
+          const url = new URL(FakeWebSocket.latest().url);
+          expect(url.pathname).toBe("/api/agents/agent-1/react");
+          expect(url.searchParams.get("access-token")).toBe("header.payload.signature+/=");
+        } finally {
+          localStorage.removeItem(TOKEN_KEY);
+        }
       });
 
       it("closes the socket and recreates stopPolling$ on deactivate, then reconnects on activate", () => {
@@ -1264,6 +1281,15 @@ describe("AgentService", () => {
       let unknown: AgentState | undefined;
       service.getAgentState("ghost").subscribe(s => (unknown = s));
       expect(unknown).toBe(AgentState.UNAVAILABLE);
+    });
+
+    it("getAgentStateSnapshot returns the tracked value synchronously, or UNAVAILABLE without creating tracking", () => {
+      service.getAgentStateObservable("agent-1").subscribe();
+      (service as any).agentStateTracking.get("agent-1").stateSubject.next(AgentState.GENERATING);
+      expect(service.getAgentStateSnapshot("agent-1")).toBe(AgentState.GENERATING);
+
+      expect(service.getAgentStateSnapshot("ghost")).toBe(AgentState.UNAVAILABLE);
+      expect((service as any).agentStateTracking.has("ghost")).toBe(false);
     });
 
     it("isAgentConnected is false for an unavailable/unknown agent and true otherwise", () => {

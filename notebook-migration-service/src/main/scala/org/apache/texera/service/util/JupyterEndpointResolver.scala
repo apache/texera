@@ -19,7 +19,7 @@ package org.apache.texera.service.util
 
 import org.apache.texera.common.config.{KubernetesConfig, StorageConfig}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.tables.daos.UserJupyterDao
+import org.apache.texera.dao.jooq.generated.Tables.USER_JUPYTER
 
 /**
   * Maps a user to the Jupyter their requests should reach.
@@ -44,18 +44,16 @@ object JupyterEndpointResolver {
       tokenSecret: String = StorageConfig.jupyterTokenSecret
   ): Option[JupyterEndpoints] =
     if (!jupyterEnabled) Some(fallback)
-    else
-      registrationOf(uid).map(row =>
-        // The token is derived rather than stored, so it is rebuilt here from the uid.
-        JupyterEndpoints(
-          row.getInternalUrl,
-          row.getPublicUrl,
-          JupyterTokenDeriver.derive(uid, tokenSecret)
-        )
-      )
+    else resolveRegistered(uid, JupyterTokenDeriver.derive(uid, tokenSecret))
 
-  private def registrationOf(uid: Int) = {
-    val dao = new UserJupyterDao(SqlServer.getInstance().createDSLContext().configuration())
-    Option(dao.fetchOneByUid(uid))
-  }
+  private[util] def resolveRegistered(uid: Int, token: => String): Option[JupyterEndpoints] =
+    Option(
+      SqlServer
+        .getInstance()
+        .createDSLContext()
+        .select(USER_JUPYTER.INTERNAL_URL, USER_JUPYTER.PUBLIC_URL)
+        .from(USER_JUPYTER)
+        .where(USER_JUPYTER.UID.eq(uid))
+        .fetchOne()
+    ).map(row => JupyterEndpoints(row.value1(), row.value2(), token))
 }

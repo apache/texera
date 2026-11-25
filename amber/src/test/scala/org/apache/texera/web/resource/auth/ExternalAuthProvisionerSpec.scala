@@ -114,16 +114,15 @@ class ExternalAuthProvisionerSpec
     ExternalIdentity(ProviderTypeEnum.ORCID, providerId, name)
 
   /** Seed a user row directly; uid is DB-assigned and read back into the pojo. */
-  private def seedUser(name: String, localPart: String, avatar: String = null): User =
-    seedUserWithEmail(name, localPart + emailDomain, avatar)
+  private def seedUser(name: String, localPart: String): User =
+    seedUserWithEmail(name, localPart + emailDomain)
 
   /** Seed a user row at a verbatim address, for the casing tests. */
-  private def seedUserWithEmail(name: String, email: String, avatar: String = null): User = {
+  private def seedUserWithEmail(name: String, email: String): User = {
     val user = new User
     user.setName(name)
     user.setEmail(email)
     user.setRole(UserRoleEnum.REGULAR)
-    if (avatar != null) user.setAvatar(avatar)
     userDao.insert(user)
     user
   }

@@ -31,6 +31,14 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 )
 
 
+def _translate(cmd: str, context) -> str:
+    return WorkerDebugCommandHandler.translate_debug_command(cmd, context)
+
+
+def _run_debug(handler, cmd: str):
+    return asyncio.run(handler.debug_command(DebugCommandRequest(cmd=cmd)))
+
+
 class TestTranslateDebugCommand:
     @pytest.fixture
     def context(self):
@@ -39,53 +47,36 @@ class TestTranslateDebugCommand:
         )
 
     def test_break_with_lineno_prepends_module(self, context):
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("b 5", context)
-            == "b my_udf:5"
-        )
+        assert _translate("b 5", context) == "b my_udf:5"
 
     def test_long_break_with_lineno_prepends_module(self, context):
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("break 12", context)
-            == "break my_udf:12"
-        )
+        assert _translate("break 12", context) == "break my_udf:12"
 
     def test_break_preserves_condition_arg(self, context):
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("b 7 x > 0", context)
-            == "b my_udf:7 x > 0"
-        )
+        assert _translate("b 7 x > 0", context) == "b my_udf:7 x > 0"
 
     def test_break_with_no_args_passes_through(self, context):
         # No args → falls through to the else branch (no module rewriting).
-        assert WorkerDebugCommandHandler.translate_debug_command("b", context) == "b"
+        assert _translate("b", context) == "b"
 
     def test_non_break_command_passes_through(self, context):
-        assert WorkerDebugCommandHandler.translate_debug_command("n", context) == "n"
+        assert _translate("n", context) == "n"
 
     def test_non_break_command_with_args_is_rejoined(self, context):
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("p some_var", context)
-            == "p some_var"
-        )
+        assert _translate("p some_var", context) == "p some_var"
 
     def test_leading_and_trailing_whitespace_is_stripped(self, context):
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("  c  ", context) == "c"
-        )
+        assert _translate("  c  ", context) == "c"
 
     def test_internal_whitespace_is_collapsed_to_single_space(self, context):
         # split() with no args collapses any run of whitespace, so the rejoined
         # form has single spaces regardless of how many the user typed.
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("p   foo    bar", context)
-            == "p foo bar"
-        )
+        assert _translate("p   foo    bar", context) == "p foo bar"
 
     def test_break_with_only_lineno_has_no_trailing_space(self, context):
         # The implementation joins the (empty) tail with " "; the final strip()
         # must remove the trailing whitespace so the command stays valid pdb.
-        result = WorkerDebugCommandHandler.translate_debug_command("b 5", context)
+        result = _translate("b 5", context)
         assert result == "b my_udf:5"
         assert not result.endswith(" ")
 
@@ -93,54 +84,40 @@ class TestTranslateDebugCommand:
 
     def test_empty_command_raises_descriptive_error(self, context):
         with pytest.raises(ValueError, match="cannot be empty"):
-            WorkerDebugCommandHandler.translate_debug_command("", context)
+            _translate("", context)
 
     def test_whitespace_only_command_raises_descriptive_error(self, context):
         with pytest.raises(ValueError, match="cannot be empty"):
-            WorkerDebugCommandHandler.translate_debug_command("   \t  ", context)
+            _translate("   \t  ", context)
 
     def test_uppercase_break_is_not_recognized(self, context):
         # The match list is case-sensitive: ("b", "break"). "BREAK" / "B" fall
         # through to the pass-through branch and won't get the module prefix.
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("BREAK 5", context)
-            == "BREAK 5"
-        )
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("B 5", context) == "B 5"
-        )
+        assert _translate("BREAK 5", context) == "BREAK 5"
+        assert _translate("B 5", context) == "B 5"
 
     def test_break_with_function_name_passes_through(self, context):
         # pdb's `b` accepts a bare function name and resolves it itself; the
         # `module:funcname` form is invalid (pdb expects a lineno after a
         # filename prefix). So we leave function-name args unchanged.
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("b my_func", context)
-            == "b my_func"
-        )
+        assert _translate("b my_func", context) == "b my_func"
 
     def test_break_with_explicit_filename_passes_through(self, context):
         # The user already typed `filename:lineno` — don't double-prefix.
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("b foo.py:5", context)
-            == "b foo.py:5"
-        )
+        assert _translate("b foo.py:5", context) == "b foo.py:5"
 
     def test_break_with_lineno_before_module_init_raises(self, context):
         # Without an initialized executor module we cannot construct
         # `module:lineno`, so refuse instead of emitting `b None:5`.
         context.executor_manager.operator_module_name = None
         with pytest.raises(ValueError, match="executor module not initialized"):
-            WorkerDebugCommandHandler.translate_debug_command("b 5", context)
+            _translate("b 5", context)
 
     def test_break_with_function_name_before_module_init_passes_through(self, context):
         # Function-name and filename:lineno forms don't need the module name,
         # so they should still work even before the executor is initialized.
         context.executor_manager.operator_module_name = None
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("b my_func", context)
-            == "b my_func"
-        )
+        assert _translate("b my_func", context) == "b my_func"
 
 
 class TestDebugCommandAsyncFlow:
@@ -157,13 +134,13 @@ class TestDebugCommandAsyncFlow:
         return instance
 
     def test_translates_then_forwards_to_debug_manager(self, handler):
-        asyncio.run(handler.debug_command(DebugCommandRequest(cmd="b 5")))
+        _run_debug(handler, "b 5")
         handler.context.debug_manager.put_debug_command.assert_called_once_with(
             "b my_udf:5"
         )
 
     def test_resumes_all_three_pause_types(self, handler):
-        asyncio.run(handler.debug_command(DebugCommandRequest(cmd="c")))
+        _run_debug(handler, "c")
         actual = [
             call.args[0] for call in handler.context.pause_manager.resume.call_args_list
         ]
@@ -174,11 +151,11 @@ class TestDebugCommandAsyncFlow:
         ]
 
     def test_returns_empty_return(self, handler):
-        result = asyncio.run(handler.debug_command(DebugCommandRequest(cmd="n")))
+        result = _run_debug(handler, "n")
         assert isinstance(result, EmptyReturn)
 
     def test_passes_through_non_break_command_unchanged(self, handler):
-        asyncio.run(handler.debug_command(DebugCommandRequest(cmd="p x")))
+        _run_debug(handler, "p x")
         handler.context.debug_manager.put_debug_command.assert_called_once_with("p x")
 
     def test_empty_cmd_propagates_value_error(self, handler):
@@ -186,10 +163,10 @@ class TestDebugCommandAsyncFlow:
         # handler does not catch it — the RPC layer will surface the failure
         # back to the caller. Pin this so silent swallowing doesn't sneak in.
         with pytest.raises(ValueError):
-            asyncio.run(handler.debug_command(DebugCommandRequest(cmd="")))
+            _run_debug(handler, "")
 
     def test_translation_failure_skips_put_and_resume(self, handler):
         with pytest.raises(ValueError):
-            asyncio.run(handler.debug_command(DebugCommandRequest(cmd="")))
+            _run_debug(handler, "")
         handler.context.debug_manager.put_debug_command.assert_not_called()
         handler.context.pause_manager.resume.assert_not_called()
