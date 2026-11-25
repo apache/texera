@@ -30,7 +30,7 @@ import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.`type`.{ExistingUploadFile, ExistingUploadFilesRequest}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import java.io.ByteArrayInputStream
 import scala.jdk.CollectionConverters._
@@ -45,7 +45,6 @@ class ModelApiForUiSpec
     with MockTexeraDB
     with MockLakeFS
     with BeforeAndAfterAll
-    with BeforeAndAfterEach
     with ResourceTestHelpers {
 
   private def mkUser(name: String): User = {

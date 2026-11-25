@@ -20,12 +20,19 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { FormGroup, FormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
-import { NgIf } from "@angular/common";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+
+/** Builds fresh required `name` and optional `description` Formly configs for resource creator modals. */
+export function resourceNameAndDescriptionFields(): FormlyFieldConfig[] {
+  return [
+    { key: "name", type: "input", templateOptions: { label: "Name", required: true } },
+    { key: "description", type: "input", defaultValue: "", templateOptions: { label: "Description" } },
+  ];
+}
 
 /**
  * The creation form shared by the dataset and model creators: the Formly fields, the visibility
@@ -39,7 +46,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
   imports: [
     NzSpinComponent,
     FormlyModule,
-    NgIf,
     NzSwitchComponent,
     FormsModule,
     NzButtonComponent,
@@ -52,7 +58,6 @@ export class ResourceCreatorFormComponent {
   @Input({ required: true }) fields!: FormlyFieldConfig[];
   @Input({ required: true }) model!: Record<string, unknown>;
   @Input() isCreating = false;
-  @Input() showToggles = true;
   @Input() isPublic = false;
   @Input() isDownloadable = false;
   @Output() isPublicChange = new EventEmitter<boolean>();

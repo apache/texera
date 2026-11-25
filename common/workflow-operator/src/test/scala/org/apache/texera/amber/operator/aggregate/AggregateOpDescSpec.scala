@@ -19,27 +19,23 @@
 
 package org.apache.texera.amber.operator.aggregate
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  requirePython,
+  runSource
+}
+
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
-import com.typesafe.config.ConfigFactory
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 
 class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -86,33 +82,36 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     desc.generateStandaloneCode() should include("""["sales"]""")
   }
 
+  private def outputSchemasFor(
+      input: Schema,
+      keys: List[String],
+      aggs: AggregationOperation*
+  ): Map[PortIdentity, Schema] =
+    descWith(keys, aggs: _*).getExternalOutputSchemas(Map(PortIdentity() -> input))
+
   "AggregateOpDesc schema propagation" should
     "produce the group-by keys plus the aggregation result column (SUM keeps the input type)" in {
     val input = Schema().add("city", AttributeType.STRING).add("sales", AttributeType.INTEGER)
-    val out = descWith(List("city"), aggOp(AggregationFunction.SUM, "sales", "total"))
-      .getExternalOutputSchemas(Map(PortIdentity() -> input))
-    out shouldBe Map(
-      PortIdentity() -> Schema()
-        .add("city", AttributeType.STRING)
-        .add("total", AttributeType.INTEGER)
-    )
+    outputSchemasFor(input, List("city"), aggOp(AggregationFunction.SUM, "sales", "total")) shouldBe
+      Map(
+        PortIdentity() -> Schema()
+          .add("city", AttributeType.STRING)
+          .add("total", AttributeType.INTEGER)
+      )
   }
 
   it should "type a COUNT result as INTEGER and an AVERAGE result as DOUBLE" in {
     val input = Schema().add("v", AttributeType.LONG)
-    descWith(List.empty, aggOp(AggregationFunction.COUNT, "v", "cnt"))
-      .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
+    outputSchemasFor(input, List.empty, aggOp(AggregationFunction.COUNT, "v", "cnt")) shouldBe
       Map(PortIdentity() -> Schema().add("cnt", AttributeType.INTEGER))
-    descWith(List.empty, aggOp(AggregationFunction.AVERAGE, "v", "avg"))
-      .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
+    outputSchemasFor(input, List.empty, aggOp(AggregationFunction.AVERAGE, "v", "avg")) shouldBe
       Map(PortIdentity() -> Schema().add("avg", AttributeType.DOUBLE))
   }
 
   it should "type a COUNT(*) (empty attribute) result as INTEGER without looking up an input column" in {
     // An empty attribute means COUNT(*); schema propagation must not dereference a column.
     val input = Schema().add("v", AttributeType.LONG)
-    descWith(List.empty, aggOp(AggregationFunction.COUNT, "", "row_count"))
-      .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
+    outputSchemasFor(input, List.empty, aggOp(AggregationFunction.COUNT, "", "row_count")) shouldBe
       Map(PortIdentity() -> Schema().add("row_count", AttributeType.INTEGER))
   }
 
@@ -121,8 +120,56 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     // fast rather than propagate a null-typed output.
     val input = Schema().add("v", AttributeType.LONG)
     assertThrows[Exception] {
-      descWith(List.empty, aggOp(AggregationFunction.SUM, "", "total"))
-        .getExternalOutputSchemas(Map(PortIdentity() -> input))
+      outputSchemasFor(input, List.empty, aggOp(AggregationFunction.SUM, "", "total"))
+    }
+  }
+
+  private def runAggregateExec(
+      desc: AggregateOpDesc,
+      tuples: Seq[Tuple] = Seq.empty
+  ): List[TupleLike] = {
+    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    tuples.foreach(exec.processTuple(_, 0))
+    exec.onFinish(0).toList
+  }
+
+  private def runWithTimeZone[A](zone: String)(block: => A): A = {
+    val machineZone = java.util.TimeZone.getDefault
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+    try block
+    finally java.util.TimeZone.setDefault(machineZone)
+  }
+
+  private def timestampSumAvgDesc(): AggregateOpDesc =
+    descWith(
+      List.empty,
+      aggOp(AggregationFunction.SUM, "t", "ts_total"),
+      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
+    )
+
+  private val timestampSumAvgPrint =
+    """print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
+      |print(repr(float(out1df.iloc[0]["ts_avg"])))""".stripMargin
+
+  private def assertTimestampSumAvg(
+      prefix: String,
+      zone: Option[String],
+      expected: Seq[String],
+      imports: String = "import pandas as pd"
+  )(body: String => String): Unit = {
+    val python = requirePython("pandas", "numpy")
+    val input = Schema().add("t", AttributeType.TIMESTAMP)
+    val desc = timestampSumAvgDesc()
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+    val driver =
+      s"""$imports
+         |${desc.standaloneHelpers().mkString("\n")}
+         |${body(block)}
+         |""".stripMargin
+    val out = runPython(python, driver, prefix, zone)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      out.trim.linesIterator.toSeq shouldBe expected
     }
   }
 
@@ -130,43 +177,25 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // depending on the resolution it was read at, and a nanosecond total leaves
   // the range of a 64-bit integer after a handful of modern dates.
   it should "read a timestamp as epoch milliseconds at either resolution" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
-    val input = Schema().add("t", AttributeType.TIMESTAMP)
-    val desc = descWith(
-      List.empty,
-      aggOp(AggregationFunction.SUM, "t", "ts_total"),
-      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
-    )
-    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
-
-    def report(unit: String): String =
-      s"""in1df = pd.DataFrame({
-         |    "t": pd.to_datetime(["2024-01-01"] * 6).astype("datetime64[$unit]"),
-         |})
-         |$block
-         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
-         |print(repr(float(out1df.iloc[0]["ts_avg"])))""".stripMargin
-
-    val driver =
-      s"""import pandas as pd
-         |${desc.standaloneHelpers().mkString("\n")}
-         |${report("ns")}
-         |${report("us")}
-         |""".stripMargin
-
-    val out = runPython(python, driver, "aggregate-timestamp-units-", "UTC")
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
+    assertTimestampSumAvg(
+      "aggregate-timestamp-units-",
+      Some("UTC"),
       // Six times 1704067200000 milliseconds, read back as a timestamp: a date
       // no nanosecond count can hold, and the same one at either resolution.
-      out.trim.linesIterator.toSeq shouldBe Seq(
+      Seq(
         "2293-12-31T00:00:00",
         "1704067200000.0",
         "2293-12-31T00:00:00",
         "1704067200000.0"
       )
+    ) { block =>
+      def report(unit: String): String =
+        s"""in1df = pd.DataFrame({
+           |    "t": pd.to_datetime(["2024-01-01"] * 6).astype("datetime64[$unit]"),
+           |})
+           |$block
+           |$timestampSumAvgPrint""".stripMargin
+      s"${report("ns")}\n${report("us")}"
     }
   }
 
@@ -177,34 +206,18 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     * 2078-01-01 06:00:00 and the average 1704132000000.
     */
   it should "add timestamps in the zone the script runs in" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
-    val input = Schema().add("t", AttributeType.TIMESTAMP)
-    val desc = descWith(
-      List.empty,
-      aggOp(AggregationFunction.SUM, "t", "ts_total"),
-      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
-    )
-    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
-
-    val driver =
-      s"""import pandas as pd
-         |${desc.standaloneHelpers().mkString("\n")}
-         |in1df = pd.DataFrame({
+    // A zone six hours behind UTC and with no daylight saving of its own, so
+    // one offset covers both dates.
+    assertTimestampSumAvg(
+      "aggregate-timestamp-zone-",
+      Some("America/Mexico_City"),
+      Seq("2078-01-01T06:00:00", "1704132000000.0")
+    ) { block =>
+      s"""in1df = pd.DataFrame({
          |    "t": pd.to_datetime(["2024-01-01 00:00:00", "2024-01-02 00:00:00"]),
          |})
          |$block
-         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
-         |print(repr(float(out1df.iloc[0]["ts_avg"])))
-         |""".stripMargin
-
-    // A zone six hours behind UTC and with no daylight saving of its own, so
-    // one offset covers both dates.
-    val out = runPython(python, driver, "aggregate-timestamp-zone-", "America/Mexico_City")
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      out.trim.linesIterator.toSeq shouldBe Seq("2078-01-01T06:00:00", "1704132000000.0")
+         |$timestampSumAvgPrint""".stripMargin
     }
   }
 
@@ -215,23 +228,13 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     * 1653-12-31 18:00:00 and the average -4.9859712E12.
     */
   it should "add timestamps before 1970 where localtime refuses them" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
-    val input = Schema().add("t", AttributeType.TIMESTAMP)
-    val desc = descWith(
-      List.empty,
-      aggOp(AggregationFunction.SUM, "t", "ts_total"),
-      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
-    )
-    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
-
-    val driver =
-      s"""import time
-         |import numpy as np
-         |import pandas as pd
-         |${desc.standaloneHelpers().mkString("\n")}
-         |_localtime = time.localtime
+    assertTimestampSumAvg(
+      "aggregate-timestamp-refused-",
+      Some("America/Mexico_City"),
+      Seq("1653-12-31T18:00:00", "-4985971200000.0"),
+      "import time\nimport numpy as np\nimport pandas as pd"
+    ) { block =>
+      s"""_localtime = time.localtime
          |def _refusing(seconds=None):
          |    if seconds is not None and seconds < 0:
          |        raise OSError(22, "Invalid argument")
@@ -248,14 +251,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |    "t": np.array(["1600-01-01T12:00", "2024-01-01T00:00"], dtype="datetime64[ms]"),
          |})
          |$block
-         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
-         |print(repr(float(out1df.iloc[0]["ts_avg"])))
-         |""".stripMargin
-
-    val out = runPython(python, driver, "aggregate-timestamp-refused-", "America/Mexico_City")
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      out.trim.linesIterator.toSeq shouldBe Seq("1653-12-31T18:00:00", "-4985971200000.0")
+         |$timestampSumAvgPrint""".stripMargin
     }
   }
 
@@ -271,9 +267,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   )
 
   it should "read each timestamp with the offset its zone had then" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
+    val python = requirePython("pandas", "numpy")
     val input = Schema().add("k", AttributeType.INTEGER).add("t", AttributeType.TIMESTAMP)
     val desc = descWith(List("k"), aggOp(AggregationFunction.AVERAGE, "t", "ts_avg"))
     val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
@@ -292,13 +286,11 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |""".stripMargin
 
     val zone = "America/Mexico_City"
-    val out = runPython(python, driver, "aggregate-timestamp-history-", zone)
-
-    val machineZone = java.util.TimeZone.getDefault
-    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+    val out = runPython(python, driver, "aggregate-timestamp-history-", Some(zone))
     val fromEngine =
-      try mexicoCityWallClocks.map(w => java.sql.Timestamp.valueOf(w).getTime.toString)
-      finally java.util.TimeZone.setDefault(machineZone)
+      runWithTimeZone(zone)(
+        mexicoCityWallClocks.map(w => java.sql.Timestamp.valueOf(w).getTime.toString)
+      )
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
       out.trim.linesIterator.toSeq shouldBe fromEngine
@@ -306,19 +298,16 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     fromEngine shouldBe Seq("-1230768000000", "1625097600000", "-1546300800000", "-3786804000000")
   }
 
-  /** Runs the generated block with the zone named to the child, because a
-    * timestamp's arithmetic reads the one in force where it runs.
-    */
-  private def runPython(python: String, driver: String, prefix: String, zone: String): String = {
-    val script = Files.createTempFile(prefix, ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
-    builder.environment().put("TZ", zone)
-    val process = builder.start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver")(process.exitValue() shouldBe 0)
+  /** Runs the generated block with an optional TZ variable and checks exit code 0. */
+  private def runPython(
+      python: String,
+      driver: String,
+      prefix: String,
+      zone: Option[String] = None
+  ): String = {
+    val (exitCode, out) =
+      runSource(python, prefix, driver, environment = zone.map("TZ" -> _).toMap)
+    withClue(s"python said:\n$out\nscript:\n$driver")(exitCode shouldBe 0)
     out
   }
 
@@ -326,9 +315,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // the engine. The two are only distinct in a nullable dtype, which is what an
   // Arrow file is read into.
   it should "group a missing key apart from a NaN one" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
+    val python = requirePython("pandas", "numpy")
     val desc = descWith(List("k"), aggOp(AggregationFunction.SUM, "v", "total"))
 
     val driver =
@@ -343,17 +330,9 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |print(len(out1df), sorted(int(x) for x in out1df["total"]))
          |""".stripMargin
 
-    val script = Files.createTempFile("aggregate-null-nan-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
-      // Two groups of one row each, not one group totalling 3.
-      out.trim shouldBe "2 [1, 2]"
-    }
+    val out = runPython(python, driver, "aggregate-null-nan-")
+    // Two groups of one row each, not one group totalling 3.
+    out.trim shouldBe "2 [1, 2]"
   }
 
   // The engine keys a group on a List of the key fields in a HashMap, under
@@ -361,35 +340,18 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // while 0.0 and -0.0 are one group and so are two nulls. Both stages run, as
   // the plan runs them.
   it should "group NaN and signed-zero keys as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
+    val python = requirePython("pandas", "numpy")
     val count = aggOp(AggregationFunction.COUNT, "v", "n")
     val desc = descWith(List("k"), count)
     val keys: Seq[java.lang.Double] = Seq(Double.NaN, Double.NaN, 0.0, -0.0, null, null, 1.0)
 
     val input = Schema().add("k", AttributeType.DOUBLE).add("v", AttributeType.INTEGER)
-    val local = new AggregateOpExec(objectMapper.writeValueAsString(desc))
-    local.open()
-    keys.foreach(k => local.processTuple(Tuple(input, Array[Any](k, 1)), 0))
-    val partials = local.onFinish(0).toList
+    val partials = runAggregateExec(desc, keys.map(k => Tuple(input, Array[Any](k, 1))))
     val partialSchema = Schema().add("k", AttributeType.DOUBLE).add("n", AttributeType.INTEGER)
-    val global =
-      new AggregateOpExec(objectMapper.writeValueAsString(descWith(List("k"), count.getFinal)))
-    global.open()
-    partials.foreach(t => global.processTuple(Tuple(partialSchema, t.getFields.toArray[Any]), 0))
-    val engine = global
-      .onFinish(0)
-      .map { row =>
-        val key = row.getFields.head match {
-          case null                           => "None"
-          case d: java.lang.Double if d.isNaN => "nan"
-          case d                              => d.toString
-        }
-        s"$key ${row.getFields(1)}"
-      }
-      .toList
-      .sorted
+    val engine = runAggregateExec(
+      descWith(List("k"), count.getFinal),
+      partials.map(t => Tuple(partialSchema, t.getFields.toArray[Any]))
+    ).map(row => s"${renderNumericOrNull(row.getFields.head)} ${row.getFields(1)}").sorted
 
     val pyKeys = keys.map(k => if (k == null) "None" else if (k.isNaN) "np.nan" else k.toString)
     val driver =
@@ -412,27 +374,14 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |print("\\n".join(sorted(rows)))
          |""".stripMargin
 
-    val script = Files.createTempFile("aggregate-nan-zero-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
-      out.trim.linesIterator.toList shouldBe engine
-    }
+    val out = runPython(python, driver, "aggregate-nan-zero-")
+    withClue(s"script:\n$driver")(out.trim.linesIterator.toList shouldBe engine)
   }
 
   it should "emit no row for an empty input with no group keys, as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
+    val python = requirePython("pandas", "numpy")
     val desc = descWith(List.empty, aggOp(AggregationFunction.COUNT, "", "cnt"))
-
-    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
-    exec.open()
-    exec.onFinish(0).toList shouldBe empty
+    runAggregateExec(desc) shouldBe empty
 
     val driver =
       s"""import pandas as pd
@@ -441,24 +390,17 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |${desc.generateStandaloneCode()}
          |print(len(out1df), list(out1df.columns))
          |""".stripMargin
-    val out = runPython(python, driver, "aggregate-empty-", "UTC")
+    val out = runPython(python, driver, "aggregate-empty-", Some("UTC"))
     withClue(s"script:\n$driver")(out.trim shouldBe "0 ['cnt']")
   }
 
   it should "count every row for a COUNT whose attribute is only whitespace, as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
+    val python = requirePython("pandas", "numpy")
     val input = Schema().add("k", AttributeType.STRING).add("v", AttributeType.INTEGER)
     val rows = Seq(Tuple(input, Array[Any]("a", 1)), Tuple(input, Array[Any]("a", null)))
-    def engine(keys: List[String]): List[String] = {
-      val exec = new AggregateOpExec(
-        objectMapper.writeValueAsString(descWith(keys, aggOp(AggregationFunction.COUNT, " ", "n")))
-      )
-      exec.open()
-      rows.foreach(exec.processTuple(_, 0))
-      exec.onFinish(0).map(_.getFields.mkString(" ")).toList
-    }
+    def engine(keys: List[String]): List[String] =
+      runAggregateExec(descWith(keys, aggOp(AggregationFunction.COUNT, " ", "n")), rows)
+        .map(_.getFields.mkString(" "))
     engine(List.empty) shouldBe List("2")
     engine(List("k")) shouldBe List("a 2")
 
@@ -475,17 +417,23 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |${script(List.empty)}
          |${script(List("k"))}
          |""".stripMargin
-    val out = runPython(python, driver, "aggregate-blank-count-", "UTC")
+    val out = runPython(python, driver, "aggregate-blank-count-", Some("UTC"))
     withClue(s"script:\n$driver")(out.trim.linesIterator.toList shouldBe List("2", "a 2"))
   }
+
+  private def renderNumericOrNull(value: Any): String =
+    value match {
+      case null                           => "None"
+      case d: java.lang.Double if d.isNaN => "nan"
+      case d                              => d.toString
+    }
 
   // A DOUBLE column read from Arrow keeps a stored NaN apart from null. The
   // engine skips the null and folds the NaN in, so SUM, AVERAGE and MAX answer
   // NaN while MIN, which Java's Double.compare sends NaN past, answers 1.0.
   // CONCAT writes the NaN out and only a null as the empty string.
   it should "fold a stored NaN in a DOUBLE column as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = requirePython("pandas", "numpy")
 
     val input = Schema().add("k", AttributeType.STRING).add("v", AttributeType.DOUBLE)
     // Group "a" holds a NaN between two numbers and group "b" only nulls.
@@ -500,25 +448,14 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
         AggregationFunction.CONCAT
       )
 
-    def render(value: Any): String =
-      value match {
-        case null                           => "None"
-        case d: java.lang.Double if d.isNaN => "nan"
-        case d                              => d.toString
-      }
-
     def check(keys: List[String]): Unit = {
       val desc =
         () => descWith(keys, functions.map(fn => aggOp(fn, "v", fn.toString.toLowerCase)): _*)
 
-      val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc()))
-      exec.open()
-      rows.foreach { case (k, v) => exec.processTuple(Tuple(input, Array[Any](k, v)), 0) }
-      val engine = exec
-        .onFinish(0)
-        .map(_.getFields.toSeq.map(render).mkString(" "))
-        .toSeq
-        .sorted
+      val engine =
+        runAggregateExec(desc(), rows.map { case (k, v) => Tuple(input, Array[Any](k, v)) })
+          .map(_.getFields.toSeq.map(renderNumericOrNull).mkString(" "))
+          .sorted
 
       val driver =
         s"""import pandas as pd, numpy as np
@@ -539,7 +476,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
            |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
            |    print(row)
            |""".stripMargin
-      val out = runPython(python, driver, "aggregate-double-nan-", "UTC")
+      val out = runPython(python, driver, "aggregate-double-nan-", Some("UTC"))
       // No trim: an all-null group's CONCAT is "", which ends its line in a space.
       withClue(s"script:\n$driver")(out.linesIterator.toSeq shouldBe engine)
     }
@@ -554,8 +491,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // keep the earlier ones, "c" holds only a null, and "d" ties before 1970,
   // where MAX is null. Both sides run in UTC so "d" is before the epoch.
   it should "pick a timestamp MIN and MAX by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = requirePython("pandas", "numpy")
 
     val input = Schema().add("k", AttributeType.STRING).add("t", AttributeType.TIMESTAMP)
     val rows: Seq[(String, String)] = Seq(
@@ -583,23 +519,14 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
           aggOp(AggregationFunction.MAX, "t", "hi")
         )
 
-      val machineZone = java.util.TimeZone.getDefault
-      java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
-      val engine =
-        try {
-          val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc()))
-          exec.open()
-          rows.foreach {
-            case (k, t) =>
-              val ts = Option(t).map(java.sql.Timestamp.valueOf).orNull
-              exec.processTuple(Tuple(input, Array[Any](k, ts)), 0)
-          }
-          exec
-            .onFinish(0)
-            .map(_.getFields.toSeq.map(render).mkString(" "))
-            .toSeq
-            .sorted
-        } finally java.util.TimeZone.setDefault(machineZone)
+      val engine = runWithTimeZone("UTC") {
+        val tuples = rows.map {
+          case (k, t) =>
+            val ts = Option(t).map(java.sql.Timestamp.valueOf).orNull
+            Tuple(input, Array[Any](k, ts))
+        }
+        runAggregateExec(desc(), tuples).map(_.getFields.toSeq.map(render).mkString(" ")).sorted
+      }
 
       val ks = rows.map(r => "\"" + r._1 + "\"").mkString("[", ", ", "]")
       val ts = rows
@@ -618,7 +545,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
            |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
            |    print(row)
            |""".stripMargin
-      val out = runPython(python, driver, "aggregate-timestamp-ties-", "UTC")
+      val out = runPython(python, driver, "aggregate-timestamp-ties-", Some("UTC"))
       withClue(s"script:\n$driver")(out.trim.linesIterator.toSeq shouldBe engine)
     }
 
@@ -656,30 +583,4 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     val elseRequired = rule.get("else").get("required").elements().asScala.map(_.asText()).toList
     elseRequired should contain("attribute")
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

@@ -35,6 +35,7 @@ function makeAgent(): TexeraAgent {
     modelType: "test-model",
     agentId: "agent-1",
     userToken: "user-token",
+    ownerUid: 1,
   });
 }
 
@@ -110,8 +111,14 @@ describe("TexeraAgent", () => {
     test("falls back to a name derived from the id", () => {
       expect(makeAgent().agentName).toBe("Agent-agent-1");
       expect(
-        new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named", userToken: "t" })
-          .agentName
+        new TexeraAgent({
+          model: {} as any,
+          modelType: "m",
+          agentId: "a",
+          agentName: "Named",
+          userToken: "t",
+          ownerUid: 1,
+        }).agentName
       ).toBe("Named");
     });
   });
@@ -317,7 +324,15 @@ describe("TexeraAgent", () => {
       expect(agent.getAncestorPath()).toEqual([INITIAL_STEP_ID]);
     });
 
-    test("stop moves the agent into the stopping state", () => {
+    test("stop on an idle agent is a no-op", () => {
+      agent.stop();
+
+      expect(agent.getState()).toBe(AgentState.AVAILABLE);
+    });
+
+    test("stop moves a generating agent into the stopping state", () => {
+      (agent as any).state = AgentState.GENERATING;
+
       agent.stop();
 
       expect(agent.getState()).toBe(AgentState.STOPPING);
@@ -367,7 +382,7 @@ describe("TexeraAgent DAG result formatting", () => {
  * LanguageModelV4FinishReason is an object, not a string: a bare `finishReason: "stop"` runs fine
  * under `bun test` but fails `tsc --noEmit`, so the mocks below build it through here.
  */
-const finish = (unified: "stop" | "tool-calls") => ({ unified, raw: undefined });
+const finish = (unified: "stop" | "tool-calls" | "length") => ({ unified, raw: undefined });
 
 /**
  * LanguageModelV4Usage is nested. A flat `{ inputTokens: 11 }` is silently discarded, and every
@@ -403,6 +418,7 @@ function makeAgentWith(model: any): TexeraAgent {
     agentId: "agent-1",
     systemPrompt: "SYS-XYZ",
     userToken: "user-token",
+    ownerUid: 1,
   });
   liveAgents.push(agent);
   return agent;
@@ -537,7 +553,7 @@ describe("sendMessage", () => {
       { toolName: "deleteOperator", toolCallId: "c1", input: { operatorId: "ghost" } },
     ]);
     expect(steps[1].toolResults).toEqual([
-      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: false },
+      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: true },
     ]);
     expect(steps[1].content).toBe("");
     expect(steps.map(s => [s.stepId, s.isBegin, s.isEnd])).toEqual([
@@ -546,6 +562,7 @@ describe("sendMessage", () => {
       [2, false, true],
     ]);
     expect(steps[2].parentId).toBe(steps[1].id);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
     expect(urls).toEqual([]);
   });
 
@@ -583,14 +600,307 @@ describe("sendMessage", () => {
       return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
     }) as any);
     await agent.sendMessage("del");
-    const counts = agent
-      .getAllSteps()
-      .map(s => [s.role, s.beforeWorkflowContent?.operators.length, s.afterWorkflowContent?.operators.length]);
+    const steps = agent.getAllSteps();
+    const counts = steps.map(s => [
+      s.role,
+      s.beforeWorkflowContent?.operators.length,
+      s.afterWorkflowContent?.operators.length,
+    ]);
     expect(counts).toEqual([
       ["user", 1, 1],
       ["agent", 1, 0],
       ["agent", 0, 0],
     ]);
+    expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: "Deleted operator: op1", isError: false }]);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (succeeded)");
+  });
+
+  test.each([new Error("The operation was aborted."), "tool failed", null])(
+    "preserves a thrown tool error in stored JSON and subsequent context: %p",
+    async thrown => {
+      let n = 0;
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          return {
+            content:
+              n === 1
+                ? [
+                    {
+                      type: "tool-call",
+                      toolCallId: "c1",
+                      toolName: "deleteOperator",
+                      input: JSON.stringify({ operatorId: "ghost" }),
+                    },
+                  ]
+                : [{ type: "text", text: "done" }],
+            finishReason: finish(n === 1 ? "tool-calls" : "stop"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        },
+      });
+      const agent = makeAgentWith(model);
+      const throwingTool = spyOn((agent as any).tools.deleteOperator, "execute").mockImplementation(async () => {
+        throw thrown;
+      });
+      try {
+        await agent.sendMessage("delete it");
+        const steps = agent.getAllSteps();
+        const expected = thrown instanceof Error ? thrown.message : String(thrown);
+        expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: expected, isError: true }]);
+        expect(JSON.parse(JSON.stringify(steps))[1].toolResults[0].output).toBe(expected);
+        expect(steps[2].inputMessages?.[0]?.content).toContain(`  - Error:\n    ${expected}`);
+      } finally {
+        throwingTool.mockRestore();
+      }
+    }
+  );
+
+  test("a length-limited tool call is not executed and appears as failed on the next turn", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        return {
+          content:
+            n === 1
+              ? [
+                  {
+                    type: "tool-call",
+                    toolCallId: "c1",
+                    toolName: "deleteOperator",
+                    input: JSON.stringify({ operatorId: "ghost" }),
+                  },
+                ]
+              : [{ type: "text", text: "done" }],
+          finishReason: finish(n === 1 ? "length" : "stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const execute = spyOn((agent as any).tools.deleteOperator, "execute");
+    try {
+      await agent.sendMessage("delete it");
+      expect(execute).not.toHaveBeenCalled();
+      expect(agent.getAllSteps()[1].toolResults).toEqual([]);
+      await agent.sendMessage("continue");
+      expect(agent.getAllSteps().at(-1)?.inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
+    } finally {
+      execute.mockRestore();
+    }
+  });
+
+  test("leaves disabled tools out of the model call but still lists them", async () => {
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
+    await agent.sendMessage("go");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["deleteOperator", true],
+      ["addOperator", true],
+      ["modifyOperator", false],
+    ]);
+  });
+
+  test("a disabled tool does not run when the model calls it anyway", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        if (n === 1)
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "deleteOperator",
+                input: JSON.stringify({ operatorId: "op1" }),
+              },
+            ],
+            finishReason: finish("tool-calls"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["deleteOperator"]) });
+    agent.getWorkflowState().addOperator(srcOp("op1") as any);
+    fetchSpy.mockImplementation((async (u: any) => {
+      urls.push(String(u));
+      return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
+    }) as any);
+    await agent.sendMessage("del");
+    expect(agent.getWorkflowState().getOperator("op1")).toBeDefined();
+  });
+
+  /**
+   * A turn the step limit cuts short ends on a tool call, with no answer from the model. The agent
+   * then closes the turn itself, with a step that says why it stopped and what the user can do.
+   */
+  describe("step limit notice", () => {
+    const notice = (limit: string) =>
+      `I stopped because I reached the limit of ${limit} for one message, so the task may be unfinished. ` +
+      "Send another message to continue, or raise the limit in the agent's settings.";
+
+    /**
+     * A model that calls a tool on each of its first `toolCalls` calls and then answers "done".
+     * `reason` is the finish reason it reports along with a tool call, and `onCall` is called at
+     * the start of every call with the call's number.
+     */
+    const toolCallingModel = (
+      toolCalls: number,
+      options: { reason?: "tool-calls" | "stop" | "length"; onCall?: (n: number) => void } = {}
+    ) => {
+      let n = 0;
+      return new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          if (n > 50) throw new Error("runaway");
+          options.onCall?.(n);
+          const callsTool = n <= toolCalls;
+          return {
+            content: callsTool
+              ? [
+                  {
+                    type: "tool-call",
+                    toolCallId: "c" + n,
+                    toolName: "deleteOperator",
+                    input: JSON.stringify({ operatorId: "ghost" }),
+                  },
+                ]
+              : [{ type: "text", text: "done" }],
+            finishReason: finish(callsTool ? (options.reason ?? "tool-calls") : "stop"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        },
+      });
+    };
+
+    test("closes a turn the limit cut short with a step that says so", async () => {
+      const agent = makeAgentWith(toolCallingModel(Infinity));
+      agent.updateSettings({ maxSteps: 3 });
+      // The server streams a step to the chat as it is announced, so what is announced is what
+      // the user sees.
+      const announced: ReActStep[] = [];
+      agent.setStepCallback(step => announced.push({ ...step }));
+      const res = await agent.sendMessage("go");
+      const steps = agent.getAllSteps();
+      expect(steps.map(s => [s.role, s.stepId, s.content, s.isBegin, s.isEnd])).toEqual([
+        ["user", 0, "go", true, true],
+        ["agent", 1, "", true, false],
+        ["agent", 2, "", false, false],
+        ["agent", 3, "", false, false],
+        ["agent", 4, notice("3 steps"), false, true],
+      ]);
+      expect(steps[4].toolCalls).toBeUndefined();
+      expect(steps[4].parentId).toBe(steps[3].id);
+      expect(steps[4].messageId).toBe(steps[0].messageId);
+      expect(agent.getHead()).toBe(steps[4].id);
+      expect(announced.at(-1)).toEqual(steps[4]);
+      expect(res.stopped).toBe(false);
+      expect(res.error).toBeUndefined();
+      expect(agent.getState()).toBe(AgentState.AVAILABLE);
+    });
+
+    test("stops a looping model at the default step limit", async () => {
+      // Nothing sets maxSteps here, so the default is all that bounds a model that never stops
+      // calling tools.
+      const model = toolCallingModel(Infinity);
+      const agent = makeAgentWith(model);
+      expect(agent.getSettings().maxSteps).toBe(25);
+      await agent.sendMessage("go");
+      expect(model.doGenerateCalls).toHaveLength(25);
+      expect(agent.getAllSteps().at(-1)?.content).toBe(notice("25 steps"));
+    });
+
+    test("adds nothing when the model answers on the last allowed step", async () => {
+      const agent = makeAgentWith(toolCallingModel(2));
+      agent.updateSettings({ maxSteps: 3 });
+      await agent.sendMessage("go");
+      expect(agent.getAllSteps().map(s => [s.stepId, s.content, s.isEnd])).toEqual([
+        [0, "go", true],
+        [1, "", false],
+        [2, "", false],
+        [3, "done", true],
+      ]);
+    });
+
+    test("names the limit the turn started with, in the singular for one step", async () => {
+      let agent!: TexeraAgent;
+      // A limit saved while the turn is in flight applies from the next message on.
+      const model = toolCallingModel(Infinity, { onCall: () => agent.updateSettings({ maxSteps: 7 }) });
+      agent = makeAgentWith(model);
+      agent.updateSettings({ maxSteps: 1 });
+      await agent.sendMessage("go");
+      expect(agent.getAllSteps().map(s => s.content)).toEqual(["go", "", notice("1 step")]);
+      await agent.sendMessage("go on");
+      expect(agent.getAllSteps().at(-1)?.content).toBe(notice("7 steps"));
+    });
+
+    test("still appears when the provider reports a tool call as a plain stop", async () => {
+      // The AI SDK goes on whenever a step's tool calls were executed, whatever finish reason the
+      // provider gave, so the limit is what ends this turn too.
+      const agent = makeAgentWith(toolCallingModel(Infinity, { reason: "stop" }));
+      agent.updateSettings({ maxSteps: 2 });
+      await agent.sendMessage("go");
+      expect(agent.getAllSteps().at(-1)?.content).toBe(notice("2 steps"));
+    });
+
+    test("adds nothing when a cut-off tool call ends the turn on the last allowed step", async () => {
+      // The call was never executed, so the turn would have ended here under any limit.
+      const agent = makeAgentWith(toolCallingModel(Infinity, { reason: "length" }));
+      agent.updateSettings({ maxSteps: 1 });
+      await agent.sendMessage("go");
+      expect(agent.getAllSteps().map(s => [s.stepId, s.content, s.isEnd])).toEqual([
+        [0, "go", true],
+        [1, "", true],
+      ]);
+    });
+
+    test.each([
+      ["before the limit", 1, ["go", "", "Generation stopped by user."]],
+      ["on the last allowed step", 2, ["go", "", "", "Generation stopped by user."]],
+    ])("ends a turn the user stops %s as stopped, without the notice", async (_when, stopAtCall, contents) => {
+      // On the last allowed step the AI SDK returns normally rather than throwing, since no further
+      // model call sees the abort. The turn still has to end as stopped.
+      let agent!: TexeraAgent;
+      const model = toolCallingModel(Infinity, {
+        onCall: n => {
+          if (n === stopAtCall) agent.stop();
+        },
+      });
+      agent = makeAgentWith(model);
+      agent.updateSettings({ maxSteps: 2 });
+      const res = await agent.sendMessage("go");
+      expect(agent.getAllSteps().map(s => s.content)).toEqual(contents);
+      expect(res.stopped).toBe(true);
+      expect(agent.getHead()).toBe(agent.getAllSteps().at(-1)!.id);
+    });
+
+    test("the next turn reads the notice as the last entry of the task it closed", async () => {
+      const model = toolCallingModel(Infinity);
+      const agent = makeAgentWith(model);
+      agent.updateSettings({ maxSteps: 2 });
+      await agent.sendMessage("go");
+      await agent.sendMessage("continue");
+      const txt: string = (model as any).doGenerateCalls[2].prompt[1].content[0].text;
+      expect(txt).toContain("## Task (completed)");
+      expect(txt).toContain(`### Turn 3\nThought: ${notice("2 steps")}\n\n# Ongoing Task`);
+      expect(txt.split(notice("2 steps")).length).toBe(2);
+    });
   });
 
   test("caps the loop at maxSteps", async () => {
@@ -619,7 +929,8 @@ describe("sendMessage", () => {
     agent.updateSettings({ maxSteps: 2 });
     await agent.sendMessage("go");
     expect(n).toBe(2);
-    expect(agent.getAllSteps().map(s => s.stepId)).toEqual([0, 1, 2]);
+    // The user's message, the two model steps the limit allows, and the notice that it was reached.
+    expect(agent.getAllSteps().map(s => s.stepId)).toEqual([0, 1, 2, 3]);
   });
 
   test("second turn chains on and reads turn 1 as completed", async () => {
@@ -872,6 +1183,51 @@ describe("sendMessage", () => {
     expect(observed).toEqual([AgentState.GENERATING]);
     expect(agent.getState()).toBe(AgentState.AVAILABLE);
   });
+
+  test("a second sendMessage while one is in flight is rejected, not interleaved (#8711)", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        await gate;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const first = agent.sendMessage("first");
+
+    expect(agent.getState()).toBe(AgentState.GENERATING);
+    await expect(agent.sendMessage("second")).rejects.toThrow("busy");
+
+    release();
+    await first;
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+  });
+
+  test("a stop while idle does not wedge the next sendMessage", async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () =>
+        ({
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        }) as any,
+    });
+    const agent = makeAgentWith(model);
+
+    agent.stop();
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+
+    const res = await agent.sendMessage("after idle stop");
+    expect(res.error).toBeUndefined();
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+  });
 });
 
 /**
@@ -1075,9 +1431,7 @@ describe("delegate mode", () => {
     }
   });
 
-  test("a tool call missing operatorId does not trigger a whole-workflow run", async () => {
-    // Without the guard an incomplete tool call falls through to a run of the entire workflow, which is
-    // both expensive and not what was asked for.
+  test("an SDK-rejected modifyOperator is recorded as failed and does not run", async () => {
     dispatch(okExec);
     let n = 0;
     const model = new MockLanguageModelV4({
@@ -1102,7 +1456,9 @@ describe("delegate mode", () => {
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("bad call");
     const step = agent.getAllSteps()[1];
-    expect(step.toolResults).toEqual([]);
+    expect(step.toolResults).toHaveLength(1);
+    expect(step.toolResults?.[0]).toMatchObject({ toolCallId: "c1", isError: true });
+    expect(agent.getAllSteps()[2].inputMessages?.[0]?.content).toContain("- modifyOperator (failed)");
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
   });
 

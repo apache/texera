@@ -22,8 +22,10 @@ package org.apache.texera.amber.operator.hashJoin
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
+
 import org.apache.texera.amber.core.tuple.{
   Attribute,
   AttributeType,
@@ -37,11 +39,6 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -116,14 +113,9 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
          |print(len(out1df), int(out1df["rv"].notna().sum()))
          |""".stripMargin
 
-    val script = Files.createTempFile("hashjoin-null-nan-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "hashjoin-null-nan-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       // Both left rows come back, and exactly one of them found a partner.
       out.trim shouldBe "2 1"
     }
@@ -210,14 +202,9 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
            |print("\\n".join(sorted(rows)))
            |""".stripMargin
 
-      val script = Files.createTempFile("hashjoin-nan-zero-", ".py")
-      script.toFile.deleteOnExit()
-      Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-      val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-      val out = Source.fromInputStream(process.getInputStream).mkString
-      process.waitFor(120, TimeUnit.SECONDS)
+      val (exitCode, out) = runSource(python, "hashjoin-nan-zero-", driver)
       withClue(s"python said:\n$out\nscript:\n$driver") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         out.trim.linesIterator.toList shouldBe engine
       }
     }

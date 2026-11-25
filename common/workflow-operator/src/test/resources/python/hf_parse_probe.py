@@ -27,9 +27,7 @@ runtime), so the parser and its helpers are lifted out of the source and
 executed on their own. That keeps the assertion about the emitted code itself
 rather than a transcription of it.
 """
-import io
 import json
-import re
 import sys
 
 # Exactly what _parse_response can reach: itself, the chat-content helper, and

@@ -37,7 +37,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   mapWorkflowEntries
 }
 import org.jooq.impl.DSL
-import org.jooq.{Record, Table, TableField}
+import org.jooq.{DSLContext, Record, Table, TableField}
 
 import java.util.regex.Pattern
 import javax.annotation.security.RolesAllowed
@@ -117,18 +117,15 @@ object HubResource {
           val tbl = EntityTables(etype).like
           val ids = groupReqs.map(_.entityId)
 
-          val likedSet: Set[Int] = context
+          val likedSet = context
             .select(tbl.idColumn)
             .from(tbl.table)
             .where(tbl.uidColumn.eq(userId))
             .and(tbl.idColumn.in(ids: _*))
-            .fetch()
-            .asScala
-            .map(r => r.get(tbl.idColumn).intValue())
-            .toSet
+            .fetchSet(tbl.idColumn)
 
           groupReqs.foreach { req =>
-            val flag = likedSet.contains(req.entityId.intValue())
+            val flag = likedSet.contains(Integer.valueOf(req.entityId.intValue()))
             buffer += LikedResponse(req.entityId, etype, flag)
           }
       }
@@ -140,28 +137,30 @@ object HubResource {
     * Records a user's action in the system.
     *
     * @param request The HTTP request object to extract the user's IP address.
-    * @param userId The ID of the user performing the action (default is 0 for anonymous users).
+    * @param userId The ID of the user performing the action; omitted (NULL) for an anonymous user.
     * @param entityId The ID of the entity associated with the action.
     * @param entityType The type of entity being acted upon (validated before processing).
     * @param action The action performed by the user ("like", "unlike", "view", "clone").
+    * @param ctx The context to write with, so a caller can include the row in its transaction.
     */
   def recordUserAction(
       request: HttpServletRequest,
-      userId: Integer = Integer.valueOf(0),
+      userId: Option[Integer] = None,
       entityId: Integer,
       entityType: EntityType,
-      action: ActionType
+      action: ActionType,
+      ctx: DSLContext = context
   ): Unit = {
     val userIp = request.getRemoteAddr
     val actionEnum = ActionEnum.values().find(_.getLiteral.equalsIgnoreCase(action.value)).get
 
-    val query = context
+    val query = ctx
       .insertInto(USER_ACTION)
-      .set(USER_ACTION.UID, userId)
       .set(USER_ACTION.RESOURCE_ID, entityId)
       .set(USER_ACTION.RESOURCE_TYPE, entityType.value)
       .set(USER_ACTION.ACTION, actionEnum)
 
+    userId.foreach(query.set(USER_ACTION.UID, _))
     if (ipv4Pattern.matcher(userIp).matches()) {
       query.set(USER_ACTION.IP, userIp)
     }
@@ -183,18 +182,16 @@ object HubResource {
       userRequest: UserRequest,
       isLike: Boolean
   ): Boolean = {
-    val (entityId, entityType) =
+    val (requestedId, entityType) =
       (userRequest.entityId, userRequest.entityType)
     val entityTables = EntityTables(entityType).like
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    val likedResponses = isLikedHelper(
-      userId,
-      List(entityId).asJava,
-      List(entityType).asJava
-    ).asScala
-    val alreadyLiked = likedResponses.headOption.exists(_.isLiked)
+    val alreadyLiked =
+      context.fetchExists(table, uidColumn.eq(userId).and(idColumn.eq(requestedId)))
+    // Unboxing rejects a request without an entity ID before any write.
+    val entityId = Integer.valueOf(userRequest.entityId.intValue())
 
     if (isLike && !alreadyLiked) {
       context
@@ -203,7 +200,7 @@ object HubResource {
         .set(idColumn, entityId)
         .execute()
 
-      recordUserAction(request, userId, entityId, entityType, Like)
+      recordUserAction(request, Some(userId), entityId, entityType, Like)
       true
     } else if (!isLike && alreadyLiked) {
       context
@@ -211,7 +208,7 @@ object HubResource {
         .where(uidColumn.eq(userId).and(idColumn.eq(entityId)))
         .execute()
 
-      recordUserAction(request, userId, entityId, entityType, Unlike)
+      recordUserAction(request, Some(userId), entityId, entityType, Unlike)
       true
     } else {
       false
@@ -237,15 +234,9 @@ object HubResource {
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    recordUserAction(request, userId, entityId, entityType, Clone)
+    recordUserAction(request, Some(userId), entityId, entityType, Clone)
 
-    val existingCloneRecord = context
-      .selectFrom(table)
-      .where(uidColumn.eq(userId))
-      .and(idColumn.eq(entityId))
-      .fetchOne()
-
-    if (existingCloneRecord == null) {
+    if (!context.fetchExists(table, uidColumn.eq(userId).and(idColumn.eq(entityId)))) {
       context
         .insertInto(table)
         .set(uidColumn, userId)
@@ -303,7 +294,7 @@ object HubResource {
       uid: Integer
   ) =
     context
-      .select()
+      .select(tables.hydrationFields: _*)
       .from(tables.joinWithViewerAccessAndOwner(uid))
       .where(tables.idColumn.in(ids: _*))
 
@@ -319,9 +310,9 @@ object HubResource {
 
     versionedResourcesByIdsQuery(tables, ids, uid)
       .fetch()
+      .iterator()
       .asScala
       .flatMap(record => tables.hydrate(record, uid))
-      .map(_._2)
       .toList
   }
 }
@@ -409,18 +400,22 @@ class HubResource {
     val (table, idColumn, viewCountColumn) =
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
 
-    val record = context
-      .insertInto(table)
-      .set(idColumn, entityID)
-      .set(viewCountColumn, Integer.valueOf(1))
-      .onDuplicateKeyUpdate()
-      .set(viewCountColumn, viewCountColumn.add(1))
-      .returning(viewCountColumn)
-      .fetchOne()
+    // An anonymous viewer has no user row, so the view is recorded with a NULL uid.
+    val viewerUid = Option(userId).filter(_.intValue() > 0)
 
-    recordUserAction(request, userId, entityID, entityType, View)
-
-    record.get(viewCountColumn)
+    // One transaction, so a view whose record cannot be stored does not raise the count either.
+    SqlServer.withTransaction(context) { ctx =>
+      val record = ctx
+        .insertInto(table)
+        .set(idColumn, entityID)
+        .set(viewCountColumn, Integer.valueOf(1))
+        .onDuplicateKeyUpdate()
+        .set(viewCountColumn, viewCountColumn.add(1))
+        .returning(viewCountColumn)
+        .fetchOne()
+      recordUserAction(request, viewerUid, entityID, entityType, View, ctx)
+      record.get(viewCountColumn)
+    }
   }
 
   /**
@@ -570,13 +565,13 @@ class HubResource {
       else
         Seq(ActionType.View, ActionType.Like, ActionType.Clone)
 
-    val grouped: Map[EntityType, Seq[Integer]] =
-      reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
+    val grouped = reqs.groupBy(_.entityType)
 
     val buffer = ListBuffer[CountResponse]()
 
     grouped.foreach {
-      case (etype, ids) =>
+      case (etype, groupReqs) =>
+        val ids = groupReqs.map(_.entityId)
         val tableSet = EntityTables(etype)
         val viewTbl = tableSet.viewCount
         val viewMap: Map[Int, Int] =
@@ -601,7 +596,7 @@ class HubResource {
                 .execute()
             }
 
-            raw ++ missing.map(id => id.intValue() -> 0).toMap
+            raw
           } else Map.empty
 
         val likeTbl = tableSet.like
@@ -640,7 +635,7 @@ class HubResource {
             }
             .getOrElse(Map.empty)
 
-        reqs.filter(_.entityType == etype).foreach { req =>
+        groupReqs.foreach { req =>
           val key = req.entityId.intValue()
           val counts = scala.collection.mutable.Map[ActionType, Int]()
           if (requestedActions.contains(ActionType.View))

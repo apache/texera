@@ -44,6 +44,9 @@ common:
           - 'project/**'
           - '.scalafix.conf'
           - '.scalafmt.conf'
+          # The operator reference generator is a Scala module that reflects
+          # over common/workflow-operator and runs in the amber job.
+          - 'docs/operator-reference/**'
 
 platform:
   - changed-files:
@@ -53,7 +56,22 @@ platform:
           - 'config-service/**'
           - 'file-service/**'
           - 'notebook-migration-service/**'
+          - 'result-service/**'
           - 'workflow-compiling-service/**'
+
+workflow-to-python:
+  # Fires the Workflow-to-Python verification for the paths no other label
+  # covers for it: the translator and the verification framework, the
+  # protobuf that amber's Python runtime imports, and the script and protoc
+  # version that generate its Python bindings. Operators and core types
+  # reach it through `common`, and amber's Python code and its requirements
+  # through `pyamber`.
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'workflow-compiling-service/**'
+          - 'amber/src/main/protobuf/**'
+          - 'bin/python-proto-gen.sh'
+          - 'bin/protoc-version.txt'
 
 agent-service:
   - changed-files:

@@ -166,7 +166,7 @@ object Utils extends LazyLogging {
       case WorkflowAggregatedState.COMPLETED     => 3
       case WorkflowAggregatedState.FAILED        => 4
       case WorkflowAggregatedState.KILLED        => 5
-      case other                                 => -1
+      case _                                     => -1
     }
   }
 
@@ -174,9 +174,6 @@ object Utils extends LazyLogging {
     lock.lock()
     try {
       instructions
-    } catch {
-      case e: Throwable =>
-        throw e
     } finally {
       lock.unlock()
     }

@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.engine.architecture.worker.managers
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.worker.statistics.{
   PortTupleMetricsMapping,
@@ -45,10 +44,9 @@ class StatisticsManager {
 
   /**
     * Retrieves the current statistics for the operator.
-    * @param operator the operator executor
     * @return a WorkerStatistics object containing the statistics
     */
-  def getStatistics(operator: OperatorExecutor): WorkerStatistics = {
+  def getStatistics(): WorkerStatistics = {
     WorkerStatistics(
       inputStatistics.map {
         case (portId, (tupleCount, tupleSize)) =>

@@ -98,7 +98,7 @@ class DataProcessor(
     * provide API for actor to get stats of this operator
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(executor)
+    statisticsManager.getStatistics()
 
   /**
     * `OperatorExecutor.bindStateReferences`, before the executor first sees data or finishes; after

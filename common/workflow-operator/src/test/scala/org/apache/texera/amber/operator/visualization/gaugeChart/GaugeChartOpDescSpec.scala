@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.visualization.gaugeChart
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  withDriver
 }
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
@@ -30,11 +31,6 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.util.Try
 
 class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -151,22 +147,16 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
 
     val d = new GaugeChartOpDesc
     d.value = "score"
-    val moduleFile = Files.createTempFile("gauge_standalone_", ".py")
-    val driverFile = Files.createTempFile("gauge_driver_", ".py")
-    try {
-      Files.write(moduleFile, d.generateStandaloneCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, driverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      if (!process.waitFor(120, TimeUnit.SECONDS)) {
-        process.destroyForcibly()
-        fail("Gauge driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "gauge_standalone_",
+      "gauge_driver_",
+      d.generateStandaloneCode(),
+      driverScript,
+      "Gauge driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         val verdicts = "CASE (\\S+) (\\S+)".r
           .findAllMatchIn(output)
           .map(m => m.group(1) -> m.group(2))
@@ -178,10 +168,6 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
           "good" -> "CHART"
         )
       }
-    } finally {
-      Try(Files.deleteIfExists(moduleFile))
-      Try(Files.deleteIfExists(driverFile))
-      ()
     }
   }
 

@@ -34,8 +34,6 @@ import scala.collection.mutable
 class RecordingInlineTimer extends Timer {
   private val delays: mutable.ArrayBuffer[Duration] = mutable.ArrayBuffer()
 
-  def recordedDelays: Seq[Duration] = delays.toSeq
-
   def recordedDelaysInMillis: Seq[Long] = delays.map(_.inMilliseconds).toSeq
 
   def scheduleOnce(when: Time)(f: => Unit): TimerTask = {

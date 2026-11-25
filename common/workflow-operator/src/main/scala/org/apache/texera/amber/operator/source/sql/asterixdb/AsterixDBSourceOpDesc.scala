@@ -27,10 +27,9 @@ import com.fasterxml.jackson.annotation.{
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import kong.unirest.json.JSONObject
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.filter.FilterPredicate
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -43,7 +42,6 @@ import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
   fetchDataTypeFields,
   queryAsterixDB
 }
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
@@ -111,21 +109,11 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        this.operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
+    sourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExec"
+    )
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

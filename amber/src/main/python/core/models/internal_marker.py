@@ -25,8 +25,6 @@ class InternalMarker:
     Markers preserve ordering and signal input lifecycle changes.
     """
 
-    pass
-
 
 @dataclass(frozen=True)
 class PortMarker(InternalMarker):

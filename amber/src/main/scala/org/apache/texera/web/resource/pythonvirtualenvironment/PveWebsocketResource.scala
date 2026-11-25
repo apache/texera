@@ -19,11 +19,44 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectReader}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.jdk.CollectionConverters._
+
+object PveWebsocketResource {
+
+  // Built once: the shared mapper ignores whatever follows the first value, this reader does not.
+  private val packagesReader: ObjectReader = objectMapper
+    .readerFor(new TypeReference[java.util.List[String]] {})
+    .`with`(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+
+  /**
+    * Decodes the `packages` query parameter, a JSON array of pip requirement strings, into a
+    * trimmed list without blank entries. Anything that is not exactly one JSON array of strings
+    * is rejected, including a JSON `null` and content after the array.
+    */
+  private[pythonvirtualenvironment] def parsePackages(json: String): List[String] = {
+    val decoded: java.util.List[String] =
+      try packagesReader.readValue[java.util.List[String]](json)
+      catch {
+        case e: JsonProcessingException =>
+          throw new IllegalArgumentException(s"Invalid packages parameter: $json", e)
+      }
+    // Jackson maps a JSON `null` to a null list instead of failing.
+    if (decoded == null) {
+      throw new IllegalArgumentException(s"Invalid packages parameter: $json")
+    }
+    decoded.asScala.toList.filter(_ != null).map(_.trim).filter(_.nonEmpty)
+  }
+}
 
 /**
   *  WebSocket endpoint for PVE creation and user package installation that streams
@@ -76,16 +109,9 @@ class PveWebsocketResource {
             PveManager.createNewPve(cuid, queue, pveName)
 
           case "install" =>
-            val packages =
-              params
-                .getOrDefault("packages", java.util.List.of("[]"))
-                .get(0)
-                .stripPrefix("[")
-                .stripSuffix("]")
-                .split(",")
-                .toList
-                .map(_.replace("\"", "").trim)
-                .filter(_.nonEmpty)
+            val packages = PveWebsocketResource.parsePackages(
+              params.getOrDefault("packages", java.util.List.of("[]")).get(0)
+            )
 
             PveManager.installUserPackages(packages, cuid, queue, pveName)
 

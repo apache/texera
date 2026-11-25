@@ -20,11 +20,11 @@
 package org.apache.texera.amber.testsupport.setop
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.set.BinarySetOpExec
+import org.apache.texera.amber.util.PythonTestSupport.{requirePython, runSource}
+import org.scalatest.Assertions.withClue
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 /** The two inputs the set operators' parity tests share, fed to the native
   * executor as tuples and to the export as nullable Arrow-style columns.
@@ -63,16 +63,58 @@ object SetRows {
          |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
          |    print(row)
          |""".stripMargin
-    val script = Files.createTempFile(prefix, ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream, "UTF-8").mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    if (process.exitValue() != 0) {
+    val (exitCode, out) = runSource(python, prefix, driver)
+    if (exitCode != 0) {
       throw new AssertionError(s"python said:\n$out\nscript:\n$driver")
     }
     out.linesIterator.toSeq
+  }
+
+  /** Builds the standalone code + helpers emitted by `desc`. */
+  def exported(desc: StandaloneCodeGenerator): String =
+    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
+
+  /** Checks that nullable Arrow columns keep `NULL` distinct from `np.nan`. */
+  def verifyNullVsNan(
+      desc: StandaloneCodeGenerator,
+      prefix: String,
+      expected: String
+  ): Unit = {
+    val python = requirePython("pandas", "numpy")
+    val code = exported(desc)
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def col(vals, mask):
+         |    return pd.arrays.FloatingArray(np.array(vals), np.array(mask))
+         |
+         |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
+         |in2df = pd.DataFrame({"v": col([0.0], [True])})
+         |$code
+         |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
+         |""".stripMargin
+    val (exitCode, out) = runSource(python, prefix, driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      out.trim shouldBe expected
+    }
+  }
+
+  /** Verifies standalone export matches `exec` on `NaN`, `-0.0`/`0.0`, and `null`. */
+  def verifyNanAndSignedZeroParity(
+      desc: StandaloneCodeGenerator,
+      exec: BinarySetOpExec,
+      prefix: String
+  ): Unit = {
+    val python = requirePython("pandas", "numpy")
+    exec.open()
+    left.foreach(t => exec.processTuple(t, 0))
+    right.foreach(t => exec.processTuple(t, 1))
+    exec.onFinish(0)
+    val engine = rendered(exec.onFinish(1))
+    val code = exported(desc)
+    val out = runExport(python, code, prefix)
+    withClue(s"script:\n$code")(out shouldBe engine)
   }
 
   private def render(value: Any): String =

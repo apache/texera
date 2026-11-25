@@ -46,18 +46,3 @@ export function getRelativePathFromDatasetFileNode(node: DatasetFileNode): strin
 
   return pathSegments.slice(4).join("/"); // Join remaining segments as the relative path
 }
-
-export function getPathsUnderOrEqualDatasetFileNode(node: DatasetFileNode): string[] {
-  // Helper function to recursively gather paths
-  const gatherPaths = (node: DatasetFileNode): string[] => {
-    // Base case: if the node is a file, return its path
-    if (node.type === "file") {
-      return [getFullPathFromDatasetFileNode(node)];
-    }
-
-    // Recursive case: if the node is a directory, explore its children
-    return node.children ? node.children.flatMap(child => gatherPaths(child)) : [];
-  };
-
-  return gatherPaths(node);
-}

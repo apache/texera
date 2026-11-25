@@ -21,12 +21,12 @@ package org.apache.texera.amber.operator.visualization.ScatterMatrixChart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class ScatterMatrixChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class ScatterMatrixChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: ScatterMatrixChartOpDesc = _
 
@@ -34,25 +34,15 @@ class ScatterMatrixChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with 
     opDesc = new ScatterMatrixChartOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
   it should "throw AssertionError with a 'cannot be empty' message when selected attributes are left at their default" in {
     // selectedAttributes now defaults to List() and the assert is null-safe,
     // so an unconfigured operator hits the assert (never an NPE).
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when selected attributes list is explicitly empty" in {
     opDesc.selectedAttributes = List()
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "render selected attributes and the color column when configured" in {

@@ -117,6 +117,9 @@ trait PythonOperatorDescriptor extends LogicalOp {
 
 object PythonOperatorDescriptor {
 
+  /** The whole code of a failed generation starts with this; the compiler reports what follows. */
+  val CodeGenerationFailureMarker = "#EXCEPTION DURING CODE GENERATION:"
+
   /**
     * The call through which generated code reads loop variable `name` as text: pyamber's
     * `Operator.loop_variable_text` answers it from the iteration's state message.

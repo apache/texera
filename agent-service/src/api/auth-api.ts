@@ -17,44 +17,51 @@
  * under the License.
  */
 
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { env } from "../config/env";
 import type { UserInfo } from "../types/agent";
 
 export type { UserInfo } from "../types/agent";
 
-function decodeJWT(token: string): any {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      throw new Error("Invalid JWT format");
-    }
-    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
-  } catch (error) {
-    throw new Error(`Failed to decode JWT: ${error}`);
+// Whether the dashboard service issued this token: its signature is the HMAC-SHA256
+// of the first two segments under the shared secret, as JwtAuth.scala writes it. The
+// header's own `alg` is never consulted, so a token cannot choose a weaker check.
+function isSignedByTexera(token: string): boolean {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return false;
   }
+  const expected = createHmac("sha256", env.AUTH_JWT_SECRET).update(`${parts[0]}.${parts[1]}`).digest();
+  const actual = Buffer.from(parts[2], "base64url");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function extractUserFromToken(token: string): UserInfo {
-  const payload = decodeJWT(token);
-  return {
-    uid: payload.userId,
-    name: payload.sub,
-    email: payload.email || "",
-    role: payload.role || "REGULAR",
-  };
-}
-
-function isTokenExpired(token: string): boolean {
+// The user a login token names, or undefined unless the dashboard service signed it, it has
+// not expired, and it carries a whole-number user id. Anyone can write a token's claims; only
+// the dashboard service can sign them, so the claims are read only after the signature holds.
+export function verifyToken(token: string | undefined): UserInfo | undefined {
+  if (!token || !isSignedByTexera(token)) {
+    return undefined;
+  }
+  let claims: any;
   try {
-    const payload = decodeJWT(token);
-    if (!payload.exp) return false;
-    return Date.now() >= payload.exp * 1000;
+    claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf-8"));
   } catch {
-    return true;
+    return undefined;
   }
-}
-
-export function validateToken(token: string): boolean {
-  return !isTokenExpired(token);
+  // `exp` is a UNIX second count. A token without one never expires.
+  if (claims?.exp && Date.now() >= claims.exp * 1000) {
+    return undefined;
+  }
+  if (!Number.isInteger(claims?.userId)) {
+    return undefined;
+  }
+  return {
+    uid: claims.userId,
+    name: claims.sub,
+    email: claims.email || "",
+    role: claims.role || "REGULAR",
+  };
 }
 
 export function extractBearerToken(header: string | undefined): string | undefined {

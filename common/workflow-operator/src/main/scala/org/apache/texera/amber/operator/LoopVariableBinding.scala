@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LoopVariableBinding._
 import org.apache.texera.amber.operator.PythonOperatorDescriptor.{
+  CodeGenerationFailureMarker,
   loopVariableLookup,
   loopVariableValueLookup
 }
@@ -137,7 +138,7 @@ final class LoopVariableBinding private (
     val bySchema = inputSchemas.fold(Map.empty[String, String])(decidedBy(_, baselineSchemas))
     val typedUnbound = unbound ++ (bySchema -- unbound.keys)
     val textReasons: Map[String, String] =
-      if (typedUnbound.nonEmpty || code.contains(FailedGeneration)) {
+      if (typedUnbound.nonEmpty || code.startsWith(CodeGenerationFailureMarker)) {
         Map.empty
       } else {
         lazy val added = addedColumns(inputSchemas, baselineSchemas)
@@ -343,11 +344,10 @@ object LoopVariableBinding {
     }
   }
 
-  /** The start of the code that says why generating a descriptor's code failed. */
-  private val FailedGeneration = "#EXCEPTION DURING CODE GENERATION:"
-
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
-    s"$FailedGeneration ${ex.getMessage}"
+    // An exception with no message or an empty one is reported by its type instead of "null".
+    val message = Option(ex.getMessage).filter(_.nonEmpty).getOrElse(ex.getClass.getName)
+    s"$CodeGenerationFailureMarker $message"
   }
 
   /**

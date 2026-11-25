@@ -68,10 +68,10 @@ export function toOperatorRuntimeStatusMap(rows: WorkflowRuntimeStatistics[]): R
       aggregatedInputSize: row.inputTupleSize,
       aggregatedOutputRowCount: row.outputTupleCount,
       aggregatedOutputSize: row.outputTupleSize,
-      numWorkers: row.numberOfWorkers,
-      aggregatedDataProcessingTime: row.totalDataProcessingTime,
-      aggregatedControlProcessingTime: row.totalControlProcessingTime,
-      aggregatedIdleTime: row.totalIdleTime,
+      numWorkers: row.numWorkers,
+      aggregatedDataProcessingTime: row.dataProcessingTime,
+      aggregatedControlProcessingTime: row.controlProcessingTime,
+      aggregatedIdleTime: row.idleTime,
     };
   }
   return result;

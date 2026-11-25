@@ -218,13 +218,18 @@ export class WorkflowVersionService {
 
   public getOperatorsDifference(operator1: OperatorPredicate, operator2: OperatorPredicate) {
     const difference: Map<String, String> = new Map();
-    for (const property of Object.keys(operator1.operatorProperties)) {
-      if (operator1.operatorProperties[property] != operator2.operatorProperties[property]) {
-        difference.set(property, "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
+    const highlight = "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;";
+    const properties = new Set([
+      ...Object.keys(operator1.operatorProperties),
+      ...Object.keys(operator2.operatorProperties),
+    ]);
+    for (const property of properties) {
+      if (!isEqual(operator1.operatorProperties[property], operator2.operatorProperties[property])) {
+        difference.set(property, highlight);
       }
     }
     if (operator1.operatorVersion != operator2.operatorVersion) {
-      difference.set("operatorVersion", "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
+      difference.set("operatorVersion", highlight);
     }
     return difference;
   }
@@ -264,6 +269,22 @@ export class WorkflowVersionService {
     // set all elements to transparent boundary
     this.unhighlightOpVersionDiff(this.differentOpIDsList);
     this.closeReadonlyWorkflowDisplay();
+    this.setDisplayParticularVersion(false);
+  }
+
+  /**
+   * Drops a version preview still open when the workspace closes, so the next workflow opened does
+   * not inherit it. The graph is left alone: the workflow is closing, and reloading it here would
+   * reach the co-editing room only half done.
+   */
+  public discardOpenVersionDisplay(): void {
+    if (!this.displayParticularWorkflowVersion.getValue()) {
+      return;
+    }
+    this.workflowActionService.resetTempWorkflow();
+    this.workflowPersistService.setWorkflowPersistFlag(true);
+    this.workflowActionService.enableWorkflowModification();
+    this.modificationEnabledBeforeTempWorkflow = undefined;
     this.setDisplayParticularVersion(false);
   }
 

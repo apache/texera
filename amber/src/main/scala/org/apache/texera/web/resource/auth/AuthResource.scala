@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.auth
 import com.typesafe.scalalogging.Logger
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.JwtAuth.{jwtClaims, jwtToken}
-import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.{InviteOnly, SessionUser}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.common.util.EmailUtil
 import org.apache.texera.dao.SqlServer
@@ -68,7 +68,7 @@ object AuthResource {
     if (password == null || username == null) return None
 
     val record = context
-      .select()
+      .select(USER.fields() :+ AUTH_PROVIDER.PASSWORD: _*)
       .from(AUTH_PROVIDER)
       .join(USER)
       .on(USER.UID.eq(AUTH_PROVIDER.UID))
@@ -111,11 +111,31 @@ object AuthResource {
       .fetchOneInto(classOf[User])
 
   /**
-    * Marks a placeholder account (auto-created for a dataset contributor) as
-    * claimed, leaving persistence to the caller.
+    * The role a sign-up starts with: INACTIVE, waiting for an admin's approval, while invite-only
+    * is on, and REGULAR, usable at once, while it is off. Read on every call, so a switch on the
+    * admin settings page applies to the next sign-up.
+    *
+    * Callers read it before opening a transaction: the read borrows its own pooled connection, and
+    * holding one connection while waiting for another is how a burst of sign-ups drains the pool.
     */
-  def claimPlaceholder(user: User): Unit = {
+  def newAccountRole(): UserRoleEnum =
+    if (InviteOnly.enabled) UserRoleEnum.INACTIVE else UserRoleEnum.REGULAR
+
+  /**
+    * Give an account that is finishing its sign-up the role sign-ups start with. Only INACTIVE is
+    * replaced: every sign-up starts there, and any other role was set by an admin.
+    */
+  private[auth] def admit(user: User, startingRole: UserRoleEnum): Unit =
+    if (user.getRole == UserRoleEnum.INACTIVE) user.setRole(startingRole)
+
+  /**
+    * Marks a placeholder account (auto-created for a dataset contributor) as
+    * claimed, leaving persistence to the caller. Claiming is how the placeholder's owner signs
+    * up, so the account is admitted with `startingRole` (see [[newAccountRole]]).
+    */
+  def claimPlaceholder(user: User, startingRole: UserRoleEnum): Unit = {
     user.setIsPlaceholder(false)
+    admit(user, startingRole)
     val claimedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS)
     user.setComment(
       Option(user.getComment).map(_ + "; ").getOrElse("") +
@@ -136,7 +156,12 @@ object AuthResource {
 
     if (LocalAuthProvisioner.handleExists(adminUsername)) return
 
-    if (fetchUserByEmailIgnoreCase(adminUsername) != null) {
+    val emailMatch = context
+      .selectOne()
+      .from(USER)
+      .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(adminUsername)))
+      .fetchOne()
+    if (emailMatch != null) {
       logger.warn(
         s"Not creating the admin account: '$adminUsername' is already used as an email address " +
           "by an account with no local credential. Grant that account the ADMIN role instead."
@@ -174,11 +199,15 @@ class AuthResource {
     val email = Option(request.email).getOrElse("").trim
     ValidateEmail(email)
 
-    val current = new UserDao(
-      SqlServer.getInstance().createDSLContext().configuration()
-    ).fetchOneByUid(sessionUser.getUid)
+    val current = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .select(USER.EMAIL)
+      .from(USER)
+      .where(USER.UID.eq(sessionUser.getUid))
+      .fetchOne()
     if (current == null) throw new NotAuthorizedException("Login credentials are incorrect.")
-    if (current.getEmail != null) {
+    if (current.value1() != null) {
       throw new WebApplicationException(
         "This account already has an email address.",
         Response.Status.CONFLICT
@@ -203,6 +232,11 @@ class AuthResource {
       )
     }
 
+    // An account from a provider that asserts no address is created INACTIVE whatever the
+    // invite-only switch says, because it is inert until it has one. Supplying the address is
+    // where that sign-up finishes, so this is where it is admitted.
+    val startingRole = newAccountRole()
+
     val user = SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
 
@@ -220,11 +254,12 @@ class AuthResource {
       Option(fetchUserByEmailIgnoreCase(ctx, email)) match {
         case None =>
           current.setEmail(email)
+          admit(current, startingRole)
           txUserDao.update(current)
           current
 
         case Some(existing) if existing.getIsPlaceholder =>
-          adoptPlaceholder(ctx, txUserDao, current, existing)
+          adoptPlaceholder(ctx, txUserDao, current, existing, startingRole)
 
         case Some(_) =>
           throw new WebApplicationException(
@@ -254,7 +289,8 @@ class AuthResource {
       ctx: DSLContext,
       txUserDao: UserDao,
       current: User,
-      placeholder: User
+      placeholder: User,
+      startingRole: UserRoleEnum
   ): User = {
     val callerIsEmpty = current.getRole == UserRoleEnum.INACTIVE
     val placeholderHasCredential = ctx.fetchExists(
@@ -276,7 +312,7 @@ class AuthResource {
     // The caller's display name is their own, so it wins over the one whoever listed them as a
     // contributor typed.
     placeholder.setName(current.getName)
-    claimPlaceholder(placeholder)
+    claimPlaceholder(placeholder, startingRole)
     txUserDao.update(placeholder)
 
     // This FK has no ON DELETE CASCADE, so the row has to go before the account it points at.
@@ -370,7 +406,7 @@ class AuthResource {
 
     if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
       existingByEmail.setName(username)
-      claimPlaceholder(existingByEmail)
+      claimPlaceholder(existingByEmail, newAccountRole())
       LocalAuthProvisioner.claimWithLocalCredential(existingByEmail, username, userpassword)
       return jwtToken(jwtClaims(existingByEmail))
     }
@@ -384,7 +420,7 @@ class AuthResource {
         val user = new User
         user.setName(username)
         user.setEmail(useremail)
-        user.setRole(UserRoleEnum.INACTIVE)
+        user.setRole(newAccountRole())
         // Reports losing the race to a concurrent registration of the same handle as a 409.
         LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
         jwtToken(jwtClaims(user))

@@ -25,7 +25,6 @@ import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.texera.common.compiler.WorkflowCompiler.{
   collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap,
-  failedCodeGeneration,
   normalizeStateReferences,
   unbindableStateReferences
 }
@@ -221,9 +220,6 @@ object WorkflowCompiler {
     Option.when(schemas.size == ports.size)(schemas.toMap)
   }
 
-  /** What a Python-based operator's code is when generating it failed; the group is the reason. */
-  private val failedCodeGeneration = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
-
   /** A descriptor's references as the compile errors name them: `/pointer -> $name, ...`. */
   private def formatReferences(references: Map[String, String]): String =
     references.toSeq.sorted.map { case (pointer, name) => s"$pointer -> $$$name" }.mkString(", ")
@@ -365,8 +361,12 @@ class WorkflowCompiler(
 
         // **Check for Python-based operator errors during code generation**
         physicalOps.filter(_.isPythonBased).foreach { physicalOp =>
-          failedCodeGeneration.findFirstMatchIn(physicalOp.getCode).foreach { matchResult =>
-            val errorMessage = matchResult.group(1).trim
+          val code = physicalOp.getCode
+          // A failed generation leaves the marker at the very start of the code; everything after
+          // it, across all lines, is the failure message.
+          val marker = PythonOperatorDescriptor.CodeGenerationFailureMarker
+          if (code.startsWith(marker)) {
+            val errorMessage = code.drop(marker.length).trim
             report(new RuntimeException(s"Operator is not configured properly: $errorMessage"))
           }
         }

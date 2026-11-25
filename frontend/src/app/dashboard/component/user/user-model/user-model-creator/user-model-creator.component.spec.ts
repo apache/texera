@@ -17,22 +17,14 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
+import { FormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { NzModalRef } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 
 import { sanitizeModelName, UserModelCreatorComponent } from "./user-model-creator.component";
 import { MODEL_FORMATS, MODEL_FRAMEWORKS, ModelService } from "../../../../service/user/model/model.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { commonTestProviders } from "../../../../../common/testing/test-utils";
-
-@Component({ template: "", standalone: true })
-class StubFormlyFieldComponent extends FieldType<FieldTypeConfig> {}
+import { createFormlyModalFixture } from "../../formly-modal-test-fixture";
 
 describe("sanitizeModelName", () => {
   it("keeps underscores and hyphens, unlike the dataset sanitizer", () => {
@@ -55,53 +47,36 @@ describe("UserModelCreatorComponent", () => {
   let notifySuccess: ReturnType<typeof vi.fn>;
   let notifyError: ReturnType<typeof vi.fn>;
 
-  async function createFixture(): Promise<ComponentFixture<UserModelCreatorComponent>> {
+  async function render(): Promise<UserModelCreatorComponent> {
     modalClose = vi.fn();
     createModel = vi.fn();
     notifySuccess = vi.fn();
     notifyError = vi.fn();
 
-    await TestBed.configureTestingModule({
-      imports: [
-        UserModelCreatorComponent,
-        BrowserAnimationsModule,
-        FormsModule,
-        ReactiveFormsModule,
-        FormlyModule.forRoot({
-          types: [
-            { name: "input", component: StubFormlyFieldComponent },
-            { name: "select", component: StubFormlyFieldComponent },
-          ],
-        }),
-        HttpClientTestingModule,
-      ],
+    const fixture = await createFormlyModalFixture(UserModelCreatorComponent, ["input", "select"], modalClose, {
+      imports: [FormsModule, HttpClientTestingModule],
       providers: [
-        { provide: NzModalRef, useValue: { close: modalClose } },
         { provide: ModelService, useValue: { createModel } },
         { provide: NotificationService, useValue: { success: notifySuccess, error: notifyError } },
-        ...commonTestProviders,
       ],
-    }).compileComponents();
-
-    return TestBed.createComponent(UserModelCreatorComponent);
+    });
+    fixture.detectChanges();
+    return fixture.componentInstance;
   }
 
-  it("renders the four create fields, with no version-description field", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+  it("renders the four create fields", async () => {
+    const component = await render();
 
-    // Create-only: the dataset creator's dual-purpose version branch is deliberately not forked.
-    expect(fixture.componentInstance.fields.map(f => f.key)).toEqual(["name", "description", "framework", "format"]);
-    expect(fixture.componentInstance.form.contains("name")).toBe(true);
+    expect(component.fields.map(f => f.key)).toEqual(["name", "description", "framework", "format"]);
+    expect(component.form.contains("name")).toBe(true);
   });
 
   it("offers exactly the framework and format values the backend accepts", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const component = await render();
     const optionsFor = (key: string) =>
-      (
-        fixture.componentInstance.fields.find(f => f.key === key)?.templateOptions?.options as Array<{ value: string }>
-      ).map(o => o.value);
+      (component.fields.find(f => f.key === key)?.templateOptions?.options as Array<{ value: string }>).map(
+        o => o.value
+      );
 
     // A drift here becomes a 400 from ModelResource's whitelist at create time.
     expect(optionsFor("framework")).toEqual([...MODEL_FRAMEWORKS]);
@@ -109,19 +84,16 @@ describe("UserModelCreatorComponent", () => {
   });
 
   it("does nothing when the required name is empty", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const component = await render();
 
-    fixture.componentInstance.onClickCreate();
+    component.onClickCreate();
 
     expect(createModel).not.toHaveBeenCalled();
     expect(modalClose).not.toHaveBeenCalled();
   });
 
   it("creates the model with the sanitized name and the toggle values", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render();
     createModel.mockReturnValue(of({ model: { mid: 9 } }));
 
     component.form.get("name")?.setValue("churn_predictor");
@@ -148,9 +120,7 @@ describe("UserModelCreatorComponent", () => {
   });
 
   it("reports the rename when the entered name had to be sanitized", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render();
     createModel.mockReturnValue(of({ model: { mid: 3 } }));
 
     component.form.get("name")?.setValue("My Model");
@@ -165,9 +135,7 @@ describe("UserModelCreatorComponent", () => {
   it("refuses a name that sanitizes to nothing, without calling the backend", async () => {
     // Whitespace survives `required` but sanitizes to "", which the backend answers with a 400.
     // Punctuation does not belong here: "!!" sanitizes to "-", which is a legal name.
-    const fixture = await createFixture();
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render();
 
     for (const typed of ["   ", "\t\n "]) {
       notifyError.mockClear();
@@ -181,9 +149,7 @@ describe("UserModelCreatorComponent", () => {
   });
 
   it("refuses a name past the length limit, without calling the backend", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render();
 
     component.form.get("name")?.setValue("a".repeat(129));
     component.onClickCreate();
@@ -193,9 +159,7 @@ describe("UserModelCreatorComponent", () => {
   });
 
   it("surfaces the server message and keeps the modal open when creation fails", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render();
     createModel.mockReturnValue(throwError(() => ({ error: { message: "name already taken" } })));
 
     component.form.get("name")?.setValue("dupe");
@@ -208,10 +172,9 @@ describe("UserModelCreatorComponent", () => {
   });
 
   it("closes with null on cancel without calling the backend", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const component = await render();
 
-    fixture.componentInstance.onClickCancel();
+    component.onClickCancel();
 
     expect(modalClose).toHaveBeenCalledWith(null);
     expect(createModel).not.toHaveBeenCalled();

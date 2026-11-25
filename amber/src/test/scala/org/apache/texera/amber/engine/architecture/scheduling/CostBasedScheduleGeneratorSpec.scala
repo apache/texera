@@ -30,12 +30,11 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.jdk.CollectionConverters._
 
-class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
+class CostBasedScheduleGeneratorSpec extends AnyFlatSpec {
 
   "CostBasedRegionPlanGenerator" should "finish bottom-up search using different pruning techniques with correct number of states explored in csv->->filter->join->filter2 workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()

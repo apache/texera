@@ -36,7 +36,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import generate_notice_binary as gnb  # noqa: E402
+import generate_notice_binary as gnb
 
 
 def make_jar(

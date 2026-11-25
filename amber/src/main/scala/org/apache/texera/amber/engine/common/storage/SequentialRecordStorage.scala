@@ -77,7 +77,7 @@ object SequentialRecordStorage {
             val bytes = input.readBytes(len)
             AmberRuntime.serde.deserialize(bytes, clazz).get
           } catch {
-            case e: Throwable =>
+            case _: Throwable =>
               input.close()
               null
           }

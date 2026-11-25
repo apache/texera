@@ -19,24 +19,10 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
-import com.twitter.util.{Await, Duration}
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  EmbeddedControlMessageIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import org.apache.texera.amber.core.workflow.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  CoordinatorConfig,
-  CoordinatorProcessor
-}
+import com.twitter.util.Await
+import org.apache.texera.amber.core.virtualidentity.EmbeddedControlMessageIdentity
+import org.apache.texera.amber.core.workflow.PhysicalPlan
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -59,7 +45,6 @@ import org.apache.texera.amber.engine.common.CheckpointState
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, SELF}
-import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
@@ -86,10 +71,9 @@ import scala.collection.mutable.ArrayBuffer
   * calls run for real without touching disk. Each case uses its own `ram://` folder, because the VFS
   * manager is a JVM-wide singleton.
   */
-class TakeGlobalCheckpointHandlerSpec extends AnyFlatSpec {
+class TakeGlobalCheckpointHandlerSpec extends AnyFlatSpec with CoordinatorMessageFixture {
 
   private val rpcContext = AsyncRPCContext(COORDINATOR, COORDINATOR)
-  private val awaitTimeout = Duration.fromSeconds(1)
   private val checkpointId = EmbeddedControlMessageIdentity("global-checkpoint-1")
 
   // Two operators in the plan; only `startedOp` has a region execution, so the propagation's
@@ -98,48 +82,19 @@ class TakeGlobalCheckpointHandlerSpec extends AnyFlatSpec {
   private val notStartedOp = mkPhysicalOp("not-started")
   private val planOpIds = Set(startedOp.id, notStartedOp.id)
 
-  private def mkPhysicalOp(logicalOpId: String): PhysicalOp =
-    PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(logicalOpId), "main"),
-      DEFAULT_WORKFLOW_ID,
-      DEFAULT_EXECUTION_ID,
-      OpExecInitInfo.Empty
-    )
-
-  private def mkWorkerId(physicalOp: PhysicalOp, index: Int): ActorVirtualIdentity =
-    VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, physicalOp.id, index)
-
   private def newFixture()
       : (CoordinatorAsyncRPCHandlerInitializer, ArrayBuffer[WorkflowFIFOMessage]) = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val cp = new CoordinatorProcessor(
-      new WorkflowContext(),
-      CoordinatorConfig(None, None, None, None),
-      COORDINATOR,
-      {
-        case Right(m) => sent += m
-        case _        => ()
-      }
+    val (init, sent) = createCoordinatorFixture(
+      Some(PhysicalPlan(Set(startedOp, notStartedOp), Set.empty))
     )
-    cp.workflowScheduler.physicalPlan = PhysicalPlan(Set(startedOp, notStartedOp), Set.empty)
-    cp.workflowExecution
+    init.cp.workflowExecution
       .initRegionExecution(Region(RegionIdentity(1), Set(startedOp), Set.empty))
       .initOperatorExecution(startedOp.id)
-    (new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
+    (init, sent)
   }
 
-  private def invocationsNamed(
-      sent: ArrayBuffer[WorkflowFIFOMessage],
-      methodName: String
-  ): Seq[ControlInvocation] =
-    sent.toSeq.collect {
-      case WorkflowFIFOMessage(_, _, invocation: ControlInvocation)
-          if invocation.methodName == methodName =>
-        invocation
-    }
-
   private def onlyPropagation(sent: ArrayBuffer[WorkflowFIFOMessage]): ControlInvocation = {
-    val invocations = invocationsNamed(sent, "propagateEmbeddedControlMessage")
+    val invocations = controlInvocationsNamed(sent, "propagateEmbeddedControlMessage")
     assert(invocations.size == 1, s"expected one propagation, got: $invocations")
     invocations.head
   }
@@ -263,10 +218,10 @@ class TakeGlobalCheckpointHandlerSpec extends AnyFlatSpec {
       rpcContext
     )
     // Phase two must not start before the propagation answered.
-    assert(invocationsNamed(sent, "finalizeCheckpoint").isEmpty)
+    assert(controlInvocationsNamed(sent, "finalizeCheckpoint").isEmpty)
     completePropagation(init, sent, workerIds.map(_.name))
 
-    val finalizations = invocationsNamed(sent, "finalizeCheckpoint")
+    val finalizations = controlInvocationsNamed(sent, "finalizeCheckpoint")
     assert(finalizations.map(_.context.receiver).toSet == workerIds.toSet)
     assert(finalizations.map(_.command).forall {
       case request: FinalizeCheckpointRequest =>
@@ -293,7 +248,7 @@ class TakeGlobalCheckpointHandlerSpec extends AnyFlatSpec {
     )
     completePropagation(init, sent, workerIds.map(_.name))
 
-    val finalizations = invocationsNamed(sent, "finalizeCheckpoint")
+    val finalizations = controlInvocationsNamed(sent, "finalizeCheckpoint")
     assert(finalizations.size == 2)
     assert(!response.isDefined)
     init.cp.asyncRPCClient.fulfillPromise(
@@ -324,7 +279,7 @@ class TakeGlobalCheckpointHandlerSpec extends AnyFlatSpec {
     completePropagation(init, sent, Seq(mkWorkerId(startedOp, 0).name))
     init.cp.asyncRPCClient.fulfillPromise(
       ReturnInvocation(
-        invocationsNamed(sent, "finalizeCheckpoint").head.commandId,
+        controlInvocationsNamed(sent, "finalizeCheckpoint").head.commandId,
         FinalizeCheckpointResponse(7L)
       )
     )

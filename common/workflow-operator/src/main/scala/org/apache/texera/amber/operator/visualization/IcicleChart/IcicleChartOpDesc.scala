@@ -19,33 +19,25 @@
 
 package org.apache.texera.amber.operator.visualization.IcicleChart
 
-import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
-  PythonTemplateBuilderStringContext,
-  pyStringLiteral
-}
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
-import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchySection
+import org.apache.texera.amber.operator.visualization.hierarchychart.{
+  HierarchyChartSupport,
+  HierarchySection
+}
+import org.apache.texera.amber.operator.visualization.{
+  PlotlyStandaloneCode,
+  PythonVisualizationOpDesc
+}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.{NotEmpty, NotNull}
 
 // type constraint: value can only be numeric
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
-    }
-  }
-}
-""")
+@JsonSchemaInject(json = PythonVisualizationOpDesc.NumericValueRuleJson)
 class IcicleChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Hierarchy Path")
@@ -69,93 +61,19 @@ class IcicleChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
       OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
-  private def getIcicleAttributesInPython: String =
-    hierarchy.map(c => pyb"${c.attributeName}").mkString(",")
+  def manipulateTable(): PythonTemplateBuilder =
+    HierarchyChartSupport.filterPositiveAndDropNa(value, hierarchy)
 
-  def manipulateTable(): PythonTemplateBuilder = {
-    assert(value.nonEmpty, "Value Column cannot be empty")
-    val attributes = getIcicleAttributesInPython
-    pyb"""
-       |        table[$value] = table[table[$value] > 0][$value] # remove non-positive numbers from the data
-       |        table.dropna(subset = [$attributes], inplace = True) #remove missing values
-       |"""
-  }
+  def createPlotlyFigure(): PythonTemplateBuilder =
+    HierarchyChartSupport.createPlotlyFigure("icicle", value, hierarchy)
 
-  def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(hierarchy.nonEmpty, "Hierarchy Path cannot be empty")
-    val attributes = getIcicleAttributesInPython
-    pyb"""
-       |        fig = px.icicle(table, path=[$attributes], values=$value,
-       |                                                               color=$value, hover_data=[$attributes],
-       |                                                               color_continuous_scale='RdBu')
-       |"""
-  }
+  override def generatePythonCode(): String =
+    HierarchyChartSupport.runtimePythonCode(
+      "Icicle chart is not available.",
+      manipulateTable(),
+      createPlotlyFigure()
+    )
 
-  override def generatePythonCode(): String = {
-    val finalCode =
-      pyb"""
-         |from pytexera import *
-         |
-         |import plotly.express as px
-         |import plotly.graph_objects as go
-         |import plotly.io
-         |import numpy as np
-         |
-         |class ProcessTableOperator(UDFTableOperator):
-         |
-         |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Icicle chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
-         |
-         |    @overrides
-         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
-         |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("value column contains only non-positive numbers or nulls.")}
-         |           return
-         |        ${createPlotlyFigure()}
-         |        # convert fig to html content
-         |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
-         |"""
-    finalCode.encode
-  }
-
-  override def generateStandaloneCode(): String = {
-    val attributes = hierarchy.map(section => pyStringLiteral(section.attributeName)).mkString(", ")
-    val valueLit = pyStringLiteral(value)
-    // The error page is written to the same file a plotted chart lands in, so a
-    // reason for "no chart" is where the reader looks for the chart — printing it
-    // to the terminal alone left that file absent. render_error's continuation
-    // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser. chart_df is a copy: the input can feed another branch.
-    s"""${standaloneError("Icicle chart is not available.")}
-       |
-       |def fail(error_msg):
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error(error_msg))
-       |    print(f"Icicle chart error: {error_msg}")
-       |
-       |if in1df.empty:
-       |    fail("input table is empty.")
-       |else:
-       |    chart_df = in1df.copy()
-       |    chart_df[$valueLit] = chart_df[chart_df[$valueLit] > 0][$valueLit]
-       |    chart_df = chart_df.dropna(subset=[$attributes])
-       |    if chart_df.empty:
-       |        fail("value column contains only non-positive numbers or nulls.")
-       |    else:
-       |        fig = px.icicle(chart_df, path=[$attributes], values=$valueLit,
-       |                         color=$valueLit, hover_data=[$attributes],
-       |                         color_continuous_scale='RdBu')
-       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |${standaloneFigure("Icicle chart")}""".stripMargin
-  }
-
+  override def generateStandaloneCode(): String =
+    HierarchyChartSupport.standalonePythonCode("Icicle chart", "icicle", value, hierarchy)
 }

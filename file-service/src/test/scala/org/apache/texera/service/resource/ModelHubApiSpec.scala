@@ -30,7 +30,7 @@ import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.util.CoverImageUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, OptionValues}
+import org.scalatest.BeforeAndAfterAll
 
 import java.io.ByteArrayInputStream
 import java.util.Optional
@@ -40,7 +40,6 @@ import java.util.Optional
 class ModelHubApiSpec
     extends AnyFlatSpec
     with Matchers
-    with OptionValues
     with MockTexeraDB
     with MockLakeFS
     with BeforeAndAfterAll

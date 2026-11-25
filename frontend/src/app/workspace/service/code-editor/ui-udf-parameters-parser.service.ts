@@ -22,8 +22,13 @@ import type { AttributeType } from "../../types/workflow-compiling.interface";
 import { PythonUiUdfParametersParser } from "./python-ui-udf-parameters-parser";
 import { parseJavaUiParameters, computeJavaParameterInsertion } from "./java-ui-udf-parameters-parser";
 import { parseRUiParameters, computeRParameterInsertion } from "./r-ui-udf-parameters-parser";
-import type { UiUdfLanguage, UiUdfParameter } from "./ui-udf-parameter";
-import { assertUniqueParameterNames, UI_PARAMETER_TOKENS, UiUdfParametersEditError } from "./ui-udf-parameter";
+import {
+  assertUniqueParameterNames,
+  UI_PARAMETER_TOKENS,
+  UiUdfParametersEditError,
+  type UiUdfLanguage,
+  type UiUdfParameter,
+} from "./ui-udf-parameter";
 export {
   UiUdfParameter,
   UiUdfParametersParseError,

@@ -19,38 +19,14 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import com.twitter.util.{Await, Duration, Promise, Return}
 import com.typesafe.scalalogging.Logger
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
-import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorConfig,
-  ExecutionStateUpdate
-}
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
-import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.engine.e2e.TestUtils.{
-  buildWorkflow,
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData
-}
-import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
-import org.scalatest.flatspec.AnyFlatSpecLike
-
-import scala.concurrent.duration._
 
 /**
   * E2E reconfiguration tests that spawn Python UDF workers. Routed to the
@@ -62,102 +38,14 @@ import scala.concurrent.duration._
   */
 @IntegrationTest
 class ReconfigurationIntegrationSpec
-    extends TestKit(ActorSystem("ReconfigurationIntegrationSpec", AmberRuntime.pekkoConfig))
-    with ImplicitSender
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with Retries {
-
-  /**
-    * This block retries each test once if it fails.
-    * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
-    * Until we find the root cause of this issue, we use a retry mechanism here to stabilize CI runs.
-    */
-  override def withFixture(test: NoArgTest): Outcome =
-    withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
+    extends RetryingDatabaseE2ESpec("ReconfigurationIntegrationSpec", specId = 4) {
 
   val logger = Logger("ReconfigurationIntegrationSpecLogger")
-  private val specId = 4
   val ctx = TestUtils.workflowContext(specId)
 
-  override protected def beforeEach(): Unit = {
-    setUpWorkflowExecutionData(specId)
-  }
-
-  override protected def afterEach(): Unit = {
-    cleanupWorkflowExecutionData(specId)
-  }
-
   override def beforeAll(): Unit = {
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
-    // Explicitly load the JDBC driver to avoid flaky CI failures.
-    Class.forName("org.postgresql.Driver")
-    initiateTexeraDBForTestCases()
-    warmupOnce()
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
-
-  /**
-    * Runs a TextInput -> Python UDF workflow once before the timed tests so
-    * Python worker cold-start is paid here, not inside a timed test. Capped and
-    * wrapped so warmup can never fail or hang the suite.
-    */
-  private def warmupOnce(): Unit = {
-    val warmupCap = Duration.fromSeconds(60)
-    setUpWorkflowExecutionData(specId)
-    var client: AmberClient = null
-    try {
-      val src = new TextInputSourceOpDesc()
-      src.textInput = "warmup"
-      val udf = TestOperators.pythonOpDesc()
-      val warmupCtx = TestUtils.workflowContext(specId)
-      val workflow = buildWorkflow(
-        List(src, udf),
-        List(
-          LogicalLink(
-            src.operatorIdentifier,
-            PortIdentity(),
-            udf.operatorIdentifier,
-            PortIdentity()
-          )
-        ),
-        warmupCtx
-      )
-      client = new AmberClient(
-        system,
-        workflow.context,
-        workflow.physicalPlan,
-        CoordinatorConfig.default,
-        _ => {}
-      )
-      val completion = Promise[Unit]()
-      client.registerCallback[ExecutionStateUpdate](evt => {
-        if (evt.state == COMPLETED) completion.updateIfEmpty(Return(()))
-      })
-      Await.result(
-        client.coordinatorInterface.startWorkflow(EmptyRequest(), ()),
-        warmupCap
-      )
-      Await.result(completion, warmupCap)
-    } catch {
-      case e: Throwable =>
-        logger.warn(
-          s"warmup workflow did not finish within ${warmupCap}; tests will run cold and rely on Retries: ${e.getMessage}"
-        )
-    } finally {
-      if (client != null) {
-        try client.shutdown()
-        catch { case _: Throwable => () }
-      }
-      cleanupWorkflowExecutionData(specId)
-    }
+    super.beforeAll()
+    warmUpPythonWorker(logger)
   }
 
   // Thin wrapper around the shared TestUtils helper so call sites below stay
@@ -176,18 +64,20 @@ class ReconfigurationIntegrationSpec
   private def slowSource() =
     TestOperators.slowRegionSourceOpDesc(numTuple = 30, delaySeconds = 0.25)
 
+  private val reconfiguredUdfCode =
+    """
+      |from pytexera import *
+      |
+      |class ProcessTupleOperator(UDFOperatorV2):
+      |    @overrides
+      |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+      |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
+      |        yield tuple_
+      |""".stripMargin
+
   "Engine" should "be able to modify a python UDF worker in workflow" in {
     val sourceOpDesc = slowSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
-    val code = """
-                 |from pytexera import *
-                 |
-                 |class ProcessTupleOperator(UDFOperatorV2):
-                 |    @overrides
-                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
-                 |        yield tuple_
-                 |""".stripMargin
 
     val result = shouldReconfigure(
       List(sourceOpDesc, udfOpDesc),
@@ -200,7 +90,7 @@ class ReconfigurationIntegrationSpec
         )
       ),
       Seq(udfOpDesc),
-      OpExecWithCode(code, "python")
+      OpExecWithCode(reconfiguredUdfCode, "python")
     )
     assert(result(udfOpDesc.operatorIdentifier).exists { t =>
       t.getField("Region").asInstanceOf[String].contains("_reconfigured")
@@ -210,15 +100,6 @@ class ReconfigurationIntegrationSpec
   "Engine" should "propagate reconfiguration through a source operator in workflow" in {
     val sourceOpDesc = slowSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
-    val code = """
-                 |from pytexera import *
-                 |
-                 |class ProcessTupleOperator(UDFOperatorV2):
-                 |    @overrides
-                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
-                 |        yield tuple_
-                 |""".stripMargin
     val result = shouldReconfigure(
       List(sourceOpDesc, udfOpDesc),
       List(
@@ -230,7 +111,7 @@ class ReconfigurationIntegrationSpec
         )
       ),
       Seq(udfOpDesc),
-      OpExecWithCode(code, "python")
+      OpExecWithCode(reconfiguredUdfCode, "python")
     )
     assert(result(udfOpDesc.operatorIdentifier).exists { t =>
       t.getField("Region").asInstanceOf[String].contains("_reconfigured")
@@ -241,15 +122,6 @@ class ReconfigurationIntegrationSpec
     val sourceOpDesc = slowSource()
     val udfOpDesc1 = TestOperators.pythonOpDesc()
     val udfOpDesc2 = TestOperators.pythonOpDesc()
-    val code = """
-                 |from pytexera import *
-                 |
-                 |class ProcessTupleOperator(UDFOperatorV2):
-                 |    @overrides
-                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
-                 |        yield tuple_
-                 |""".stripMargin
 
     val result = shouldReconfigure(
       List(sourceOpDesc, udfOpDesc1, udfOpDesc2),
@@ -268,7 +140,7 @@ class ReconfigurationIntegrationSpec
         )
       ),
       Seq(udfOpDesc1, udfOpDesc2),
-      OpExecWithCode(code, "python")
+      OpExecWithCode(reconfiguredUdfCode, "python")
     )
     assert(result(udfOpDesc2.operatorIdentifier).exists { t =>
       t.getField("Region").asInstanceOf[String].contains("_reconfigured_reconfigured")

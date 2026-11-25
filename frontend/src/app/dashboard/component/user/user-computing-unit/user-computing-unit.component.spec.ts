@@ -27,8 +27,6 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileAddOutline } from "@ant-design/icons-angular/icons";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { UserService } from "../../../../common/service/user/user.service";
-import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -59,7 +57,6 @@ describe("UserComputingUnitComponent", () => {
     await TestBed.configureTestingModule({
       providers: [
         NzModalService,
-        { provide: UserService, useClass: StubUserService },
         { provide: WorkflowComputingUnitManagingService, useValue: mockComputingUnitService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
@@ -99,7 +96,7 @@ describe("UserComputingUnitComponent", () => {
     expect(component.addComputeUnitModalVisible).toBe(false);
   });
 
-  describe("session, polling and termination", () => {
+  describe("fetching, polling and termination", () => {
     function makeUnit(cuid: number): DashboardWorkflowComputingUnit {
       return {
         computingUnit: {
@@ -132,17 +129,6 @@ describe("UserComputingUnitComponent", () => {
       // ngOnInit starts a 1s interval; destroying the fixture unsubscribes it so it
       // cannot tick into a later test.
       fixture.destroy();
-    });
-
-    it("follows the signed-in user when the session changes", () => {
-      fixture.detectChanges();
-      const stubUserService = TestBed.inject(UserService) as unknown as StubUserService;
-
-      stubUserService.user = undefined;
-      stubUserService.userChangeSubject.next(undefined);
-
-      expect(component.isLogin).toBe(false);
-      expect(component.currentUid).toBeUndefined();
     });
 
     it("maps the fetched computing units into dashboard entries", () => {

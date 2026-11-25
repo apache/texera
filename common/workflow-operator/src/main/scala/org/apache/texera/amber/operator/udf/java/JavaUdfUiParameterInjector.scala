@@ -29,7 +29,8 @@ import java.nio.charset.StandardCharsets
 import java.time.{LocalDateTime, ZoneOffset}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, ResolverStyle}
 import java.time.temporal.ChronoField
-import java.util.{Base64, Locale}
+import java.util.regex.Pattern
+import java.util.{Base64, Collections, Locale}
 import javax.lang.model.element.Modifier
 import javax.tools._
 import scala.jdk.CollectionConverters._
@@ -41,6 +42,9 @@ object JavaUdfUiParameterInjector {
   private val nativeTypes = UiUdfParameterContract.javaTypes.flatMap {
     case (kind, names) => names.map(_ -> kind)
   }
+  private lazy val decimalPattern =
+    Pattern.compile("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
+  private lazy val compactOffsetPattern = Pattern.compile("([+-][0-9]{2})([0-9]{2})$")
   private val timestampFormat = new DateTimeFormatterBuilder()
     .append(DateTimeFormatter.ISO_LOCAL_DATE)
     .optionalStart()
@@ -75,7 +79,7 @@ object JavaUdfUiParameterInjector {
       case "nan" | "+nan" | "-nan"                   => Double.NaN
       case "inf" | "+inf" | "infinity" | "+infinity" => Double.PositiveInfinity
       case "-inf" | "-infinity"                      => Double.NegativeInfinity
-      case value if value.matches("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?") =>
+      case value if decimalPattern.matcher(value).matches() =>
         value.toDouble
       case _ => refuse("requires a decimal numeric value.")
     }
@@ -95,7 +99,7 @@ object JavaUdfUiParameterInjector {
             case _       => number(raw) != 0d
           }).toString
         case AttributeType.TIMESTAMP =>
-          val normalized = raw.replace(' ', 'T').replaceFirst("([+-][0-9]{2})([0-9]{2})$", "$1:$2")
+          val normalized = compactOffsetPattern.matcher(raw.replace(' ', 'T')).replaceFirst("$1:$2")
           val parsed = timestampFormat.parse(normalized)
           val offset =
             if (parsed.isSupported(ChronoField.OFFSET_SECONDS)) ZoneOffset.from(parsed)
@@ -128,19 +132,19 @@ object JavaUdfUiParameterInjector {
 
   // Keep javac's tree classes unloaded on JRE hosts, even for a bare template's comment.
   private object Javac {
+    private val sourceUri = URI.create("string:///JavaUDFOpExec.java")
+    private val options = Collections.singletonList("-proc:none")
+
     def inject(source: String, parameters: List[UiUDFParameter], compiler: JavaCompiler): String = {
       val diagnostics = new DiagnosticCollector[JavaFileObject]()
       Using.resource(
         compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8)
       ) { manager =>
-        val file = new SimpleJavaFileObject(
-          URI.create("string:///JavaUDFOpExec.java"),
-          JavaFileObject.Kind.SOURCE
-        ) {
+        val file = new SimpleJavaFileObject(sourceUri, JavaFileObject.Kind.SOURCE) {
           override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = source
         }
         val task = compiler
-          .getTask(null, manager, diagnostics, List("-proc:none").asJava, null, List(file).asJava)
+          .getTask(null, manager, diagnostics, options, null, Collections.singletonList(file))
           .asInstanceOf[JavacTask]
         val unit = task.parse().iterator().next()
         if (diagnostics.getDiagnostics.asScala.exists(_.getKind == Diagnostic.Kind.ERROR))
@@ -151,44 +155,50 @@ object JavaUdfUiParameterInjector {
         if (classes.size != 1) refuse("declarations require one JavaUDFOpExec class.")
         val positions = Trees.instance(task).getSourcePositions
         val fields = classes.head.getMembers.asScala.collect { case field: VariableTree => field }
-        val supplied = parameters.map(p => p.attribute.getName -> p).toMap
+        val supplied = parameters.iterator.map(p => p.attribute.getName -> p).toMap
         val used = scala.collection.mutable.Set.empty[String]
         val edits = fields.flatMap { field =>
-          val annotations = field.getModifiers.getAnnotations.asScala.filter(a =>
-            Set("UiParameter", annotationName)(a.getAnnotationType.toString)
-          )
-          if (annotations.isEmpty) None
-          else {
-            if (annotations.size != 1) refuse("must be declared once per field.")
-            val args = annotations.head.getArguments.asScala.map {
-              case argument: AssignmentTree =>
-                argument.getVariable.toString -> argument.getExpression
-              case argument => "value" -> argument
+          val annotations =
+            field.getModifiers.getAnnotations.iterator().asScala.filter { annotation =>
+              val name = annotation.getAnnotationType.toString
+              name == "UiParameter" || name == annotationName
             }
-            val values = args.map {
-              case (key, tree) =>
-                tree match {
-                  case literal: LiteralTree if literal.getValue.isInstanceOf[String] =>
-                    key -> literal.getValue.toString
-                  case _ => refuse("annotation arguments must be string literals.")
-                }
-            }.toMap
+          if (!annotations.hasNext) None
+          else {
+            val annotation = annotations.next()
+            if (annotations.hasNext) refuse("must be declared once per field.")
+            val args = annotation.getArguments
+            val values = args
+              .iterator()
+              .asScala
+              .map {
+                case argument: AssignmentTree =>
+                  argument.getVariable.toString -> argument.getExpression
+                case argument => "value" -> argument
+              }
+              .map {
+                case (key, tree) =>
+                  tree match {
+                    case literal: LiteralTree if literal.getValue.isInstanceOf[String] =>
+                      key -> literal.getValue.toString
+                    case _ => refuse("annotation arguments must be string literals.")
+                  }
+              }
+              .toMap
             if (
-              values.size != args.size || values.keys
+              values.size != args.size() || values.keysIterator
                 .exists(key => key != "value" && key != "resource")
             )
               refuse("annotation arguments are invalid.")
             val name = values.getOrElse("value", "").trim
             if (used(name)) refuse(s"name '$name' is declared more than once.")
             used += name
-            val start = positions.getStartPosition(unit, field)
+            // javac includes the comma in the end position of a non-final declarator.
             val end = positions.getEndPosition(unit, field).toInt
             if (
               field.getModifiers.getFlags.contains(
                 Modifier.STATIC
-              ) || field.getInitializer != null || fields.count(f =>
-                positions.getStartPosition(unit, f) == start
-              ) != 1 || end <= 0 || source.charAt(end - 1) != ';'
+              ) || field.getInitializer != null || end <= 0 || source.charAt(end - 1) != ';'
             )
               refuse("requires a single uninitialized instance field per declaration.")
             val kind =
@@ -203,10 +213,17 @@ object JavaUdfUiParameterInjector {
             Some((end - 1, initializer(parameter)))
           }
         }
-        if (used.toSet != supplied.keySet) refuse("saved values do not match the declared fields.")
-        edits.toList.sortBy(-_._1).foldLeft(source) {
-          case (text, (offset, value)) =>
-            text.patch(offset, s" = $value", 0)
+        if (used != supplied.keySet) refuse("saved values do not match the declared fields.")
+        if (edits.isEmpty) source
+        else {
+          val result = new java.lang.StringBuilder(source.length)
+          var start = 0
+          edits.sortBy(_._1).foreach {
+            case (offset, value) =>
+              result.append(source, start, offset).append(" = ").append(value)
+              start = offset
+          }
+          result.append(source, start, source.length).toString
         }
       }
     }

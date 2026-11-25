@@ -145,9 +145,10 @@ private class AmberProducer(
           )
         )
       case _ => // normal data batches
+        val schema = ArrowUtils.toTexeraSchema(root.getSchema)
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)
-          queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
+          queue.enqueue(ArrowUtils.getTexeraTuple(i, root, schema))
         outputPort.sendTo(to, DataFrame(queue.toArray))
     }
   }

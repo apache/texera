@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.scatterplot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -148,23 +149,22 @@ class ScatterplotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Scatter Plot is not available.</h1>
-         |                  <p>Reasons are: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Scatter Plot is not available.", plural = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |        ${manipulateTable()}
          |        ${createPlotlyFigure()}
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
-         |            return
-         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-         |        yield {'html-content':html}
+         |${emptyTableGuard(
+        "No valid rows left (every row has at least 1 missing value).",
+        bodyIndent = 4
+      )}
+         |${plotlyHtmlYield(
+        extraArgs = "auto_play = False",
+        spacesAroundEq = true,
+        compactDict = true
+      )}
          |"""
     finalCode.encode
   }

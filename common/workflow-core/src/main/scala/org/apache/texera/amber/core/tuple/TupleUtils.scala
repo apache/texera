@@ -51,7 +51,8 @@ object TupleUtils {
     * Converts a collection of Tuples to a list of JSON ObjectNodes.
     *
     * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
-    * For binary data, it formats the bytes into a readable hex string representation with length info.
+    * For binary data, it shows the first and last bits with the size, e.g.
+    * `<binary 0101010101...011, size = 4 bytes>`.
     * For string values longer than maxStringLength (100), it truncates them.
     * NULL values are converted to the string "NULL".
     *

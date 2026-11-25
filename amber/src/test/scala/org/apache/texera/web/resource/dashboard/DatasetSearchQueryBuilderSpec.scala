@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard
 
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
@@ -127,8 +128,8 @@ import scala.jdk.CollectionConverters._
   * multi-token string, and never on one arm's own output; either would tie this spec's result to
   * whichever other suites wrote the flag first.
   *
-  * The `record.into(USER).into(classOf[User]).getEmail` in `VersionedResourceTables.hydrate` used to
-  * be executed but unobservable: the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its
+  * The owner email read in `VersionedResourceTables.hydrate` used to be unobservable. The dataset
+  * schema left `UnifiedResourceSchema`'s `userEmail` at its
   * `DSL.inline("")` default, so the translated record carried no `USER` column,
   * `DashboardDataset.ownerEmail` was ALWAYS null for dataset search results, and the owner
   * `leftJoin(USER)` was a join that was selected from and never read. Replacing that read with a bare
@@ -636,9 +637,7 @@ class DatasetSearchQueryBuilderSpec
     requireStub()
 
     // Was null for every dataset in the dashboard until the schema named `userEmail = USER.EMAIL`:
-    // the USER join was selected from and never read. This is also the assertion that kills the
-    // `record.into(USER).into(classOf[User])` -> `new User` mutant in
-    // `VersionedResourceTables.hydrate`, which survived the whole suite while the value was null.
+    // the USER join was selected from and never read. Returning a null email here would regress it.
     entryFor(ownerUid, sizedDid).dataset.value.ownerEmail shouldBe "dataset_search_owner@mail.com"
   }
 
@@ -707,5 +706,20 @@ class DatasetSearchQueryBuilderSpec
     // The null is load-bearing. DashboardResource filters these rows out and raises `hasMismatch`
     // from them; without it a dataset whose repository is gone is shown to the user as 0 bytes.
     DatasetSearchQueryBuilder.toEntry(ownerUid, rowFor(ownerUid, goneDid)) shouldBe null
+  }
+
+  // The search's side of that null, and no stub needed for the same reason.
+  "DashboardResource.searchAllResources" should "flag a mismatch for a dataset lakeFS rejects" in {
+    val result = DashboardResource.searchAllResources(
+      new SessionUser(user(ownerUid, "dataset_search_owner")),
+      SearchQueryParams(
+        resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
+        datasetIds = Seq(goneDid).asJava
+      ),
+      includePublic = true
+    )
+
+    result.results shouldBe empty
+    result.hasMismatch shouldBe true
   }
 }

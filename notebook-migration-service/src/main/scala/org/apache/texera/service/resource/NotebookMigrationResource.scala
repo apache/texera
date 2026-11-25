@@ -444,7 +444,6 @@ object NotebookMigrationResource extends LazyLogging {
       // UNIQUE constraint and add a vid filter here.
       val result = dsl
         .select(
-          Notebook.NOTEBOOK.NID,
           Notebook.NOTEBOOK.NOTEBOOK_,
           WorkflowNotebookMapping.WORKFLOW_NOTEBOOK_MAPPING.MAPPING
         )
@@ -460,12 +459,10 @@ object NotebookMigrationResource extends LazyLogging {
       if (result == null) {
         Response.ok("""{"exists": false}""").build()
       } else {
-        val nid: Int = result.getValue(Notebook.NOTEBOOK.NID)
         val notebookJson: String =
-          result.get(Notebook.NOTEBOOK.NOTEBOOK_).asInstanceOf[JSONB].data()
+          result.get(Notebook.NOTEBOOK.NOTEBOOK_).data()
         val mappingJson: String = result
           .get(WorkflowNotebookMapping.WORKFLOW_NOTEBOOK_MAPPING.MAPPING)
-          .asInstanceOf[JSONB]
           .data()
 
         Response

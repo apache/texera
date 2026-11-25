@@ -22,10 +22,9 @@ package org.apache.texera.amber.engine.architecture.messaginglayer
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class NetworkInputGatewaySpec extends AnyFlatSpec with MockFactory {
+class NetworkInputGatewaySpec extends AnyFlatSpec {
 
   private val fakeReceiverID = ActorVirtualIdentity("testReceiver")
   private val fakeSenderID = ActorVirtualIdentity("testSender")

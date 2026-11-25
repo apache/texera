@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.source.scan.json
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runScript
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.AttributeType
@@ -36,8 +37,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -174,15 +173,10 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
 
-    val process = new ProcessBuilder(python, script.toString)
-      .directory(workDir.toFile)
-      .redirectErrorStream(true)
-      .start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script, directory = Some(workDir))
 
     withClue(s"python said:\n$out") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim.linesIterator.toSeq.last shouldBe "[1.0000000000000002, 1.0]"
     }
   }

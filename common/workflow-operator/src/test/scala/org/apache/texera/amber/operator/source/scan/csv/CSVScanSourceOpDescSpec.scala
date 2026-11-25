@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.source.scan.csv
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.TextNode
@@ -43,8 +44,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
@@ -76,82 +75,65 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       .validate(TextNode.valueOf(delimiter))
       .isSuccess
 
-  // Writes a CSV whose header row has an empty column (the third position),
-  // e.g. `id,name,,age`, and returns the absolute path.
-  private def writeCsvWithEmptyHeader(): String = {
-    val tmpFile = Files.createTempFile("empty-header-", ".csv")
+  // A CSV whose header row has an empty column (the third position).
+  private val emptyHeaderCsv = "id,name,,age\n1,Alice,x,30\n2,Bob,y,25\n"
+
+  // A three-column `;`-separated CSV.
+  private val semicolonCsv = "id;name;age\n1;Alice;30\n2;Bob;25\n"
+
+  // Writes `body` to a temporary CSV and returns the absolute path.
+  private def writeCsv(body: String): String = {
+    val tmpFile = Files.createTempFile("csv-", ".csv")
     tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
-      "id,name,,age\n1,Alice,x,30\n2,Bob,y,25\n".getBytes(StandardCharsets.UTF_8)
-    )
+    Files.write(tmpFile, body.getBytes(StandardCharsets.UTF_8))
     tmpFile.toString
   }
 
-  // Writes a three-column `;`-separated CSV and returns the absolute path.
-  private def writeSemicolonCsv(): String = {
-    val tmpFile = Files.createTempFile("semicolon-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
-      "id;name;age\n1;Alice;30\n2;Bob;25\n".getBytes(StandardCharsets.UTF_8)
-    )
-    tmpFile.toString
-  }
-
-  private def columnNames(opDesc: ScanSourceOpDesc, path: String): List[String] = {
-    opDesc.fileName = Some(path)
+  // Points `opDesc` at the file at `path`, resolved as a local file URI.
+  private def pointAt[T <: ScanSourceOpDesc](opDesc: T, path: String): T = {
     opDesc.setResolvedFileName(TestOperators.localFileUri(path))
-    opDesc.sourceSchema().getAttributes.map(_.getName).toList
+    opDesc
   }
 
-  // Writes a CSV whose `big` column holds values past 2^53 and one omitted cell,
-  // and returns the absolute path.
-  private def writeNullableLongCsv(): String = {
-    val tmpFile = Files.createTempFile("nullable-long-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
-      "id,big\n1,9007199254740993\n2,\n3,9007199254740995\n".getBytes(StandardCharsets.UTF_8)
-    )
-    tmpFile.toString
+  private def columnNames(opDesc: ScanSourceOpDesc, path: String): List[String] =
+    pointAt(opDesc, path).sourceSchema().getAttributes.map(_.getName).toList
+
+  // Runs the executor `newExec` builds from `opDesc`'s JSON, as the engine does, and
+  // returns the fields of every row it produces.
+  private def rowsOf(opDesc: ScanSourceOpDesc)(
+      newExec: String => SourceOperatorExecutor
+  ): List[List[Any]] = {
+    val exec = newExec(objectMapper.writeValueAsString(opDesc))
+    exec.open()
+    try exec.produceTuple().map(_.getFields.toList).toList
+    finally exec.close()
   }
 
-  // Writes a CSV holding the country code NA and an omitted field, and returns
-  // the absolute path.
-  private def writeNaCsv(): String = {
-    val tmpFile = Files.createTempFile("na-code-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(tmpFile, "code,note\nNA,x\n,y\n".getBytes(StandardCharsets.UTF_8))
-    tmpFile.toString
+  // Each country sales sample has 14 columns, `integerColumn` read as INTEGER and
+  // `doubleColumn` as DOUBLE.
+  private def assertCountrySalesSchema(
+      opDesc: ScanSourceOpDesc,
+      integerColumn: String,
+      doubleColumn: String
+  ): Unit = {
+    val inferredSchema: Schema = opDesc.sourceSchema()
+    assert(inferredSchema.getAttributes.length == 14)
+    assert(inferredSchema.getAttribute(integerColumn).getType == AttributeType.INTEGER)
+    assert(inferredSchema.getAttribute(doubleColumn).getType == AttributeType.DOUBLE)
   }
 
-  // Writes a headered CSV with six data rows and returns the absolute path.
-  private def writeSixRowCsv(): String = {
-    val tmpFile = Files.createTempFile("six-row-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
-      "id,name\n1,a\n2,b\n3,c\n4,d\n5,e\n6,f\n".getBytes(StandardCharsets.UTF_8)
-    )
-    tmpFile.toString
-  }
-
-  // Writes a numeric column with one blank cell and returns the absolute path.
-  private def writeCsvWithBlankNumericCell(): String = {
-    val tmpFile = Files.createTempFile("blank-cell-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
-      "id,measure\n1,2.5\n2,\n3,4.5\n".getBytes(StandardCharsets.UTF_8)
-    )
-    tmpFile.toString
+  // The export reads the multi-line sample through the `sourceFile` placeholder, under
+  // the file's own name, instead of inlining its bytes.
+  private def assertReadsByPlaceholder(opDesc: CSVScanSourceOpDesc): Unit = {
+    val code = opDesc.generateStandaloneCode()
+    assert(code.contains("filepath_or_buffer=sourceFile"))
+    assert(opDesc.standaloneSourceName().contains("country_sales_small_multi_line.csv"))
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
   }
 
   it should "infer a numeric column as DOUBLE even when one of its cells is blank" in {
-    val path = writeCsvWithBlankNumericCell()
-    csvScanSourceOpDesc.fileName = Some(path)
-    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(csvScanSourceOpDesc, writeCsv("id,measure\n1,2.5\n2,\n3,4.5\n"))
 
     // A blank used to read as "" while inferring and as null while executing. The ""
     // fell through inferField to STRING, so one empty cell retyped the whole column
@@ -162,95 +144,51 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema from single-line-data csv" in {
-
-    parallelCsvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallCsvPath)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
-    )
-    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
-
-    assert(inferredSchema.getAttributes.length == 14)
-    assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
-    assert(inferredSchema.getAttribute("Unit Price").getType == AttributeType.DOUBLE)
-
+    pointAt(parallelCsvScanSourceOpDesc, TestOperators.CountrySalesSmallCsvPath)
+    assertCountrySalesSchema(parallelCsvScanSourceOpDesc, "Order ID", "Unit Price")
   }
 
   it should "infer schema from headerless single-line-data csv" in {
-
-    parallelCsvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = false
-    parallelCsvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
-    )
-
-    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
-
-    assert(inferredSchema.getAttributes.length == 14)
-    assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
-    assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
+    pointAt(parallelCsvScanSourceOpDesc, TestOperators.CountrySalesHeaderlessSmallCsvPath)
+    assertCountrySalesSchema(parallelCsvScanSourceOpDesc, "column-7", "column-10")
   }
 
   it should "infer schema from multi-line-data csv" in {
-
-    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
-    )
-
-    val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
-
-    assert(inferredSchema.getAttributes.length == 14)
-    assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
-    assert(inferredSchema.getAttribute("Unit Price").getType == AttributeType.DOUBLE)
+    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesSmallMultiLineCsvPath)
+    assertCountrySalesSchema(csvScanSourceOpDesc, "Order ID", "Unit Price")
   }
 
   it should "infer schema from headerless multi-line-data csv" in {
-
-    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
-    )
+    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesHeaderlessMultiLineDataCsvPath)
+    assertCountrySalesSchema(csvScanSourceOpDesc, "column-7", "column-10")
 
-    val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
-
-    assert(inferredSchema.getAttributes.length == 14)
-    assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
-    assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
+    val rows = rowsOf(csvScanSourceOpDesc)(new CSVScanSourceOpExec(_))
+    assert(rows.length == 100)
+    assert(rows.forall(_.length == 14))
+    assert(rows(8)(1) == "Republic,of,the,Congo")
+    assert(rows(53)(2) == "Office\n\n\nSupplies")
+    assert(rows(98)(2) == "Personal\n\nCare")
   }
 
   it should "infer schema from headerless multi-line-data csv with custom delimiter" in {
-
-    csvScanSourceOpDesc.fileName =
-      Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
-    )
-
-    val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
-
-    assert(inferredSchema.getAttributes.length == 14)
-    assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
-    assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
+    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
+    assertCountrySalesSchema(csvScanSourceOpDesc, "column-7", "column-10")
   }
 
   it should "create one worker with multi-line-data csv" in {
-
-    csvScanSourceOpDesc.fileName =
-      Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
-    )
+    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
 
     assert(
       !csvScanSourceOpDesc
@@ -263,22 +201,12 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // second source wanting it. What the operator owes is the path and the name it
   // would like.
   it should "offer the csv basename and read the file by placeholder" in {
-    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(
-      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
-    )
+    pointAt(csvScanSourceOpDesc, TestOperators.CountrySalesSmallMultiLineCsvPath)
 
-    val code = csvScanSourceOpDesc.generateStandaloneCode()
-
-    assert(code.contains("filepath_or_buffer=sourceFile"))
+    assertReadsByPlaceholder(csvScanSourceOpDesc)
     assert(csvScanSourceOpDesc.standaloneSourcePath() == csvScanSourceOpDesc.fileName)
-    assert(
-      csvScanSourceOpDesc.standaloneSourceName().contains("country_sales_small_multi_line.csv")
-    )
-    assert(!code.contains("base64.b64decode"))
-    assert(!code.contains("io.BytesIO"))
   }
 
   it should "offer the unresolved csv basename" in {
@@ -286,31 +214,17 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
 
-    val code = csvScanSourceOpDesc.generateStandaloneCode()
-
-    assert(code.contains("filepath_or_buffer=sourceFile"))
-    assert(
-      csvScanSourceOpDesc.standaloneSourceName().contains("country_sales_small_multi_line.csv")
-    )
-    assert(!code.contains("base64.b64decode"))
-    assert(!code.contains("io.BytesIO"))
+    assertReadsByPlaceholder(csvScanSourceOpDesc)
   }
 
   // pandas raises nothing for a type asked of a name it has no column for, so
   // under a blank header the type was dropped without a word and the column
   // was inferred as floats, rounding 9007199254740993 to ...992.
   it should "ask pandas for a type under a blank header by its position for parallel CSV" in {
-    val tmpFile = Files.createTempFile("blank-long-header-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
-      "id,\n1,9007199254740993\n2,\n3,9007199254740995\n".getBytes(StandardCharsets.UTF_8)
-    )
-    val path = tmpFile.toString
-    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    val path = writeCsv("id,\n1,9007199254740993\n2,\n3,9007199254740995\n")
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(parallelCsvScanSourceOpDesc, path)
 
     assert(
       parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("column-2").getType ==
@@ -325,23 +239,16 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // pandas sees the blank as missing and infers a number instead, which read a
   // column of ids back as floats and rounded 9007199254740993 to ...992.
   it should "read a parallel CSV column the schema typed STRING as text" in {
-    val path = writeNullableLongCsv()
-    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    val path = writeCsv("id,big\n1,9007199254740993\n2,\n3,9007199254740995\n")
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
-    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(parallelCsvScanSourceOpDesc, path)
 
     assert(
       parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("big").getType ==
         AttributeType.STRING
     )
 
-    val exec = new ParallelCSVScanSourceOpExec(
-      objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
-    )
-    exec.open()
-    val rows =
-      try exec.produceTuple().map(_.getFields.toList).toList
-      finally exec.close()
+    val rows = rowsOf(parallelCsvScanSourceOpDesc)(new ParallelCSVScanSourceOpExec(_))
     assert(rows.map(_(1)) == List("9007199254740993", null, "9007199254740995"))
 
     assert(
@@ -355,18 +262,10 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // "NA" is the country code it says it is. pandas reads it as missing by default,
   // so the export read a column of codes as a column of nulls.
   it should "read only an empty field as null for parallel CSV, the way its reader does" in {
-    val path = writeNaCsv()
-    parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
-    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(parallelCsvScanSourceOpDesc, writeCsv("code,note\nNA,x\n,y\n"))
 
-    val exec = new ParallelCSVScanSourceOpExec(
-      objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
-    )
-    exec.open()
-    val rows =
-      try exec.produceTuple().map(_.getFields.toList).toList
-      finally exec.close()
+    val rows = rowsOf(parallelCsvScanSourceOpDesc)(new ParallelCSVScanSourceOpExec(_))
     assert(rows == List(List("NA", "x"), List(null, "y")))
 
     val code = parallelCsvScanSourceOpDesc.generateStandaloneCode()
@@ -375,11 +274,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "give the parallel CSV frame the names the schema gives it" in {
-    val path = writeCsvWithEmptyHeader()
-    parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(parallelCsvScanSourceOpDesc, writeCsv(emptyHeaderCsv))
 
     assert(
       parallelCsvScanSourceOpDesc
@@ -392,21 +289,12 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // limit and offset as TODOs, so the window the panel offers never reaches the
   // rows. Slicing in the export handed back fewer rows than the workflow did.
   it should "leave limit and offset out of the parallel CSV read, as its reader ignores them" in {
-    val path = writeSixRowCsv()
-    parallelCsvScanSourceOpDesc.fileName = Some(path)
-    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(parallelCsvScanSourceOpDesc, writeCsv("id,name\n1,a\n2,b\n3,c\n4,d\n5,e\n6,f\n"))
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.offset = Some(2)
     parallelCsvScanSourceOpDesc.limit = Some(2)
 
-    val exec = new ParallelCSVScanSourceOpExec(
-      objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
-    )
-    exec.open()
-    val rowsRead =
-      try exec.produceTuple().size
-      finally exec.close()
-    assert(rowsRead == 6)
+    assert(rowsOf(parallelCsvScanSourceOpDesc)(new ParallelCSVScanSourceOpExec(_)).size == 6)
 
     val code = parallelCsvScanSourceOpDesc.generateStandaloneCode()
     assert(!code.contains("skiprows"))
@@ -447,36 +335,27 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "auto-rename empty CSV column headers to column-N" in {
-    val path = writeCsvWithEmptyHeader()
-    csvScanSourceOpDesc.fileName = Some(path)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
-    val names = csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
+    val names = columnNames(csvScanSourceOpDesc, writeCsv(emptyHeaderCsv))
     assert(names == List("id", "name", "column-3", "age"))
   }
 
   it should "auto-rename empty CSV column headers to column-N for parallel CSV" in {
-    val path = writeCsvWithEmptyHeader()
-    parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
-    val names = parallelCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
+    val names = columnNames(parallelCsvScanSourceOpDesc, writeCsv(emptyHeaderCsv))
     assert(names == List("id", "name", "column-3", "age"))
   }
 
   it should "auto-rename empty CSV column headers to column-N for old CSV" in {
-    val path = writeCsvWithEmptyHeader()
     val oldCsvScanSourceOpDesc = new CSVOldScanSourceOpDesc()
-    oldCsvScanSourceOpDesc.fileName = Some(path)
     oldCsvScanSourceOpDesc.customDelimiter = Some(",")
     oldCsvScanSourceOpDesc.hasHeader = true
-    oldCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
-    val names = oldCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
+    val names = columnNames(oldCsvScanSourceOpDesc, writeCsv(emptyHeaderCsv))
     assert(names == List("id", "name", "column-3", "age"))
   }
 
@@ -527,27 +406,23 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     "space" -> " "
   )
 
-  private def writeCsv(delimiter: String, body: String): String = {
-    val tmpFile = Files.createTempFile("delimited-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(tmpFile, body.replace(",", delimiter).getBytes(StandardCharsets.UTF_8))
-    tmpFile.toString
-  }
-
-  private def allReaders(delimiter: String): List[ScanSourceOpDesc] = {
+  // The three CSV scans, each configured with `delimiter` and `limit`.
+  private def allReaders(delimiter: String, limit: Option[Int] = None): List[ScanSourceOpDesc] = {
     val csv = new CSVScanSourceOpDesc()
     csv.customDelimiter = Some(delimiter)
     val parallelCsv = new ParallelCSVScanSourceOpDesc()
     parallelCsv.customDelimiter = Some(delimiter)
     val oldCsv = new CSVOldScanSourceOpDesc()
     oldCsv.customDelimiter = Some(delimiter)
-    List(csv, parallelCsv, oldCsv)
+    val readers = List(csv, parallelCsv, oldCsv)
+    readers.foreach(_.limit = limit)
+    readers
   }
 
   it should "read a file separated by each delimiter the picker offers" in {
     pickerPresets.foreach {
       case (name, delimiter) =>
-        val path = writeCsv(delimiter, "id,name,age\n1,Alice,30\n2,Bob,25\n")
+        val path = writeCsv("id,name,age\n1,Alice,30\n2,Bob,25\n".replace(",", delimiter))
         allReaders(delimiter).foreach { reader =>
           withClue(s"$name, ${reader.getClass.getSimpleName}: ") {
             assert(columnNames(reader, path) == List("id", "name", "age"))
@@ -569,7 +444,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read a custom non-ASCII delimiter" in {
-    val path = writeCsv("§", "id,name,age\n1,Alice,30\n")
+    val path = writeCsv("id,name,age\n1,Alice,30\n".replace(",", "§"))
     allReaders("§").foreach { reader =>
       withClue(s"${reader.getClass.getSimpleName}: ") {
         assert(columnNames(reader, path) == List("id", "name", "age"))
@@ -578,12 +453,10 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "keep a quoted field whole when it contains the delimiter" in {
-    val tmpFile = Files.createTempFile("quoted-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(tmpFile, "id;name\n1;\"Smith; J\"\n".getBytes(StandardCharsets.UTF_8))
+    val path = writeCsv("id;name\n1;\"Smith; J\"\n")
     allReaders(";").foreach { reader =>
       withClue(s"${reader.getClass.getSimpleName}: ") {
-        assert(columnNames(reader, tmpFile.toString) == List("id", "name"))
+        assert(columnNames(reader, path) == List("id", "name"))
       }
     }
   }
@@ -591,13 +464,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // The translator keeps only the helpers a script calls, so the column loop
   // names only the readers this table's types need.
   it should "name only the column readers the table needs" in {
-    def code(body: String): String = {
-      val path = writeCsv(",", body)
-      val csv = new CSVScanSourceOpDesc()
-      csv.fileName = Some(path)
-      csv.setResolvedFileName(TestOperators.localFileUri(path))
-      csv.generateStandaloneCode()
-    }
+    def code(body: String): String =
+      pointAt(new CSVScanSourceOpDesc(), writeCsv(body)).generateStandaloneCode()
     val plain = code("id,name\n1,Alice\n")
     assert(plain.contains("""_schema = {"id": "Int32", "name": "object"}"""))
     assert(!plain.contains("for _c"))
@@ -607,7 +475,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "fall back to a comma when the delimiter is cleared" in {
-    val path = writeCsv(",", "id,name,age\n1,Alice,30\n")
+    val path = writeCsv("id,name,age\n1,Alice,30\n")
     allReaders("").foreach { reader =>
       withClue(s"${reader.getClass.getSimpleName}: ") {
         assert(columnNames(reader, path) == List("id", "name", "age"))
@@ -619,17 +487,12 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     // What the constraint gives up: a saved workflow holding a longer delimiter now
     // shows as invalid in the property editor. Its run is unchanged, which is what
     // this pins -- the characters past the first never reached a parser.
-    val path = writeSemicolonCsv()
-    val csv = new CSVScanSourceOpDesc()
-    csv.customDelimiter = Some(";abc")
-    val parallelCsv = new ParallelCSVScanSourceOpDesc()
-    parallelCsv.customDelimiter = Some(";abc")
-    val oldCsv = new CSVOldScanSourceOpDesc()
-    oldCsv.customDelimiter = Some(";abc")
-
-    assert(columnNames(csv, path) == List("id", "name", "age"))
-    assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
-    assert(columnNames(oldCsv, path) == List("id", "name", "age"))
+    val path = writeCsv(semicolonCsv)
+    allReaders(";abc").foreach { reader =>
+      withClue(s"${reader.getClass.getSimpleName}: ") {
+        assert(columnNames(reader, path) == List("id", "name", "age"))
+      }
+    }
   }
 
   // The limit bounded the sample the inference reads as well as the rows the
@@ -639,20 +502,12 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // for a type the empty sample could not give. A file's columns do not depend
   // on how many of its rows were asked for.
   it should "keep the file's columns when the window asks for no rows" in {
-    val path = writeSemicolonCsv()
-    val csv = new CSVScanSourceOpDesc()
-    csv.customDelimiter = Some(";")
-    csv.limit = Some(0)
-    val parallelCsv = new ParallelCSVScanSourceOpDesc()
-    parallelCsv.customDelimiter = Some(";")
-    parallelCsv.limit = Some(0)
-    val oldCsv = new CSVOldScanSourceOpDesc()
-    oldCsv.customDelimiter = Some(";")
-    oldCsv.limit = Some(0)
-
-    assert(columnNames(csv, path) == List("id", "name", "age"))
-    assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
-    assert(columnNames(oldCsv, path) == List("id", "name", "age"))
+    val path = writeCsv(semicolonCsv)
+    allReaders(";", limit = Some(0)).foreach { reader =>
+      withClue(s"${reader.getClass.getSimpleName}: ") {
+        assert(columnNames(reader, path) == List("id", "name", "age"))
+      }
+    }
   }
 
   // With no header line left after the offset, pandas had nothing to count the
@@ -662,46 +517,21 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val python = configuredPython().getOrElse(cancel("No runnable python executable"))
     if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
-    val tmpFile = Files.createTempFile("headerless-two-row-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(tmpFile, "1,a\n2,b\n".getBytes(StandardCharsets.UTF_8))
-    val path = tmpFile.toString
-    csvScanSourceOpDesc.fileName = Some(path)
+    val path = writeCsv("1,a\n2,b\n")
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.offset = Some(10)
-    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
+    pointAt(csvScanSourceOpDesc, path)
 
-    val exec = new CSVScanSourceOpExec(objectMapper.writeValueAsString(csvScanSourceOpDesc))
-    exec.open()
-    val engineRows =
-      try exec.produceTuple().toList
-      finally exec.close()
-    assert(engineRows.isEmpty)
+    assert(rowsOf(csvScanSourceOpDesc)(new CSVScanSourceOpExec(_)).isEmpty)
 
-    val driver =
-      s"""import pandas as pd
-         |${csvScanSourceOpDesc.standaloneImports().mkString("\n")}
-         |${csvScanSourceOpDesc.standaloneHelpers().mkString("\n")}
-         |sourceFile = ${objectMapper.writeValueAsString(path)}
-         |${csvScanSourceOpDesc.generateStandaloneCode()}
-         |print(len(out1df), list(out1df.columns))
-         |""".stripMargin
-    val script = Files.createTempFile("csv-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      assert(process.exitValue() == 0)
-      assert(out.trim == "0 ['column-1', 'column-2']")
-      assert(
-        csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList ==
-          List("column-1", "column-2")
-      )
-    }
+    val out =
+      runStandalone(python, csvScanSourceOpDesc, path, "print(len(out1df), list(out1df.columns))")
+    assert(out.trim == "0 ['column-1', 'column-2']")
+    assert(
+      csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList ==
+        List("column-1", "column-2")
+    )
   }
 
   // The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
@@ -714,14 +544,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val python = configuredPython().getOrElse(cancel("No runnable python executable"))
     if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
-    val tmpFile = Files.createTempFile("java-doubles-", ".csv")
-    tmpFile.toFile.deleteOnExit()
-    Files.write(
-      tmpFile,
+    val path = writeCsv(
       "v,w,u\n1.5,1.5,1.5\nNaN,2d,NaN\n,0x1p3,2.5\n-Infinity,3f,3.5\n4.5,0x1p1024,-0x1p1024\n"
-        .getBytes(StandardCharsets.UTF_8)
     )
-    val path = tmpFile.toString
     csvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
 
@@ -733,17 +558,11 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     readers.foreach {
       case (desc, exec) =>
-        desc.fileName = Some(path)
-        desc.setResolvedFileName(TestOperators.localFileUri(path))
+        pointAt(desc, path)
         assert(desc.sourceSchema().getAttribute("w").getType == AttributeType.DOUBLE)
         assert(desc.sourceSchema().getAttribute("u").getType == AttributeType.DOUBLE)
 
-        val engine = exec(objectMapper.writeValueAsString(desc))
-        engine.open()
-        val engineRows =
-          try engine.produceTuple().map(_.getFields.toSeq).toList
-          finally engine.close()
-        val engineText = engineRows.map(
+        val engineText = rowsOf(desc)(exec).map(
           _.map(f => if (f == null) "null" else f.toString).mkString(",")
         )
 
@@ -787,13 +606,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |${desc.generateStandaloneCode()}
          |$report
          |""".stripMargin
-    val script = Files.createTempFile("csv-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver")(assert(process.exitValue() == 0))
+    val (exitCode, out) = runSource(python, "csv-standalone-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver")(assert(exitCode == 0))
     out
   }
 }

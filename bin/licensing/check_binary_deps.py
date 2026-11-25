@@ -52,6 +52,7 @@ PER_MODULE_LICENSE_BINARIES: list[str] = [
     "workflow-compiling-service/LICENSE-binary",
     "computing-unit-managing-service/LICENSE-binary",
     "notebook-migration-service/LICENSE-binary",
+    "result-service/LICENSE-binary",
     "amber/LICENSE-binary-java",
     "amber/LICENSE-binary-python",
     "frontend/LICENSE-binary",
@@ -143,7 +144,7 @@ def load_direct_python() -> set[str]:
             continue
         for raw in p.read_text().splitlines():
             line = raw.strip()
-            if not line or line.startswith("#") or line.startswith("-"):
+            if not line or line.startswith(("#", "-")):
                 # `-`-prefixed lines are pip flags (--extra-index-url, -r, ...).
                 continue
             # Strip env markers, extras, and version specifiers; we only
@@ -190,8 +191,7 @@ def load_direct_jar_artifacts() -> set[str]:
             except OSError:
                 continue
             for m in SBT_DEP.finditer(text):
-                _group, _sep, artifact, _version = m.groups()
-                direct.add(artifact)
+                direct.add(m.group(3))  # artifact ID in the sbt dependency declaration
     return direct
 
 
@@ -219,7 +219,7 @@ def parse_prose(path: Path, ecosystem: str) -> set[str]:
         if matched_header:
             continue
 
-        if stripped.startswith("=====") or stripped.startswith("-----"):
+        if stripped.startswith(("=====", "-----")):
             current_eco = None
             continue
 
@@ -423,16 +423,16 @@ def report(
             print(_added_line(a))
         print()
         print("ACTION REQUIRED")
-        print(f"  1. Verify each dep's license is ASF Category A or B.")
+        print("  1. Verify each dep's license is ASF Category A or B.")
         if target_file:
             print(f"  2. Add a bullet for each dep above to {target_file}")
-            print(f"     under the matching license section (see existing")
+            print("     under the matching license section (see existing")
             print(f"     '{kind}-compatible token' bullets for format).")
         else:
-            print(f"  2. Add a bullet in the matching per-module LICENSE-binary")
-            print(f"     under the matching license section (see existing")
+            print("  2. Add a bullet in the matching per-module LICENSE-binary")
+            print("     under the matching license section (see existing")
             print(f"     '{kind}-compatible token' bullets for format).")
-        print(f"  3. If an upstream NOTICE must be bubbled up, add to NOTICE-binary.")
+        print("  3. If an upstream NOTICE must be bubbled up, add to NOTICE-binary.")
         print()
         rc = 1
 
@@ -445,8 +445,8 @@ def report(
         if target_file:
             print(f"  1. Remove the matching bullet / token from {target_file}.")
         else:
-            print(f"  1. Remove the matching bullet / token from the per-module LICENSE-binary.")
-        print(f"  2. Remove any matching attribution from NOTICE-binary.")
+            print("  1. Remove the matching bullet / token from the per-module LICENSE-binary.")
+        print("  2. Remove any matching attribution from NOTICE-binary.")
         print()
         rc = 1
 
@@ -465,10 +465,10 @@ def report(
         print("ACTION REQUIRED")
         if target_file:
             print(f"  Update {target_file} to match the bundled versions. Direct")
-            print(f"  deps always block CI — a version bump may carry license changes.")
+            print("  deps always block CI — a version bump may carry license changes.")
         else:
-            print(f"  Update LICENSE-binary to match the bundled versions. Direct deps")
-            print(f"  always block CI — a version bump may carry license changes.")
+            print("  Update LICENSE-binary to match the bundled versions. Direct deps")
+            print("  always block CI — a version bump may carry license changes.")
         print()
         rc = 1
 
@@ -477,8 +477,8 @@ def report(
             print(f"DRIFT (transitive, informational) {label}:")
             for entry in sorted(drift_transitive):
                 print(_fmt_drift(entry))
-            print(f"  (--ignore-transitive-version is set; nightly exact-match")
-            print(f"   check on main is responsible for refreshing these.)")
+            print("  (--ignore-transitive-version is set; nightly exact-match")
+            print("   check on main is responsible for refreshing these.)")
             print()
         else:
             print(f"DRIFT (transitive) {label} — claimed versions differ from bundled:")
@@ -489,9 +489,9 @@ def report(
             if target_file:
                 print(f"  Update {target_file} to match the bundled versions, or rerun")
             else:
-                print(f"  Update LICENSE-binary to match the bundled versions, or rerun")
-            print(f"  with --ignore-transitive-version to treat transitive drift as")
-            print(f"  informational.")
+                print("  Update LICENSE-binary to match the bundled versions, or rerun")
+            print("  with --ignore-transitive-version to treat transitive drift as")
+            print("  informational.")
             print()
             rc = 1
 

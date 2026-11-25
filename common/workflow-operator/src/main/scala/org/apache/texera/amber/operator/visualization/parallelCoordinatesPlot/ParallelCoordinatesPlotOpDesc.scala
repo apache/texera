@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -109,23 +110,15 @@ class ParallelCoordinatesPlotOpDesc extends PythonVisualizationOpDesc with Plotl
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Parallel coordinates plot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Parallel coordinates plot is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("No valid rows after filtering.")}
-         |            return
+         |${emptyTableGuard("No valid rows after filtering.", bodyIndent = 4)}
          |        ${createPlotlyFigure()}
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalcode.encode
   }
