@@ -30,6 +30,7 @@ from typing import Optional, Union
 from io import IOBase
 from core.models.type.large_binary import largebinary
 from pytexera.storage.large_binary_manager import LargeBinaryManager
+import contextlib
 import threading
 import queue
 
@@ -129,7 +130,7 @@ class LargeBinaryOutputStream(IOBase):
         with self._lock:
             exception = self._upload_exception
         if exception is not None:
-            raise IOError(f"Background upload failed: {exception}") from exception
+            raise OSError(f"Background upload failed: {exception}") from exception
 
     def write(self, b: Union[bytes, bytearray]) -> int:
         """
@@ -143,7 +144,7 @@ class LargeBinaryOutputStream(IOBase):
 
         Raises:
             ValueError: If stream is closed
-            IOError: If previous upload failed
+            OSError: If previous upload failed
         """
         if self.closed:
             raise ValueError("I/O operation on closed stream")
@@ -167,12 +168,10 @@ class LargeBinaryOutputStream(IOBase):
                     with self._lock:
                         self._upload_exception = e
                     if s3 is not None:
-                        try:
+                        with contextlib.suppress(Exception):
                             s3.delete_object(
                                 Bucket=self._bucket_name, Key=self._object_key
                             )
-                        except Exception:
-                            pass
                 finally:
                     self._upload_complete.set()
 
@@ -208,19 +207,18 @@ class LargeBinaryOutputStream(IOBase):
         Call close() to ensure upload completion.
         """
         # No-op: data is already being consumed by the upload thread
-        pass
 
     def close(self) -> None:
         """
         Close the stream and complete the S3 upload.
-        Blocks until upload is complete. Raises IOError if upload failed.
+        Blocks until upload is complete. Raises OSError if upload failed.
 
         Idempotent: subsequent calls (including IOBase's __del__-driven
         finalize on Python 3.13+) are no-ops because IOBase tracks the
         closed state via super().close() below.
 
         Raises:
-            IOError: If upload failed
+            OSError: If upload failed
         """
         if self.closed:
             return
@@ -241,7 +239,7 @@ class LargeBinaryOutputStream(IOBase):
                     exception = self._upload_exception
 
                 if exception is not None:
-                    raise IOError(
+                    raise OSError(
                         f"Failed to complete upload: {exception}"
                     ) from exception
         finally:

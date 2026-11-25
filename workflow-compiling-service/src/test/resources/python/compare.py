@@ -258,16 +258,9 @@ def _declared_types(actual_path: str) -> dict:
         return {}
     # The engine writes UTF-8. Left to the platform default, a column name
     # outside ASCII reads back as another name on Windows and loses its type.
-    with open(sidecar, "r", encoding="utf-8") as fh:
+    with open(sidecar, encoding="utf-8") as fh:
         schema = json.load(fh)
     return {a["attributeName"]: a.get("attributeType") for a in schema.get("attributes", [])}
-
-
-def _string_columns(actual_path: str) -> dict:
-    """The declared STRING columns, as a `read_json` dtype map."""
-    return {
-        name: str for name, kind in _declared_types(actual_path).items() if kind == "string"
-    }
 
 
 def _declared_strings(path: str, columns: list) -> dict:
@@ -285,7 +278,7 @@ def _declared_strings(path: str, columns: list) -> dict:
     import pandas as pd
 
     values = {column: [] for column in columns}
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -310,7 +303,7 @@ def _raw_column(path: str, columns: list) -> dict:
     import json
 
     values = {column: [] for column in columns}
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -624,8 +617,6 @@ def _run_comparison(
     # overwrote an output column that had the same name, and both sides then
     # agreed on it. Each rode with its row through the sort above.
     kind_cols = [column for column in double_cols if column in actual.columns]
-    kinds_a = {column: double_kinds_a[column] for column in kind_cols}
-    kinds_e = {column: double_kinds_e[column] for column in kind_cols}
 
     # The tolerance was letting integers through with it: at rtol=1e-5, LONG
     # 100000 and 100001 compare equal. Integer columns are compared exactly.
@@ -653,7 +644,7 @@ def _run_comparison(
 
     # Compared exactly: the numbers above cannot tell these values apart.
     for column in kind_cols:
-        for row, (one, other) in enumerate(zip(kinds_a[column], kinds_e[column])):
+        for row, (one, other) in enumerate(zip(double_kinds_a[column], double_kinds_e[column])):
             if one != other:
                 return (
                     f"column '{column}' is declared double and the two sides "
@@ -839,7 +830,7 @@ def _load_actual_plots(path) -> list:
     over."""
     import json
 
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         lines = [raw for raw in fh if raw.strip()]
     if not lines:
         raise AssertionError(f"{path} is empty")
@@ -898,7 +889,7 @@ def _load_expected_plots(path) -> list:
     is read for every chart on it."""
     import json
 
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         text = fh.read()
     if str(path).endswith(".html"):
         return _plotly_payloads_from_html(text)
@@ -937,7 +928,7 @@ def _plots_equal(actual, expected) -> bool:
         return math.isclose(float(actual), float(expected), rel_tol=1e-9, abs_tol=1e-12)
     if isinstance(actual, dict) and isinstance(expected, dict):
         return actual.keys() == expected.keys() and all(
-            _plots_equal(actual[key], expected[key]) for key in actual.keys()
+            _plots_equal(actual[key], expected[key]) for key in actual
         )
     if isinstance(actual, list) and isinstance(expected, list):
         return len(actual) == len(expected) and all(

@@ -128,7 +128,7 @@ jobs:
               // `closingIssuesReferences` semantics — `Closes #1, #2`
               // links only #1, so the diff treats only #1 as removed.
               const re = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+#(\d+)/gi;
-              const oldBody = context.payload.changes.body.from || '';
+              const oldBody = context.payload.changes.body.from;
               const newBody = pr.body || '';
               const oldRefs = new Set([...oldBody.matchAll(re)].map((m) => Number(m[1])));
               const newRefs = new Set([...newBody.matchAll(re)].map((m) => Number(m[1])));
