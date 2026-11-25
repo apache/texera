@@ -117,18 +117,15 @@ object HubResource {
           val tbl = EntityTables(etype).like
           val ids = groupReqs.map(_.entityId)
 
-          val likedSet: Set[Int] = context
+          val likedSet = context
             .select(tbl.idColumn)
             .from(tbl.table)
             .where(tbl.uidColumn.eq(userId))
             .and(tbl.idColumn.in(ids: _*))
-            .fetch()
-            .asScala
-            .map(r => r.get(tbl.idColumn).intValue())
-            .toSet
+            .fetchSet(tbl.idColumn)
 
           groupReqs.foreach { req =>
-            val flag = likedSet.contains(req.entityId.intValue())
+            val flag = likedSet.contains(Integer.valueOf(req.entityId.intValue()))
             buffer += LikedResponse(req.entityId, etype, flag)
           }
       }
@@ -185,18 +182,16 @@ object HubResource {
       userRequest: UserRequest,
       isLike: Boolean
   ): Boolean = {
-    val (entityId, entityType) =
+    val (requestedId, entityType) =
       (userRequest.entityId, userRequest.entityType)
     val entityTables = EntityTables(entityType).like
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    val likedResponses = isLikedHelper(
-      userId,
-      List(entityId).asJava,
-      List(entityType).asJava
-    ).asScala
-    val alreadyLiked = likedResponses.headOption.exists(_.isLiked)
+    val alreadyLiked =
+      context.fetchExists(table, uidColumn.eq(userId).and(idColumn.eq(requestedId)))
+    // Unboxing rejects a request without an entity ID before any write.
+    val entityId = Integer.valueOf(userRequest.entityId.intValue())
 
     if (isLike && !alreadyLiked) {
       context
@@ -241,13 +236,7 @@ object HubResource {
 
     recordUserAction(request, Some(userId), entityId, entityType, Clone)
 
-    val existingCloneRecord = context
-      .selectFrom(table)
-      .where(uidColumn.eq(userId))
-      .and(idColumn.eq(entityId))
-      .fetchOne()
-
-    if (existingCloneRecord == null) {
+    if (!context.fetchExists(table, uidColumn.eq(userId).and(idColumn.eq(entityId)))) {
       context
         .insertInto(table)
         .set(uidColumn, userId)
@@ -305,7 +294,7 @@ object HubResource {
       uid: Integer
   ) =
     context
-      .select()
+      .select((tables.table.fields().toSeq ++ Seq(USER.EMAIL, tables.access.privilegeColumn)): _*)
       .from(tables.joinWithViewerAccessAndOwner(uid))
       .where(tables.idColumn.in(ids: _*))
 
@@ -321,9 +310,9 @@ object HubResource {
 
     versionedResourcesByIdsQuery(tables, ids, uid)
       .fetch()
+      .iterator()
       .asScala
       .flatMap(record => tables.hydrate(record, uid))
-      .map(_._2)
       .toList
   }
 }
@@ -576,13 +565,13 @@ class HubResource {
       else
         Seq(ActionType.View, ActionType.Like, ActionType.Clone)
 
-    val grouped: Map[EntityType, Seq[Integer]] =
-      reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
+    val grouped = reqs.groupBy(_.entityType)
 
     val buffer = ListBuffer[CountResponse]()
 
     grouped.foreach {
-      case (etype, ids) =>
+      case (etype, groupReqs) =>
+        val ids = groupReqs.map(_.entityId)
         val tableSet = EntityTables(etype)
         val viewTbl = tableSet.viewCount
         val viewMap: Map[Int, Int] =
@@ -607,7 +596,7 @@ class HubResource {
                 .execute()
             }
 
-            raw ++ missing.map(id => id.intValue() -> 0).toMap
+            raw
           } else Map.empty
 
         val likeTbl = tableSet.like
@@ -646,7 +635,7 @@ class HubResource {
             }
             .getOrElse(Map.empty)
 
-        reqs.filter(_.entityType == etype).foreach { req =>
+        groupReqs.foreach { req =>
           val key = req.entityId.intValue()
           val counts = scala.collection.mutable.Map[ActionType, Int]()
           if (requestedActions.contains(ActionType.View))

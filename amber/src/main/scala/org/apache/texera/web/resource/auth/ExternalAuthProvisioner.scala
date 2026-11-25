@@ -139,7 +139,7 @@ object ExternalAuthProvisioner extends LazyLogging {
 
       Option(
         ctx
-          .select()
+          .select(USER.fields(): _*)
           .from(USER)
           .join(AUTH_PROVIDER)
           .on(USER.UID.eq(AUTH_PROVIDER.UID))

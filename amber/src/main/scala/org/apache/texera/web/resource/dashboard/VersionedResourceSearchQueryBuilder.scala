@@ -26,7 +26,7 @@ import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
 }
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.jooq.impl.DSL
-import org.jooq.{Condition, Field, GroupField, Record, TableLike}
+import org.jooq.{Condition, Field, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -129,14 +129,10 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
       )
   }
 
-  override protected def getGroupByFields: Seq[GroupField] = {
-    Seq.empty
-  }
-
   override protected def toEntryImpl(
       uid: Integer,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry =
     // null = mismatch; searchAllResources drops it and flips hasMismatch.
-    tables.hydrate(record, uid).map(_._2).orNull
+    tables.hydrate(record, uid).orNull
 }
