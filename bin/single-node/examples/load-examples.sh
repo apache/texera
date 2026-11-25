@@ -289,7 +289,10 @@ load_workflows() {
         fi
 
         # Parse and create workflow
-        content=$(jq -c . "$workflow_file")
+        if ! content=$(jq -c . "$workflow_file"); then
+            print_error "Failed to parse $workflow_file with jq"
+            continue
+        fi
 
         print_status "Creating workflow: $workflow_name"
         response=$(curl -s -X POST "$TEXERA_DASHBOARD_SERVICE_URL/workflow/create" \
