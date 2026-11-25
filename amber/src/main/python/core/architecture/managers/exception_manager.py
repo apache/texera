@@ -23,7 +23,7 @@ from core.models import ExceptionInfo
 class ExceptionManager:
     def __init__(self):
         self.exc_info: Optional[ExceptionInfo] = None
-        self.exc_info_history: List[ExceptionInfo] = list()
+        self.exc_info_history: List[ExceptionInfo] = []
 
     def set_exception_info(self, exc_info: ExceptionInfo) -> None:
         self.exc_info = exc_info

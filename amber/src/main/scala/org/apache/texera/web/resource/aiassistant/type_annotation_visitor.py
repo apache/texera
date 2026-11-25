@@ -52,9 +52,12 @@ class TypeAnnotationVisitor(ast.NodeVisitor):
         is_staticmethod = False
         if is_method and hasattr(node, 'decorator_list'):
             for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Name) and decorator.id == 'staticmethod':
-                    is_staticmethod = True
-                elif isinstance(decorator, ast.Attribute) and decorator.attr == 'staticmethod':
+                if (
+                    isinstance(decorator, ast.Name) and decorator.id == 'staticmethod'
+                ) or (
+                    isinstance(decorator, ast.Attribute)
+                    and decorator.attr == 'staticmethod'
+                ):
                     is_staticmethod = True
         args = node.args
 
@@ -75,7 +78,7 @@ class TypeAnnotationVisitor(ast.NodeVisitor):
         # Skip the "self" or "cls"
         if is_method and not is_staticmethod:
             start_index = 1
-        for i, arg in enumerate(all_args[start_index:]):
+        for arg in all_args[start_index:]:
             if not arg.annotation:
                 self.add_untyped_arg(arg)
 

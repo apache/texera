@@ -49,8 +49,7 @@ def detect_attribute_type_from_arrow_field(field: pa.Field) -> AttributeType:
 
     if is_large_binary:
         return AttributeType.LARGE_BINARY
-    else:
-        return FROM_ARROW_MAPPING[field.type.id]
+    return FROM_ARROW_MAPPING[field.type.id]
 
 
 def create_arrow_field_with_metadata(

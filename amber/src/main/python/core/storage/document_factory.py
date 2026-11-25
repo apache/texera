@@ -104,10 +104,9 @@ class DocumentFactory:
                 warehouse,
             )
 
-        else:
-            raise NotImplementedError(
-                f"Unsupported URI scheme: {parsed_uri.scheme} for creating the document"
-            )
+        raise NotImplementedError(
+            f"Unsupported URI scheme: {parsed_uri.scheme} for creating the document"
+        )
 
     @staticmethod
     def document_exists(uri: str) -> bool:
@@ -166,7 +165,6 @@ class DocumentFactory:
             )
             return document, amber_schema
 
-        else:
-            raise NotImplementedError(
-                f"Unsupported URI scheme: {parsed_uri.scheme} for opening the document"
-            )
+        raise NotImplementedError(
+            f"Unsupported URI scheme: {parsed_uri.scheme} for opening the document"
+        )
