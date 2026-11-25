@@ -384,6 +384,22 @@ class PveWebsocketResourceSpec extends AnyFlatSpec with Matchers with MockFactor
     intercept[IllegalArgumentException](PveWebsocketResource.parsePackages(""))
   }
 
+  it should "reject a JSON null, naming the parameter" in {
+    // Jackson decodes a bare `null` to a null list; it must fail like any other non-array.
+    val error = intercept[IllegalArgumentException] {
+      PveWebsocketResource.parsePackages("null")
+    }
+    error.getMessage shouldBe "Invalid packages parameter: null"
+  }
+
+  it should "reject content after the array" in {
+    // A second value and stray characters are both refused rather than silently dropped.
+    intercept[IllegalArgumentException](
+      PveWebsocketResource.parsePackages("""["numpy"]["scipy"]""")
+    )
+    intercept[IllegalArgumentException](PveWebsocketResource.parsePackages("""["numpy"]x"""))
+  }
+
   it should "accept whitespace around the array" in {
     PveWebsocketResource.parsePackages(" [] ") shouldBe Nil
     PveWebsocketResource.parsePackages("""["numpy"] """) shouldBe List("numpy")
