@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795525342837,
+  "lastUpdate": 1795610243263,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -23971,6 +23971,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 511.8585025064703,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "22645366711c901a7ce5a9a229845700318bc5ee",
+          "message": "ci: retry tool downloads on transient errors (#9381)\n\n### What changes were proposed in this PR?\n\nCI setup steps downloaded protoc, the macOS RustFS and Lakekeeper\narchives and the bun installer with a bare `curl`, so one transient HTTP\nerror from the download host failed the job before any test ran. On\n2026-11-08, #9366's amber-integration and platform-integration jobs died\nthis way on a 504 from GitHub releases.\n\nEach of these downloads now passes `--retry 5 --retry-delay 5\n--retry-all-errors --connect-timeout 30` to curl:\n\n- `--retry 5 --retry-delay 5`: up to five more attempts, 5 s apart. A\nhost that stays down still fails the step, after the sixth attempt.\n- `--retry-all-errors`: also retries a connection that drops\nmid-download, which `--retry` alone does not. Every site writes with\n`-o`, and curl discards a failed attempt's partial file before it\nretries.\n- `--connect-timeout 30`: a connect that hangs fails the attempt after\n30 s instead of curl's default 300 s.\n\nThe bun installer was piped into `bash`. The step shell is `bash -e`\nwithout `pipefail`, so when the fetch failed, `bash` ran an empty or\ntruncated script, the step passed, and the job failed later at `bun\ninstall`. The installer is now saved to `/tmp/bun-install.sh` and then\nrun with the same version argument, so a failed fetch fails this step\nand a partial script never runs. The installer downloads bun itself from\nGitHub releases with a plain `curl --fail`, so the step runs it up to\nsix times, 5 s apart, and `bun --version` then fails the step if no\nattempt installed bun.\n\n`--retry-all-errors` needs curl 7.71 or later: ubuntu-latest\n(ubuntu-26.04) has curl 8.18.0 and macos-latest (macos-26-arm64) has\n8.7.1.\n\n### Any related issues, documentation, discussions?\n\nCloses #9380.\n\n### How was this PR tested?\n\n- CI on this PR: the `ci` label runs every stack and the Bench workflow,\nso each changed step runs on its runner with the new options\n(amber-integration on ubuntu and macOS, platform-integration\n(workflow-compiling-service), pyamber, agent-service on ubuntu and\nmacOS, and Bench).\n- Locally, curl 8.10.1 against a small HTTP server that fails on\npurpose. Before is `curl -fsSL -o <file> <url>`; after adds the four\nretry options.\n\n  | Server | Before | After |\n  | --- | --- | --- |\n| 504, 504, then 200 | exit 22 at the first 504 | exit 0 on the third\nattempt; the file holds the full payload |\n  | 504 on every request | exit 22 | exit 22 after 6 attempts (25 s) |\n| Connection closes mid-body once | exit 18, also with `--retry` alone |\nexit 0 on the second attempt; the file holds the full payload |\n| Bun step under `bash -e`, installer URL always 504 | the step passes\nwithout running the installer | the step fails at the download with exit\n22 |\n\n- The Setup Bun script, extracted from the workflow and run with `bash\n-e` against a stand-in installer: it installs on the first run, installs\non the third run after two failures, and after six failures fails the\nstep at `bun --version` (exit 127).\n- Both workflow files parse with PyYAML, only the seven changed `run:`\nscripts differ from `main`, and each passes `bash -n`.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+          "timestamp": "2026-11-25T09:32:22Z",
+          "url": "https://github.com/apache/texera/commit/22645366711c901a7ce5a9a229845700318bc5ee"
+        },
+        "date": 1795610242410,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1027.1784737214841,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2275.250804328946,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2558.46818832631,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1336.0273532201454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2380.724709981009,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2605.6878897171705,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1460.277968467365,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2377.8684336445617,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2606.5651356904996,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1184.788706790248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1904.2006434357766,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1995.3197011694094,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1346.1439173069607,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1876.7514496112417,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2007.7209531739413,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1359.6534670787466,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1863.488934420831,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1940.7578679466078,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 823.0633962231095,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1051.9273834342832,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1066.685400575063,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 804.9344105333201,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1003.3117743461746,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1044.2841084039171,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 846.664739223099,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 977.4256119640278,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 1005.0041676600993,
             "unit": "tuples/sec"
           }
         ]
