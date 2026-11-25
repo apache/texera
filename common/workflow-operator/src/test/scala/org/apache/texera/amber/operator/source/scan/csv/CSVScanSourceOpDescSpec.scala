@@ -91,7 +91,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   // Points `opDesc` at the file at `path`, resolved as a local file URI.
   private def pointAt[T <: ScanSourceOpDesc](opDesc: T, path: String): T = {
-    opDesc.fileName = Some(path)
     opDesc.setResolvedFileName(TestOperators.localFileUri(path))
     opDesc
   }
@@ -400,7 +399,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     "space" -> " "
   )
 
-  // The three CSV scans, each reading `delimiter` and at most `limit` rows.
+  // The three CSV scans, each configured with `delimiter` and `limit`.
   private def allReaders(delimiter: String, limit: Option[Int] = None): List[ScanSourceOpDesc] = {
     val csv = new CSVScanSourceOpDesc()
     csv.customDelimiter = Some(delimiter)

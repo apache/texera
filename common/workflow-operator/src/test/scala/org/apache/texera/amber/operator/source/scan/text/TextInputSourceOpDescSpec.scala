@@ -96,7 +96,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
-  it should "read first 5 lines of the input text into a single output tuple" in {
+  it should "read the whole input text into a single output tuple" in {
     assert(
       linesFrom(attributeType = FileAttributeType.SINGLE_STRING) ==
         Seq("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
@@ -360,7 +360,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
-  /** Every tuple the executor the engine runs produces for the configured text. */
+  /** Every tuple produced for the configured text by the executor the engine runs. */
   private def tuplesFromEngine(): List[Tuple] = {
     val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
     exec.open()
