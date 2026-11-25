@@ -20,7 +20,7 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { AgentService } from "../../../service/agent/agent.service";
+import { AgentService, IndexedTuple, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
 import { AgentState } from "../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -41,7 +41,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { IndexedTuple, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
 import type { WebOutputMode } from "../../../types/execute-workflow.interface";
 
 interface TupleDisplayEntry {

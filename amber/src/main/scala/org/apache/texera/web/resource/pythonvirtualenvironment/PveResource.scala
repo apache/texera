@@ -32,8 +32,6 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
 import java.util
-import javax.ws.rs.DELETE
-import javax.ws.rs.PathParam
 import javax.ws.rs.core.Response
 
 object PveResource {
