@@ -372,7 +372,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     } finally exec.close()
   }
 
-  /** The configured text read as STRING lines by the executor the engine runs. */
+  /** The configured text read by the executor the engine runs, one String per tuple. */
   private def linesFromEngine(): Seq[String] = tuplesFromEngine().map(_.getField[String]("line"))
 
   /**
