@@ -68,9 +68,8 @@ object AsterixDBConnUtil {
 
   def updateAsterixDBVersionMapping(host: String, port: String): Unit = {
 
-    var response: HttpResponse[JsonNode] = null
     // check and determine API version
-    response = Unirest.get("http://" + host + ":" + port + "/admin/version").asJson()
+    val response = Unirest.get("http://" + host + ":" + port + "/admin/version").asJson()
     if (response.getStatus == 200)
       asterixDBVersionMapping += (host -> response.getBody.getObject.getString(
         "git.build.version"

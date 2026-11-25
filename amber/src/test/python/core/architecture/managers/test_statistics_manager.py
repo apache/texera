@@ -70,7 +70,7 @@ class TestStatisticsManagerInputOutput:
         mgr = StatisticsManager()
         mgr.increase_input_statistics(_port(0), 0)
         stats = mgr.get_statistics()
-        m = list(stats.input_tuple_metrics)[0].tuple_metrics
+        m = next(iter(stats.input_tuple_metrics)).tuple_metrics
         assert m.count == 1
         assert m.size == 0
 

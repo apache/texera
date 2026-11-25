@@ -41,7 +41,7 @@ class TestProxyClient:
         server = ProxyServer(port=5005)
         server.register_data_handler(
             lambda _, table: list(
-                map(data_queue.put, map(lambda t: t[1], table.to_pandas().iterrows()))
+                map(data_queue.put, (t[1] for t in table.to_pandas().iterrows()))
             )
         )
         yield server
@@ -91,7 +91,7 @@ class TestProxyClient:
             mock_client, ProxyClient
         )  # override do_put with mock_do_put
 
-        yield mock_client
+        return mock_client
 
     @pytest.fixture
     def data_table(self):
@@ -143,7 +143,7 @@ class TestProxyClient:
     def test_client_cannot_send_data_without_handler(self, server, client, data_table):
         # send the pyarrow table to server as a flight
         with pytest.raises(ArrowNotImplementedError):
-            client.send_data(command=bytes(), table=data_table)
+            client.send_data(command=b"", table=data_table)
 
     def test_client_can_send_data_with_handler(
         self, data_queue: Queue, server_with_dp, client, data_table
@@ -152,7 +152,7 @@ class TestProxyClient:
         client.send_data(bytes(), data_table)
 
         assert data_queue.qsize() == 4
-        for i, row in data_table.to_pandas().iterrows():
+        for _, row in data_table.to_pandas().iterrows():
             assert data_queue.get().equals(row)
 
     def test_a_handshake_port_is_announced_to_the_server_on_connect(self, server):
@@ -185,9 +185,7 @@ class TestProxyClient:
         monkeypatch.setattr(
             ProxyClient,
             "call_action",
-            lambda self, name, payload=bytes(), options=None: seen.append(
-                (name, payload)
-            ),
+            lambda self, name, payload=b"", options=None: seen.append((name, payload)),
         )
 
         client = ProxyClient(handshake_port=6789)

@@ -18,9 +18,7 @@
 import datetime
 import pytest
 
-from core.models.internal_queue import InternalQueue
 from core.util import set_one_of
-from core.util.buffer.timed_buffer import TimedBuffer
 from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlInvocation,
@@ -35,14 +33,6 @@ from proto.org.apache.texera.amber.engine.common import (
 
 
 class TestConsoleMessage:
-    @pytest.fixture
-    def internal_queue(self):
-        return InternalQueue()
-
-    @pytest.fixture
-    def timed_buffer(self):
-        return TimedBuffer()
-
     @pytest.fixture
     def console_message(self):
         return ConsoleMessage(

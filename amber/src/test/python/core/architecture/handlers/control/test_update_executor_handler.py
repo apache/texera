@@ -43,8 +43,7 @@ def make_handler(executor_is_source: bool = False) -> UpdateExecutorHandler:
     executor_manager = MagicMock()
     executor_manager.executor = SimpleNamespace(is_source=executor_is_source)
     context = SimpleNamespace(executor_manager=executor_manager)
-    handler = UpdateExecutorHandler(context)
-    return handler
+    return UpdateExecutorHandler(context)
 
 
 class TestUpdateExecutorHandler:

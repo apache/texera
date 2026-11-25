@@ -126,7 +126,7 @@ class TestTable:
         self._assert_table_round_trips(target_tuples, target_table, target_tuples)
 
     def test_table_from_list_of_series(
-        self, target_table, a_timestamp, target_raw_tuples, target_tuples
+        self, target_table, target_raw_tuples, target_tuples
     ):
         self._assert_table_round_trips(
             [pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples],

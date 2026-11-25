@@ -59,13 +59,13 @@ def _expected_channel(uri: str) -> ChannelIdentity:
 
 
 def _make_request(**overrides) -> AssignPortRequest:
-    fields = dict(
-        port_id=PORT_ID,
-        input=True,
-        schema=RAW_SCHEMA,
-        storage_uris=[],
-        partitionings=[],
-    )
+    fields = {
+        "port_id": PORT_ID,
+        "input": True,
+        "schema": RAW_SCHEMA,
+        "storage_uris": [],
+        "partitionings": [],
+    }
     fields.update(overrides)
     return AssignPortRequest(**fields)
 
