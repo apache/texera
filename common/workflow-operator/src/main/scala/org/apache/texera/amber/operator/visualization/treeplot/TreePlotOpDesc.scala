@@ -76,29 +76,11 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |                   <p>Reason: {error_msg} </p>'''
        |
        |    def make_annotations(self, pos, text):
-       |        font_color = 'rgb(250,250,250)'
-       |        node_color = '#6175c1'
-       |        font_size = 10
-       |
-       |        annotations = []
-       |        for k, (node_name, coords) in enumerate(pos.items()):
-       |            annotations.append(
-       |                dict(
-       |                    text=text[k],
-       |                    x=coords[0],
-       |                    y=coords[1],
-       |                    xref='x1', yref='y1',
-       |                    font=dict(color=font_color, size=font_size),
-       |                    showarrow=False,
-       |                    align='center',
-       |                    bordercolor='rgb(50,50,50)',
-       |                    borderwidth=1,
-       |                    borderpad=5,
-       |                    bgcolor=node_color,
-       |                    opacity=0.8
-       |                )
-       |            )
-       |        return annotations
+       |${TreePlotPython.annotationsBody(
+      8,
+      "for k, (node_name, coords) in enumerate(pos.items()):",
+      "text[k]"
+    )}
        |
        |    def build_tree_layout(self, edges):
        |${TreePlotPython.body(8)}
@@ -107,17 +89,11 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
        |
-       |        edges = []
-       |        for item in table[$edgeListColumn].dropna():
-       |            try:
-       |                edge = ast.literal_eval(str(item))
-       |                if isinstance(edge, (list, tuple)) and len(edge) == 2:
-       |                    edges.append(list(edge))
-       |            except (ValueError, SyntaxError):
-       |                pass
+       |        edge_col = $edgeListColumn
+       |${TreePlotPython.parseEdges("table", 8)}
        |
        |        if not edges:
-       |            yield {'html-content': self.render_error("No valid [parent, child] pairs found in column " + $edgeListColumn + ".")}
+       |            yield {'html-content': self.render_error("No valid [parent, child] pairs found in column " + edge_col + ".")}
        |            return
        |
        |        try:
@@ -125,22 +101,6 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |        except Exception as e:
        |             yield {'html-content': self.render_error(f"Tree layout failed: {e}")}
        |             return
-       |
-       |        HORIZONTAL_DENSITY = 120
-       |        VERTICAL_DENSITY = 120
-       |        PADDING = 200
-       |        MIN_WIDTH = 800
-       |        MIN_HEIGHT = 600
-       |
-       |        if len(coords) > 1:
-       |            x_coords, y_coords = zip(*coords)
-       |            x_range = max(x_coords) - min(x_coords)
-       |            y_range = max(y_coords) - min(y_coords)
-       |            plot_width = max(MIN_WIDTH, x_range * HORIZONTAL_DENSITY + PADDING)
-       |            plot_height = max(MIN_HEIGHT, y_range * VERTICAL_DENSITY + PADDING)
-       |        else:
-       |            plot_width = MIN_WIDTH
-       |            plot_height = MIN_HEIGHT
        |
        |        position = {k: coords[k] for k in range(len(labels))}
        |        index_of = {label: k for k, label in enumerate(labels)}
@@ -152,26 +112,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |            Xe += [position[edge[0]][0], position[edge[1]][0], None]
        |            Ye += [position[edge[0]][1], position[edge[1]][1], None]
        |
-       |        fig = go.Figure()
-       |
-       |        fig.add_trace(go.Scatter(x=Xe, y=Ye, mode='lines',
-       |                                 line=dict(color='rgb(210,210,210)', width=1),
-       |                                 hoverinfo='none'))
-       |
-       |        axis = dict(showline=False, zeroline=False, showgrid=False, showticklabels=False)
-       |
-       |        fig.update_layout(title='Tree Plot',
-       |                          width=int(plot_width),
-       |                          height=int(plot_height),
-       |                          annotations=self.make_annotations(position, labels),
-       |                          font_size=12,
-       |                          showlegend=False,
-       |                          xaxis=axis,
-       |                          yaxis=axis,
-       |                          margin=dict(l=40, r=40, b=85, t=100),
-       |                          dragmode='pan',
-       |                          hovermode='closest',
-       |                          plot_bgcolor='rgb(248,248,248)')
+       |${TreePlotPython.figureBody(8, "coords", "self.make_annotations(position, labels)")}
        |
        |${plotlyHtmlYield()}
        |
@@ -191,28 +132,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |                   <p>Reason: {error_msg} </p>'''
        |
        |def make_annotations(pos):
-       |    font_color = 'rgb(250,250,250)'
-       |    node_color = '#6175c1'
-       |    font_size = 10
-       |    annotations = []
-       |    for node_name, coords in pos.items():
-       |        annotations.append(
-       |            dict(
-       |                text=node_name,
-       |                x=coords[0],
-       |                y=coords[1],
-       |                xref='x1', yref='y1',
-       |                font=dict(color=font_color, size=font_size),
-       |                showarrow=False,
-       |                align='center',
-       |                bordercolor='rgb(50,50,50)',
-       |                borderwidth=1,
-       |                borderpad=5,
-       |                bgcolor=node_color,
-       |                opacity=0.8
-       |            )
-       |        )
-       |    return annotations
+       |${TreePlotPython.annotationsBody(4, "for node_name, coords in pos.items():", "node_name")}
        |
        |def build_tree_layout(edges):
        |${TreePlotPython.body(4)}
@@ -227,39 +147,15 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |if in1df.empty:
        |${standaloneErrorPage("Input table is empty.")}
        |else:
-       |    edges = []
-       |    for item in in1df[${pyStringLiteral(edgeListColumn)}].dropna():
-       |        try:
-       |            edge = ast.literal_eval(str(item))
-       |            if isinstance(edge, (list, tuple)) and len(edge) == 2:
-       |                edges.append(list(edge))
-       |        except (ValueError, SyntaxError):
-       |            pass
+       |    edge_col = ${pyStringLiteral(edgeListColumn)}
+       |${TreePlotPython.parseEdges("in1df", 4)}
        |
        |    if not edges:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid [parent, child] pairs found in column " + ${pyStringLiteral(
-      edgeListColumn
-    )} + "."))
+       |            output.write(render_error("No valid [parent, child] pairs found in column " + edge_col + "."))
        |    else:
        |        try:
        |            position = compute_tree_layout(edges)
-       |
-       |            HORIZONTAL_DENSITY = 120
-       |            VERTICAL_DENSITY = 120
-       |            PADDING = 200
-       |            MIN_WIDTH = 800
-       |            MIN_HEIGHT = 600
-       |
-       |            if len(position) > 1:
-       |                x_coords, y_coords = zip(*position.values())
-       |                x_range = max(x_coords) - min(x_coords)
-       |                y_range = max(y_coords) - min(y_coords)
-       |                plot_width = max(MIN_WIDTH, x_range * HORIZONTAL_DENSITY + PADDING)
-       |                plot_height = max(MIN_HEIGHT, y_range * VERTICAL_DENSITY + PADDING)
-       |            else:
-       |                plot_width = MIN_WIDTH
-       |                plot_height = MIN_HEIGHT
        |
        |            Xe = []
        |            Ye = []
@@ -267,23 +163,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |                Xe += [position[parent][0], position[child][0], None]
        |                Ye += [position[parent][1], position[child][1], None]
        |
-       |            fig = go.Figure()
-       |            fig.add_trace(go.Scatter(x=Xe, y=Ye, mode='lines',
-       |                                     line=dict(color='rgb(210,210,210)', width=1),
-       |                                     hoverinfo='none'))
-       |            axis = dict(showline=False, zeroline=False, showgrid=False, showticklabels=False)
-       |            fig.update_layout(title='Tree Plot',
-       |                              width=int(plot_width),
-       |                              height=int(plot_height),
-       |                              annotations=make_annotations(position),
-       |                              font_size=12,
-       |                              showlegend=False,
-       |                              xaxis=axis,
-       |                              yaxis=axis,
-       |                              margin=dict(l=40, r=40, b=85, t=100),
-       |                              dragmode='pan',
-       |                              hovermode='closest',
-       |                              plot_bgcolor='rgb(248,248,248)')
+       |${TreePlotPython.figureBody(12, "list(position.values())", "make_annotations(position)")}
        |${standaloneFigure("Tree plot", indent = 12)}
        |        except TreeLayoutError as e:
        |            with open(outputHtml, "w", encoding="utf-8") as output:
@@ -293,8 +173,87 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
 }
 
 private object TreePlotPython {
+  def annotationsBody(indent: Int, loopHeader: String, textExpr: String): String =
+    render(
+      s"""|font_color = 'rgb(250,250,250)'
+          |node_color = '#6175c1'
+          |font_size = 10
+          |annotations = []
+          |$loopHeader
+          |    annotations.append(
+          |        dict(
+          |            text=$textExpr,
+          |            x=coords[0],
+          |            y=coords[1],
+          |            xref='x1', yref='y1',
+          |            font=dict(color=font_color, size=font_size),
+          |            showarrow=False,
+          |            align='center',
+          |            bordercolor='rgb(50,50,50)',
+          |            borderwidth=1,
+          |            borderpad=5,
+          |            bgcolor=node_color,
+          |            opacity=0.8
+          |        )
+          |    )
+          |return annotations""",
+      indent
+    )
+
+  def parseEdges(tableVar: String, indent: Int): String =
+    render(
+      s"""|edges = []
+          |for item in $tableVar[edge_col].dropna():
+          |    try:
+          |        edge = ast.literal_eval(str(item))
+          |        if isinstance(edge, (list, tuple)) and len(edge) == 2:
+          |            edges.append(list(edge))
+          |    except (ValueError, SyntaxError):
+          |        pass""",
+      indent
+    )
+
+  def figureBody(indent: Int, coordsExpr: String, annotationsCall: String): String =
+    render(
+      s"""|HORIZONTAL_DENSITY = 120
+          |VERTICAL_DENSITY = 120
+          |PADDING = 200
+          |MIN_WIDTH = 800
+          |MIN_HEIGHT = 600
+          |
+          |_coords = $coordsExpr
+          |if len(_coords) > 1:
+          |    x_coords, y_coords = zip(*_coords)
+          |    x_range = max(x_coords) - min(x_coords)
+          |    y_range = max(y_coords) - min(y_coords)
+          |    plot_width = max(MIN_WIDTH, x_range * HORIZONTAL_DENSITY + PADDING)
+          |    plot_height = max(MIN_HEIGHT, y_range * VERTICAL_DENSITY + PADDING)
+          |else:
+          |    plot_width = MIN_WIDTH
+          |    plot_height = MIN_HEIGHT
+          |
+          |fig = go.Figure()
+          |fig.add_trace(go.Scatter(x=Xe, y=Ye, mode='lines',
+          |                         line=dict(color='rgb(210,210,210)', width=1),
+          |                         hoverinfo='none'))
+          |axis = dict(showline=False, zeroline=False, showgrid=False, showticklabels=False)
+          |fig.update_layout(title='Tree Plot',
+          |                  width=int(plot_width),
+          |                  height=int(plot_height),
+          |                  annotations=$annotationsCall,
+          |                  font_size=12,
+          |                  showlegend=False,
+          |                  xaxis=axis,
+          |                  yaxis=axis,
+          |                  margin=dict(l=40, r=40, b=85, t=100),
+          |                  dragmode='pan',
+          |                  hovermode='closest',
+          |                  plot_bgcolor='rgb(248,248,248)')""",
+      indent
+    )
+
   def body(indent: Int): String =
-    org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
+    render(
       """|# Tidy top-down tree: depth picks the row, a leaf takes the next
        |# free column and a parent sits centred over its own children.
        |labels = []
