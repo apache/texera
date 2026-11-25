@@ -25,6 +25,8 @@ import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.reflect.ClassTag
+
 class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
 
   private def globalPort(
@@ -39,6 +41,12 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
       portId = PortIdentity(id = portIdValue, internal = internal),
       input = input
     )
+
+  private def deserializeFailure[T <: Throwable: ClassTag](input: String): T =
+    intercept[T](GlobalPortIdentitySerde.deserializeFromString(input))
+
+  private def serializeFailure(port: => GlobalPortIdentity): IllegalArgumentException =
+    intercept[IllegalArgumentException](port.serializeAsString)
 
   "GlobalPortIdentitySerde" should "round-trip a default GlobalPortIdentity through serializeAsString → deserializeFromString" in {
     val original = globalPort()
@@ -98,9 +106,7 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
   it should "throw IllegalArgumentException when serializing a negative port id" in {
     // Port ids are array indices and must be non-negative; the serializer
     // rejects negatives so corrupt data can't reach VFS URIs.
-    intercept[IllegalArgumentException] {
-      globalPort(portIdValue = -1).serializeAsString
-    }
+    serializeFailure(globalPort(portIdValue = -1))
   }
 
   it should "throw IllegalArgumentException when deserializing a negative port id" in {
@@ -108,43 +114,33 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // rejected by the deserializer too (so tampered URIs don't slip
     // through).
     val malformed = "(logicalOpId=op-A,layerName=main,portId=-1,isInternal=false,isInput=true)"
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(malformed)
-    }
+    deserializeFailure[IllegalArgumentException](malformed)
   }
 
   it should "throw IllegalArgumentException when the input has the wrong field order" in {
     // The regex pins the documented field order; a swapped order should
     // not silently parse with confused values.
     val swapped = "(layerName=main,logicalOpId=op-A,portId=0,isInternal=false,isInput=true)"
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(swapped)
-    }
+    deserializeFailure[IllegalArgumentException](swapped)
   }
 
   it should "throw IllegalArgumentException when the input has trailing content past the closing paren" in {
     val withTrailing =
       "(logicalOpId=op-A,layerName=main,portId=0,isInternal=false,isInput=true) extra"
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(withTrailing)
-    }
+    deserializeFailure[IllegalArgumentException](withTrailing)
   }
 
   it should "throw IllegalArgumentException when a field body is empty" in {
     // `[^,]+` requires at least one character, so an empty layerName
     // (`,layerName=,`) must fail to match.
     val emptyLayer = "(logicalOpId=op-A,layerName=,portId=0,isInternal=false,isInput=true)"
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(emptyLayer)
-    }
+    deserializeFailure[IllegalArgumentException](emptyLayer)
   }
 
   it should "throw IllegalArgumentException when a required field is missing" in {
     // Drop isInput.
     val malformed = "(logicalOpId=op-A,layerName=main,portId=0,isInternal=false)"
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(malformed)
-    }
+    deserializeFailure[IllegalArgumentException](malformed)
   }
 
   it should "throw NumberFormatException when portId is non-numeric" in {
@@ -152,24 +148,18 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // extends IllegalArgumentException; assert the more specific type so a
     // regression that swallowed/rewrapped it is visible.
     val malformed = "(logicalOpId=op-A,layerName=main,portId=NaN,isInternal=false,isInput=true)"
-    intercept[NumberFormatException] {
-      GlobalPortIdentitySerde.deserializeFromString(malformed)
-    }
+    deserializeFailure[NumberFormatException](malformed)
   }
 
   it should "throw IllegalArgumentException when a boolean field is non-boolean" in {
     // `String.toBoolean` is strict: only "true" / "false" (case-insensitive)
     // pass; anything else throws IllegalArgumentException.
     val malformed = "(logicalOpId=op-A,layerName=main,portId=0,isInternal=maybe,isInput=true)"
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(malformed)
-    }
+    deserializeFailure[IllegalArgumentException](malformed)
   }
 
   it should "throw IllegalArgumentException on a completely malformed string" in {
-    val ex = intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString("not even close")
-    }
+    val ex = deserializeFailure[IllegalArgumentException]("not even close")
     ex.getMessage should include("not even close")
   }
 
@@ -189,17 +179,13 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // form must be underscore-free. The serializer rejects underscored
     // inputs at the boundary instead of silently emitting a string that
     // would interfere with VFS URI parsing downstream.
-    intercept[IllegalArgumentException] {
-      globalPort(logical = "__DummyOperator").serializeAsString
-    }
+    serializeFailure(globalPort(logical = "__DummyOperator"))
   }
 
   it should "throw IllegalArgumentException when layerName contains an underscore" in {
     // Both fields enforce the same invariant; cover them independently so
     // a partial fix that only validates one surfaces as a test failure.
-    intercept[IllegalArgumentException] {
-      globalPort(layer = "main_source_0_op").serializeAsString
-    }
+    serializeFailure(globalPort(layer = "main_source_0_op"))
   }
 
   // ---------------------------------------------------------------------------
@@ -223,9 +209,7 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // an embedded comma serializes into a string the deserializer can no
     // longer parse back into the same value.
     val s = globalPort(logical = "op,A").serializeAsString
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(s)
-    }
+    deserializeFailure[IllegalArgumentException](s)
   }
 
   it should "round-trip Int.MaxValue but reject an out-of-Int-range portId on deserialize" in {
@@ -235,9 +219,7 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // A value past Int range fails in `.toInt` with NumberFormatException.
     val overflow =
       "(logicalOpId=op-A,layerName=main,portId=9999999999,isInternal=false,isInput=true)"
-    intercept[NumberFormatException] {
-      GlobalPortIdentitySerde.deserializeFromString(overflow)
-    }
+    deserializeFailure[NumberFormatException](overflow)
   }
 
   it should "accept mixed-case boolean fields on deserialize (String.toBoolean is case-insensitive)" in {
@@ -265,9 +247,7 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // output can no longer be parsed back — the serialize side of the same
     // asymmetry the "empty field body" deserialize test characterizes.
     val s = globalPort(logical = "").serializeAsString
-    intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString(s)
-    }
+    deserializeFailure[IllegalArgumentException](s)
   }
 
   it should "name the offending field in the require failure message" in {
@@ -275,14 +255,8 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     // the message identifies which field failed so a regression that wires a
     // check to the wrong field (e.g. validating logicalOpId in layerName's
     // guard) is caught instead of silently still throwing.
-    intercept[IllegalArgumentException] {
-      globalPort(logical = "__x").serializeAsString
-    }.getMessage should include("logicalOpId")
-    intercept[IllegalArgumentException] {
-      globalPort(layer = "a_b").serializeAsString
-    }.getMessage should include("layerName")
-    intercept[IllegalArgumentException] {
-      globalPort(portIdValue = -1).serializeAsString
-    }.getMessage should include("portId")
+    serializeFailure(globalPort(logical = "__x")).getMessage should include("logicalOpId")
+    serializeFailure(globalPort(layer = "a_b")).getMessage should include("layerName")
+    serializeFailure(globalPort(portIdValue = -1)).getMessage should include("portId")
   }
 }

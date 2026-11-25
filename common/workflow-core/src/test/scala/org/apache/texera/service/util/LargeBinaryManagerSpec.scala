@@ -41,15 +41,21 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   }
 
   /** Creates a large binary from string data and returns it. */
-  private def createLargeBinary(data: String): LargeBinary = {
+  private def createLargeBinary(data: String): LargeBinary =
+    createLargeBinary(data.getBytes)
+
+  private def createLargeBinary(data: Array[Byte]): LargeBinary = {
     val largeBinary = new LargeBinary()
     val out = new LargeBinaryOutputStream(largeBinary)
-    try {
-      out.write(data.getBytes)
-    } finally {
-      out.close()
-    }
+    try out.write(data)
+    finally out.close()
     largeBinary
+  }
+
+  private def readLargeBinary(largeBinary: LargeBinary): Array[Byte] = {
+    val stream = new LargeBinaryInputStream(largeBinary)
+    try stream.readAllBytes()
+    finally stream.close()
   }
 
   /** Verifies standard bucket name. */
@@ -66,9 +72,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     val data = "Hello, World! This is a test."
     val largeBinary = createLargeBinary(data)
 
-    val stream = new LargeBinaryInputStream(largeBinary)
-    assert(stream.readAllBytes().sameElements(data.getBytes))
-    stream.close()
+    assert(readLargeBinary(largeBinary).sameElements(data.getBytes))
 
     LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
@@ -148,18 +152,9 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
 
   test("LargeBinaryInputStream should read large data correctly") {
     val largeData = Array.fill[Byte](20000)((scala.util.Random.nextInt(256) - 128).toByte)
-    val largeBinary = new LargeBinary()
-    val out = new LargeBinaryOutputStream(largeBinary)
-    try {
-      out.write(largeData)
-    } finally {
-      out.close()
-    }
+    val largeBinary = createLargeBinary(largeData)
 
-    val stream = new LargeBinaryInputStream(largeBinary)
-    val result = stream.readAllBytes()
-    assert(result.sameElements(largeData))
-    stream.close()
+    assert(readLargeBinary(largeBinary).sameElements(largeData))
 
     LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
@@ -178,9 +173,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     val data = "Hello from large binary!"
     val pointer = createLargeBinary(data)
 
-    val stream = new LargeBinaryInputStream(pointer)
-    val readData = stream.readAllBytes()
-    stream.close()
+    val readData = readLargeBinary(pointer)
 
     assert(readData.sameElements(data.getBytes))
   }
@@ -200,21 +193,8 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   }
 
   test("deleteByExecution removes binaries written via new LargeBinary()") {
-    val pointer1 = new LargeBinary()
-    val out1 = new LargeBinaryOutputStream(pointer1)
-    try {
-      out1.write("Object 1".getBytes)
-    } finally {
-      out1.close()
-    }
-
-    val pointer2 = new LargeBinary()
-    val out2 = new LargeBinaryOutputStream(pointer2)
-    try {
-      out2.write("Object 2".getBytes)
-    } finally {
-      out2.close()
-    }
+    val pointer1 = createLargeBinary("Object 1")
+    val pointer2 = createLargeBinary("Object 2")
 
     LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
@@ -240,17 +220,9 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
 
   test("LargeBinaryManager should handle large objects correctly") {
     val largeData = Array.fill[Byte](6 * 1024 * 1024)((scala.util.Random.nextInt(256) - 128).toByte)
-    val pointer = new LargeBinary()
-    val out = new LargeBinaryOutputStream(pointer)
-    try {
-      out.write(largeData)
-    } finally {
-      out.close()
-    }
+    val pointer = createLargeBinary(largeData)
 
-    val stream = new LargeBinaryInputStream(pointer)
-    val readData = stream.readAllBytes()
-    stream.close()
+    val readData = readLargeBinary(pointer)
 
     assert(readData.sameElements(largeData))
     LargeBinaryManager.deleteByExecution(TestExecutionId)
@@ -258,21 +230,8 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
 
   test("LargeBinaryManager should generate unique URIs for different objects") {
     val testData = "Unique URI test".getBytes
-    val pointer1 = new LargeBinary()
-    val out1 = new LargeBinaryOutputStream(pointer1)
-    try {
-      out1.write(testData)
-    } finally {
-      out1.close()
-    }
-
-    val pointer2 = new LargeBinary()
-    val out2 = new LargeBinaryOutputStream(pointer2)
-    try {
-      out2.write(testData)
-    } finally {
-      out2.close()
-    }
+    val pointer1 = createLargeBinary(testData)
+    val pointer2 = createLargeBinary(testData)
 
     assert(pointer1.getUri != pointer2.getUri)
     assert(pointer1.getObjectKey != pointer2.getObjectKey)
@@ -284,13 +243,9 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     val data = "Multiple reads test data"
     val pointer = createLargeBinary(data)
 
-    val stream1 = new LargeBinaryInputStream(pointer)
-    val readData1 = stream1.readAllBytes()
-    stream1.close()
+    val readData1 = readLargeBinary(pointer)
 
-    val stream2 = new LargeBinaryInputStream(pointer)
-    val readData2 = stream2.readAllBytes()
-    stream2.close()
+    val readData2 = readLargeBinary(pointer)
 
     assert(readData1.sameElements(data.getBytes))
     assert(readData2.sameElements(data.getBytes))
@@ -315,13 +270,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   test("LargeBinary with LargeBinaryOutputStream should create a large binary") {
     val data = "Test data for LargeBinary with LargeBinaryOutputStream"
 
-    val largeBinary = new LargeBinary()
-    val out = new LargeBinaryOutputStream(largeBinary)
-    try {
-      out.write(data.getBytes)
-    } finally {
-      out.close()
-    }
+    val largeBinary = createLargeBinary(data)
 
     assertStandardBucket(largeBinary)
 
@@ -332,9 +281,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     val data = "Test data for LargeBinaryInputStream constructor"
     val largeBinary = createLargeBinary(data)
 
-    val stream = new LargeBinaryInputStream(largeBinary)
-    val readData = stream.readAllBytes()
-    stream.close()
+    val readData = readLargeBinary(largeBinary)
 
     assert(readData.sameElements(data.getBytes))
 
@@ -345,18 +292,10 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     val data = "End-to-end test data"
 
     // Create using streaming API
-    val largeBinary = new LargeBinary()
-    val out = new LargeBinaryOutputStream(largeBinary)
-    try {
-      out.write(data.getBytes)
-    } finally {
-      out.close()
-    }
+    val largeBinary = createLargeBinary(data)
 
     // Read using standard constructor
-    val stream = new LargeBinaryInputStream(largeBinary)
-    val readData = stream.readAllBytes()
-    stream.close()
+    val readData = readLargeBinary(largeBinary)
 
     assert(readData.sameElements(data.getBytes))
 
@@ -370,17 +309,12 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   test("LargeBinaryOutputStream should write and upload data to S3") {
     val data = "Test data for LargeBinaryOutputStream"
 
-    val largeBinary = new LargeBinary()
-    val outStream = new LargeBinaryOutputStream(largeBinary)
-    outStream.write(data.getBytes)
-    outStream.close()
+    val largeBinary = createLargeBinary(data)
 
     assertStandardBucket(largeBinary)
 
     // Verify data can be read back
-    val inStream = new LargeBinaryInputStream(largeBinary)
-    val readData = inStream.readAllBytes()
-    inStream.close()
+    val readData = readLargeBinary(largeBinary)
 
     assert(readData.sameElements(data.getBytes))
 
@@ -390,10 +324,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   test("LargeBinaryOutputStream should create large binary") {
     val data = "Database registration test"
 
-    val largeBinary = new LargeBinary()
-    val outStream = new LargeBinaryOutputStream(largeBinary)
-    outStream.write(data.getBytes)
-    outStream.close()
+    val largeBinary = createLargeBinary(data)
 
     assertStandardBucket(largeBinary)
 
@@ -403,15 +334,10 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   test("LargeBinaryOutputStream should handle large data correctly") {
     val largeData = Array.fill[Byte](8 * 1024 * 1024)((scala.util.Random.nextInt(256) - 128).toByte)
 
-    val largeBinary = new LargeBinary()
-    val outStream = new LargeBinaryOutputStream(largeBinary)
-    outStream.write(largeData)
-    outStream.close()
+    val largeBinary = createLargeBinary(largeData)
 
     // Verify data integrity
-    val inStream = new LargeBinaryInputStream(largeBinary)
-    val readData = inStream.readAllBytes()
-    inStream.close()
+    val readData = readLargeBinary(largeBinary)
 
     assert(readData.sameElements(largeData))
 
@@ -426,9 +352,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     outStream.write("!".getBytes)
     outStream.close()
 
-    val inStream = new LargeBinaryInputStream(largeBinary)
-    val readData = inStream.readAllBytes()
-    inStream.close()
+    val readData = readLargeBinary(largeBinary)
 
     assert(readData.sameElements("Hello World!".getBytes))
 
@@ -470,15 +394,10 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     val data = "Symmetric API test"
 
     // Write using new symmetric API
-    val largeBinary = new LargeBinary()
-    val outStream = new LargeBinaryOutputStream(largeBinary)
-    outStream.write(data.getBytes)
-    outStream.close()
+    val largeBinary = createLargeBinary(data)
 
     // Read using symmetric API
-    val inStream = new LargeBinaryInputStream(largeBinary)
-    val readData = inStream.readAllBytes()
-    inStream.close()
+    val readData = readLargeBinary(largeBinary)
 
     assert(readData.sameElements(data.getBytes))
 

@@ -19,68 +19,48 @@
 
 package org.apache.texera.amber.storage.result.iceberg
 
-import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
-import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.tags.IntegrationTest
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import java.net.URI
 import java.sql.Timestamp
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, ZoneId}
-import java.util.UUID
 
 @IntegrationTest
-class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {
+class IcebergTableStatsSpec extends AnyFlatSpec {
 
-  var amberSchema: Schema = _
-  var uri: URI = VFSURIFactory.resultURI(
-    VFSURIFactory.createPortBaseURI(
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      GlobalPortIdentity(
-        PhysicalOpIdentity(
-          logicalOpId =
-            OperatorIdentity(s"test-table-${UUID.randomUUID().toString.replace("-", "")}"),
-          layerName = "main"
-        ),
-        PortIdentity()
-      )
-    )
-  )
+  val uri: URI = VFSURIFactory.resultURI(IcebergDocumentSpec.uniquePortBaseURI())
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  private def writeTuples(tuples: List[Tuple]): VirtualDocument[Tuple] = {
+    val document = IcebergDocumentSpec.openTupleDocument(uri)
+    VirtualDocumentSpec.withWriter(document)(w => tuples.foreach(w.putOne))
+    document
+  }
 
-    // Initialize Amber Schema with all possible attribute types
-    amberSchema = Schema(
-      List(
-        new Attribute("col-string", AttributeType.STRING),
-        new Attribute("col-int", AttributeType.INTEGER),
-        new Attribute("col-bool", AttributeType.BOOLEAN),
-        new Attribute("col-long", AttributeType.LONG),
-        new Attribute("col-double", AttributeType.DOUBLE),
-        new Attribute("col-timestamp", AttributeType.TIMESTAMP),
-        new Attribute("col-binary", AttributeType.BINARY)
-      )
-    )
-
+  private def assertTimestampBounds(
+      stats: Map[String, Map[String, Any]],
+      expectedMinMs: Long,
+      expectedMaxMs: Long
+  ): Unit = {
+    val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+    val actualMin = LocalDate.parse(stats("col-timestamp")("min").asInstanceOf[String], formatter)
+    val actualMax = LocalDate.parse(stats("col-timestamp")("max").asInstanceOf[String], formatter)
+    val expectedMin =
+      new Timestamp(expectedMinMs).toInstant.atZone(ZoneId.systemDefault()).toLocalDate
+    val expectedMax =
+      new Timestamp(expectedMaxMs).toInstant.atZone(ZoneId.systemDefault()).toLocalDate
+    assert(actualMin == expectedMin)
+    assert(actualMax == expectedMax)
   }
 
   behavior of "TableStatistics"
 
   it should "get correct statistics after inserting three tuples" in {
-    DocumentFactory.createDocument(uri, amberSchema)
-    val document = DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
+    DocumentFactory.createDocument(uri, IcebergDocumentSpec.allTypesSchema)
 
     val tuples = generateSampleItems(
       List(
@@ -114,13 +94,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
       )
     )
 
-    // Get writer and write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    tuples.foreach(writer.putOne)
-    writer.close()
-
-    val stats = document.getTableStatistics
+    val stats = writeTuples(tuples).getTableStatistics
 
     assert(!stats("col-string").contains("min"))
     assert(!stats("col-string").contains("max"))
@@ -130,13 +104,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
     assert(stats("col-long")("max") == 200L)
     assert(stats("col-double")("min") == 1.41)
     assert(stats("col-double")("max") == 3.14)
-    val formatter = DateTimeFormatter.ISO_LOCAL_DATE
-    val actualMin = LocalDate.parse(stats("col-timestamp")("min").asInstanceOf[String], formatter)
-    val actualMax = LocalDate.parse(stats("col-timestamp")("max").asInstanceOf[String], formatter)
-    val expectedMin = new Timestamp(10000L).toInstant.atZone(ZoneId.systemDefault()).toLocalDate
-    val expectedMax = new Timestamp(20000L).toInstant.atZone(ZoneId.systemDefault()).toLocalDate
-    assert(actualMin == expectedMin)
-    assert(actualMax == expectedMax)
+    assertTimestampBounds(stats, 10000L, 20000L)
     assert(stats("col-bool")("not_null_count") == 3L)
   }
 
@@ -163,15 +131,8 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
         )
       )
     )
-    val document = DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
 
-    // Get writer and write items
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    newTuples.foreach(writer.putOne)
-    writer.close()
-
-    val stats = document.getTableStatistics
+    val stats = writeTuples(newTuples).getTableStatistics
 
     assert(stats("col-int")("min") == 30)
     assert(stats("col-int")("max") == 99)
@@ -179,13 +140,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
     assert(stats("col-long")("max") == 400L)
     assert(stats("col-double")("min") == 1.41)
     assert(stats("col-double")("max") == 5.67)
-    val formatter = DateTimeFormatter.ISO_LOCAL_DATE
-    val actualMin = LocalDate.parse(stats("col-timestamp")("min").asInstanceOf[String], formatter)
-    val actualMax = LocalDate.parse(stats("col-timestamp")("max").asInstanceOf[String], formatter)
-    val expectedMin = new Timestamp(10000L).toInstant.atZone(ZoneId.systemDefault()).toLocalDate
-    val expectedMax = new Timestamp(40000L).toInstant.atZone(ZoneId.systemDefault()).toLocalDate
-    assert(actualMin == expectedMin)
-    assert(actualMax == expectedMax)
+    assertTimestampBounds(stats, 10000L, 40000L)
     assert(stats("col-bool")("not_null_count") == 5L)
   }
 
@@ -205,14 +160,8 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
         ("third", Some(30), Some(true), None, Some(1.41), Some(15000L), None)
       )
     )
-    val document = DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
 
-    val writer = document.writer(UUID.randomUUID().toString)
-    writer.open()
-    tuplesWithNulls.foreach(writer.putOne)
-    writer.close()
-
-    val stats = document.getTableStatistics
+    val stats = writeTuples(tuplesWithNulls).getTableStatistics
 
     assert(stats("col-string")("not_null_count") == 8L)
     assert(stats("col-int")("not_null_count") == 7L)
@@ -238,16 +187,15 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
   ): List[Tuple] = {
     values.map {
       case (strVal, intVal, boolVal, longVal, doubleVal, timestampVal, binaryVal) =>
-        Tuple
-          .builder(amberSchema)
-          .add("col-string", AttributeType.STRING, strVal)
-          .add("col-int", AttributeType.INTEGER, intVal.orNull)
-          .add("col-bool", AttributeType.BOOLEAN, boolVal.orNull)
-          .add("col-long", AttributeType.LONG, longVal.orNull)
-          .add("col-double", AttributeType.DOUBLE, doubleVal.orNull)
-          .add("col-timestamp", AttributeType.TIMESTAMP, timestampVal.map(new Timestamp(_)).orNull)
-          .add("col-binary", AttributeType.BINARY, binaryVal.orNull)
-          .build()
+        IcebergDocumentSpec.buildAllTypesTuple(
+          strVal,
+          intVal.orNull,
+          boolVal.orNull,
+          longVal.orNull,
+          doubleVal.orNull,
+          timestampVal.map(new Timestamp(_)).orNull,
+          binaryVal.orNull
+        )
     }
   }
 }

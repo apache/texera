@@ -27,23 +27,9 @@ import java.io.IOException
 import scala.util.Random
 
 @NonParallelTest
-class LargeBinaryOutputStreamSpec extends AnyFunSuite with S3StorageTestBase {
+class LargeBinaryOutputStreamSpec extends AnyFunSuite with S3BucketTestBase {
 
-  private val testBucketName = "test-large-binary-output-stream"
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    S3StorageClient.createBucketIfNotExist(testBucketName)
-  }
-
-  override def afterAll(): Unit = {
-    try {
-      S3StorageClient.deleteDirectory(testBucketName, "")
-    } catch {
-      case _: Exception => // Ignore cleanup errors
-    }
-    super.afterAll()
-  }
+  protected val testBucketName = "test-large-binary-output-stream"
 
   // Helper methods
   private def createLargeBinary(key: String): LargeBinary =

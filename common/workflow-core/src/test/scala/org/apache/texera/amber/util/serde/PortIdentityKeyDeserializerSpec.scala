@@ -25,10 +25,22 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.jdk.CollectionConverters._
+import scala.reflect.ClassTag
 
 class PortIdentityKeyDeserializerSpec extends AnyFlatSpec with Matchers {
 
   private val deserializer = new PortIdentityKeyDeserializer
+
+  private def keyFailure[T <: Throwable: ClassTag](key: String): T =
+    intercept[T](deserializer.deserializeKey(key, null))
+
+  private def roundTripMap(original: Map[PortIdentity, String]): Map[PortIdentity, String] = {
+    val json = objectMapper.writeValueAsString(original)
+    val mapType = objectMapper.getTypeFactory
+      .constructMapType(classOf[java.util.HashMap[_, _]], classOf[PortIdentity], classOf[String])
+    val restored: java.util.Map[PortIdentity, String] = objectMapper.readValue(json, mapType)
+    restored.asScala.toMap
+  }
 
   "PortIdentityKeyDeserializer.deserializeKey" should "parse id_internal keys into PortIdentity" in {
     deserializer.deserializeKey("3_false", null) shouldBe PortIdentity(3, internal = false)
@@ -60,54 +72,32 @@ class PortIdentityKeyDeserializerSpec extends AnyFlatSpec with Matchers {
       PortIdentity(999999, internal = false) -> "large-external",
       PortIdentity(-1, internal = true) -> "negative-internal"
     )
-    val json = objectMapper.writeValueAsString(original)
-    val mapType = objectMapper.getTypeFactory
-      .constructMapType(classOf[java.util.HashMap[_, _]], classOf[PortIdentity], classOf[String])
-
-    val restored: java.util.Map[PortIdentity, String] = objectMapper.readValue(json, mapType)
-
-    restored.asScala.toMap shouldBe original
+    roundTripMap(original) shouldBe original
   }
 
   it should "round-trip an empty Map[PortIdentity, String] through JSONUtils.objectMapper" in {
     val original = Map.empty[PortIdentity, String]
-    val json = objectMapper.writeValueAsString(original)
-    val mapType = objectMapper.getTypeFactory
-      .constructMapType(classOf[java.util.HashMap[_, _]], classOf[PortIdentity], classOf[String])
-
-    val restored: java.util.Map[PortIdentity, String] = objectMapper.readValue(json, mapType)
-
-    restored.asScala.toMap shouldBe original
+    roundTripMap(original) shouldBe original
   }
 
   it should "throw NumberFormatException for a non-integer id" in {
-    intercept[NumberFormatException] {
-      deserializer.deserializeKey("notAnInt_false", null)
-    }
+    keyFailure[NumberFormatException]("notAnInt_false")
   }
 
   it should "throw IllegalArgumentException for a non-boolean internal flag" in {
-    intercept[IllegalArgumentException] {
-      deserializer.deserializeKey("0_notABool", null)
-    }
+    keyFailure[IllegalArgumentException]("0_notABool")
   }
 
   it should "throw NumberFormatException when a separator-less key is non-numeric" in {
-    intercept[NumberFormatException] {
-      deserializer.deserializeKey("missingSeparator", null)
-    }
+    keyFailure[NumberFormatException]("missingSeparator")
   }
 
   it should "throw NumberFormatException for an empty key" in {
-    intercept[NumberFormatException] {
-      deserializer.deserializeKey("", null)
-    }
+    keyFailure[NumberFormatException]("")
   }
 
   it should "throw ArrayIndexOutOfBoundsException when only the id is provided" in {
-    intercept[ArrayIndexOutOfBoundsException] {
-      deserializer.deserializeKey("5", null)
-    }
+    keyFailure[ArrayIndexOutOfBoundsException]("5")
   }
 
   it should "ignore extra trailing underscore-separated segments" in {

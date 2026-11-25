@@ -21,12 +21,61 @@ package org.apache.texera.common.compiler.model
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException
+import com.fasterxml.jackson.databind.node.{IntNode, TextNode}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 class LogicalLinkSpec extends AnyFlatSpec {
+
+  /** A fresh link from op-A port 0 to op-B port 1. */
+  private def abLink: LogicalLink =
+    LogicalLink(
+      OperatorIdentity("op-A"),
+      PortIdentity(0),
+      OperatorIdentity("op-B"),
+      PortIdentity(1)
+    )
+
+  /** The primary constructor rejects `badId` at either end of a link. By name, so each
+    * identity is built inside its own intercept.
+    */
+  private def assertRejectedAtEitherEnd(badId: => OperatorIdentity): Unit = {
+    intercept[IllegalArgumentException] {
+      LogicalLink(badId, PortIdentity(0), OperatorIdentity("op-B"), PortIdentity(1))
+    }
+    intercept[IllegalArgumentException] {
+      LogicalLink(OperatorIdentity("op-A"), PortIdentity(0), badId, PortIdentity(1))
+    }
+  }
+
+  /** The secondary String constructor rejects `badId` at either end of a link. */
+  private def assertRejectedStringAtEitherEnd(badId: String): Unit = {
+    intercept[IllegalArgumentException] {
+      new LogicalLink(badId, PortIdentity(0), "op-B", PortIdentity(1))
+    }
+    intercept[IllegalArgumentException] {
+      new LogicalLink("op-A", PortIdentity(0), badId, PortIdentity(1))
+    }
+  }
+
+  /** A saved link from `fromOpId` to op-B, read through the production mapper. */
+  private def deserializeLink(fromOpId: JsonNode): LogicalLink = {
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", fromOpId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    objectMapper.treeToValue(node, classOf[LogicalLink])
+  }
+
+  /** The IllegalArgumentException the creator throws for `fromOpId`, as Jackson wraps it. */
+  private def rejectionOf(fromOpId: JsonNode): Throwable = {
+    val ex = intercept[ValueInstantiationException](deserializeLink(fromOpId))
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    ex.getCause
+  }
 
   // ---------------------------------------------------------------------------
   // Primary constructor + case-class semantics
@@ -94,40 +143,15 @@ class LogicalLinkSpec extends AnyFlatSpec {
   }
 
   it should "reject a null fromOpId / toOpId in the primary constructor" in {
-    intercept[IllegalArgumentException] {
-      LogicalLink(null, PortIdentity(0), OperatorIdentity("op-B"), PortIdentity(1))
-    }
-    intercept[IllegalArgumentException] {
-      LogicalLink(OperatorIdentity("op-A"), PortIdentity(0), null, PortIdentity(1))
-    }
+    assertRejectedAtEitherEnd(null)
   }
 
   it should "reject an OperatorIdentity wrapping a null id in the primary constructor" in {
-    intercept[IllegalArgumentException] {
-      LogicalLink(
-        OperatorIdentity(null),
-        PortIdentity(0),
-        OperatorIdentity("op-B"),
-        PortIdentity(1)
-      )
-    }
-    intercept[IllegalArgumentException] {
-      LogicalLink(
-        OperatorIdentity("op-A"),
-        PortIdentity(0),
-        OperatorIdentity(null),
-        PortIdentity(1)
-      )
-    }
+    assertRejectedAtEitherEnd(OperatorIdentity(null))
   }
 
   it should "reject an OperatorIdentity wrapping an empty id in the primary constructor" in {
-    intercept[IllegalArgumentException] {
-      LogicalLink(OperatorIdentity(""), PortIdentity(0), OperatorIdentity("op-B"), PortIdentity(1))
-    }
-    intercept[IllegalArgumentException] {
-      LogicalLink(OperatorIdentity("op-A"), PortIdentity(0), OperatorIdentity(""), PortIdentity(1))
-    }
+    assertRejectedAtEitherEnd(OperatorIdentity(""))
   }
 
   // ---------------------------------------------------------------------------
@@ -144,14 +168,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(link.fromOpId == OperatorIdentity("op-A"))
     assert(link.toOpId == OperatorIdentity("op-B"))
     // Equal to a link built via the primary constructor.
-    assert(
-      link == LogicalLink(
-        OperatorIdentity("op-A"),
-        PortIdentity(0),
-        OperatorIdentity("op-B"),
-        PortIdentity(1)
-      )
-    )
+    assert(link == abLink)
   }
 
   it should "accept identifiers containing dashes / dots / digits (no normalization)" in {
@@ -161,21 +178,11 @@ class LogicalLinkSpec extends AnyFlatSpec {
   }
 
   it should "reject the empty string as an op id via the secondary String constructor" in {
-    intercept[IllegalArgumentException] {
-      new LogicalLink("", PortIdentity(0), "op-B", PortIdentity(1))
-    }
-    intercept[IllegalArgumentException] {
-      new LogicalLink("op-A", PortIdentity(0), "", PortIdentity(1))
-    }
+    assertRejectedStringAtEitherEnd("")
   }
 
   it should "reject a null string op id via the secondary String constructor" in {
-    intercept[IllegalArgumentException] {
-      new LogicalLink(null: String, PortIdentity(0), "op-B", PortIdentity(1))
-    }
-    intercept[IllegalArgumentException] {
-      new LogicalLink("op-A", PortIdentity(0), null: String, PortIdentity(1))
-    }
+    assertRejectedStringAtEitherEnd(null)
   }
 
   it should "reject a self-loop via the secondary String constructor (same string op id)" in {
@@ -199,12 +206,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     // `fromOpId` and `toOpId` are written as plain strings (the only shape
     // production actually receives, since the frontend emits them as
     // strings). Jackson dispatches to the @JsonCreator constructor.
-    val node = objectMapper.createObjectNode()
-    node.put("fromOpId", "op-A")
-    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
-    node.put("toOpId", "op-B")
-    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
-    val link = objectMapper.treeToValue(node, classOf[LogicalLink])
+    val link = deserializeLink(TextNode.valueOf("op-A"))
     assert(link.fromOpId == OperatorIdentity("op-A"))
     assert(link.toOpId == OperatorIdentity("op-B"))
     assert(link.fromPortId == PortIdentity(0))
@@ -216,13 +218,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     // a Scala-side rename of either parameter would still keep the
     // JSON key stable, which is the saved-workflow contract these
     // annotations pin.
-    val link = LogicalLink(
-      OperatorIdentity("op-A"),
-      PortIdentity(0),
-      OperatorIdentity("op-B"),
-      PortIdentity(1)
-    )
-    val tree = objectMapper.valueToTree[JsonNode](link)
+    val tree = objectMapper.valueToTree[JsonNode](abLink)
     assert(tree.has("fromOpId"))
     assert(tree.has("toOpId"))
   }
@@ -233,24 +229,13 @@ class LogicalLinkSpec extends AnyFlatSpec {
     // parameter rename WOULD silently break saved-workflow compatibility
     // for these keys — pin so a future rename without an accompanying
     // `@JsonProperty` annotation breaks this on purpose.
-    val link = LogicalLink(
-      OperatorIdentity("op-A"),
-      PortIdentity(0),
-      OperatorIdentity("op-B"),
-      PortIdentity(1)
-    )
-    val tree = objectMapper.valueToTree[JsonNode](link)
+    val tree = objectMapper.valueToTree[JsonNode](abLink)
     assert(tree.has("fromPortId"))
     assert(tree.has("toPortId"))
   }
 
   it should "round-trip through writeValueAsString when OperatorIdentity fields use object shape" in {
-    val original = LogicalLink(
-      OperatorIdentity("op-A"),
-      PortIdentity(0),
-      OperatorIdentity("op-B"),
-      PortIdentity(1)
-    )
+    val original = abLink
     val json = objectMapper.writeValueAsString(original)
     // Parse the emitted JSON and confirm the structural shape — fromOpId
     // is an object with an `id` field of "op-A". Avoids depending on
@@ -280,64 +265,31 @@ class LogicalLinkSpec extends AnyFlatSpec {
     // An object-shape fromOpId lacking an `id` field resolves to
     // OperatorIdentity(null), which the primary constructor's `require`
     // rejects — surfaced as ValueInstantiationException.
-    val node = objectMapper.createObjectNode()
-    node.set("fromOpId", objectMapper.createObjectNode()) // {} — no "id"
-    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
-    node.put("toOpId", "op-B")
-    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
-    val ex = intercept[ValueInstantiationException] {
-      objectMapper.treeToValue(node, classOf[LogicalLink])
-    }
-    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
-    assert(ex.getCause.getMessage.contains("fromOpId must be non-null"))
+    val noId = objectMapper.createObjectNode() // {} — no "id"
+    assert(rejectionOf(noId).getMessage.contains("fromOpId must be non-null"))
   }
 
   it should "reject an object-shape op id whose `id` field is non-textual" in {
     // `{"id": 123}` is malformed: `id` must be a string (or null). The
     // helper throws rather than silently coercing 123 -> "123"; Jackson
     // wraps the IllegalArgumentException in a ValueInstantiationException.
-    val node = objectMapper.createObjectNode()
     val badOpId = objectMapper.createObjectNode()
     badOpId.put("id", 123)
-    node.set("fromOpId", badOpId)
-    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
-    node.put("toOpId", "op-B")
-    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
-    val ex = intercept[ValueInstantiationException] {
-      objectMapper.treeToValue(node, classOf[LogicalLink])
-    }
-    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
-    assert(ex.getCause.getMessage.contains("fromOpId.id must be a string"))
+    assert(rejectionOf(badOpId).getMessage.contains("fromOpId.id must be a string"))
   }
 
   it should "reject an op id that is neither a string nor an object (e.g. a number)" in {
     // A top-level numeric fromOpId hits the final else branch of
     // readOperatorIdentity, which throws; Jackson wraps it.
-    val node = objectMapper.createObjectNode()
-    node.put("fromOpId", 12345)
-    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
-    node.put("toOpId", "op-B")
-    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
-    val ex = intercept[ValueInstantiationException] {
-      objectMapper.treeToValue(node, classOf[LogicalLink])
-    }
-    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
-    assert(ex.getCause.getMessage.contains("fromOpId must be a string or an object"))
+    val number = IntNode.valueOf(12345)
+    assert(rejectionOf(number).getMessage.contains("fromOpId must be a string or an object"))
   }
 
   it should "reject an explicit JSON null op id (exercises the node.isNull branch)" in {
     // An explicit `"fromOpId": null` arrives as a NullNode (an absent field
     // arrives as Java null), exercising the `node.isNull` branch; require
     // then rejects the null id.
-    val node = objectMapper.createObjectNode()
-    node.set("fromOpId", objectMapper.nullNode())
-    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
-    node.put("toOpId", "op-B")
-    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
-    val ex = intercept[ValueInstantiationException] {
-      objectMapper.treeToValue(node, classOf[LogicalLink])
-    }
-    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    rejectionOf(objectMapper.nullNode())
   }
 
   it should "reject an object-shape op id with an explicit null `id` (exercises the idNode.isNull branch)" in {
@@ -345,14 +297,6 @@ class LogicalLinkSpec extends AnyFlatSpec {
     // branch; require then rejects the resulting OperatorIdentity(null).
     val opId = objectMapper.createObjectNode()
     opId.set("id", objectMapper.nullNode())
-    val node = objectMapper.createObjectNode()
-    node.set("fromOpId", opId)
-    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
-    node.put("toOpId", "op-B")
-    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
-    val ex = intercept[ValueInstantiationException] {
-      objectMapper.treeToValue(node, classOf[LogicalLink])
-    }
-    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    rejectionOf(opId)
   }
 }
