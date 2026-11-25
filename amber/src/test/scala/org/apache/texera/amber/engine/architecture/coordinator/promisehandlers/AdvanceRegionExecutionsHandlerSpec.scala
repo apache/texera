@@ -100,16 +100,21 @@ class AdvanceRegionExecutionsHandlerSpec
     * worker RPC error — never a `WorkflowRuntimeException` carrying a worker id. This stub records
     * the advance calls and hands back a future the test controls, so the handler can be observed
     * both while the advance is still pending and after it has failed with either kind of cause.
+    *
+    * Setting `throwOnAdvance` makes the advance fail before any future exists, the way a storage
+    * or schema failure inside `syncStatusAndTransitionRegionExecutionPhase` does.
     */
   private class PendingAdvanceExecutionManager(
       workflowExecution: WorkflowExecution,
       asyncRPCClient: AsyncRPCClient
   ) extends WorkflowExecutionManager(workflowExecution, coordinatorConfig, asyncRPCClient) {
     val advanceCalls: ArrayBuffer[PekkoActorService] = ArrayBuffer()
+    var throwOnAdvance: Option[Throwable] = None
     private val advance: Promise[Unit] = Promise[Unit]()
 
     override def advanceRegionExecutions(actorService: PekkoActorService): Future[Unit] = {
       advanceCalls += actorService
+      throwOnAdvance.foreach(failure => throw failure)
       advance
     }
 
@@ -119,19 +124,6 @@ class AdvanceRegionExecutionsHandlerSpec
     def failAdvance(cause: Throwable): Unit = advance.setException(cause)
 
     def finishAdvance(): Unit = advance.setValue(())
-  }
-
-  /**
-    * Stands in for a `WorkflowExecutionManager` whose advance fails before any future exists, the
-    * way a storage or schema failure inside `syncStatusAndTransitionRegionExecutionPhase` does.
-    */
-  private class ThrowingAdvanceExecutionManager(
-      workflowExecution: WorkflowExecution,
-      asyncRPCClient: AsyncRPCClient,
-      failure: Throwable
-  ) extends WorkflowExecutionManager(workflowExecution, coordinatorConfig, asyncRPCClient) {
-    override def advanceRegionExecutions(actorService: PekkoActorService): Future[Unit] =
-      throw failure
   }
 
   private class TestCoordinatorProcessor(
@@ -144,19 +136,6 @@ class AdvanceRegionExecutionsHandlerSpec
       ) {
     override val workflowExecutionManager: PendingAdvanceExecutionManager =
       new PendingAdvanceExecutionManager(workflowExecution, asyncRPCClient)
-  }
-
-  private class ThrowingCoordinatorProcessor(
-      outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
-      failure: Throwable
-  ) extends CoordinatorProcessor(
-        new WorkflowContext(),
-        coordinatorConfig,
-        COORDINATOR,
-        outputHandler
-      ) {
-    override val workflowExecutionManager: WorkflowExecutionManager =
-      new ThrowingAdvanceExecutionManager(workflowExecution, asyncRPCClient, failure)
   }
 
   private case class Fixture(
@@ -183,23 +162,10 @@ class AdvanceRegionExecutionsHandlerSpec
   }
 
   /** Like `newFixture`, but the execution manager's advance throws `failure` synchronously. */
-  private def newThrowingFixture(
-      failure: Throwable
-  ): (
-      ThrowingCoordinatorProcessor,
-      CoordinatorAsyncRPCHandlerInitializer,
-      ArrayBuffer[WorkflowFIFOMessage]
-  ) = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val cp = new ThrowingCoordinatorProcessor(
-      {
-        case Right(msg) => sent += msg
-        case Left(_)    => ()
-      },
-      failure
-    )
-    cp.setupActorService(createCoordinatorHarness().actorService)
-    (cp, new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
+  private def newThrowingFixture(failure: Throwable): Fixture = {
+    val fixture = newFixture()
+    fixture.manager.throwOnAdvance = Some(failure)
+    fixture
   }
 
   private def clientEvents(sent: ArrayBuffer[WorkflowFIFOMessage]): Seq[ClientEvent] =
@@ -297,7 +263,7 @@ class AdvanceRegionExecutionsHandlerSpec
   it should "notify the client with the worker id when the advance throws before returning a future" in {
     val failure =
       new WorkflowRuntimeException("output port storage unavailable", Some(relatedWorker))
-    val (_, init, sent) = newThrowingFixture(failure)
+    val Fixture(_, init, sent) = newThrowingFixture(failure)
 
     val response = init.coordinatorInitiateAdvanceRegionExecutions(EmptyRequest(), ctx)
 
@@ -309,7 +275,7 @@ class AdvanceRegionExecutionsHandlerSpec
 
   it should "notify the client without a worker id when the advance throws a plain exception" in {
     val failure = new IllegalStateException("Failed to resolve the output schema")
-    val (_, init, sent) = newThrowingFixture(failure)
+    val Fixture(_, init, sent) = newThrowingFixture(failure)
 
     val response = init.coordinatorInitiateAdvanceRegionExecutions(EmptyRequest(), ctx)
 
@@ -319,7 +285,7 @@ class AdvanceRegionExecutionsHandlerSpec
 
   it should "reply normally to the requesting round when the advance throws" in {
     val failure = new IllegalStateException("Failed to resolve the output schema")
-    val (cp, _, sent) = newThrowingFixture(failure)
+    val Fixture(cp, _, sent) = newThrowingFixture(failure)
 
     // Dispatched by the real RPC server, as production does it. The reply to the coordinator
     // must be the ordinary EmptyReturn, not a ControlError that nothing consumes, and the
@@ -346,7 +312,7 @@ class AdvanceRegionExecutionsHandlerSpec
 
   it should "notify the client without a worker id when a WorkflowRuntimeException names no worker" in {
     val failure = new WorkflowRuntimeException("region cannot be scheduled", None)
-    val (_, init, sent) = newThrowingFixture(failure)
+    val Fixture(_, init, sent) = newThrowingFixture(failure)
 
     val response = init.coordinatorInitiateAdvanceRegionExecutions(EmptyRequest(), ctx)
 
@@ -359,7 +325,7 @@ class AdvanceRegionExecutionsHandlerSpec
     // `Future(...)` only converts non-fatal exceptions; an Error still escapes the handler and
     // the RPC server answers the coordinator with a ControlError.
     val failure = new LinkageError("boom")
-    val (cp, _, sent) = newThrowingFixture(failure)
+    val Fixture(cp, _, sent) = newThrowingFixture(failure)
 
     cp.processDCM(
       ChannelIdentity(COORDINATOR, COORDINATOR, isControl = true),
