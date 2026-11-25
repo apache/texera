@@ -88,4 +88,29 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
       StorageConfig.jupyterTokenSecret shouldBe ""
     }
   }
+
+  "StorageConfig catalog cache settings" should "default to the bounds the cache was sized with" in {
+    // Every JVM runs with these unless its deployment overrides them, so a slip here would
+    // resize every service's cache. Only assert when neither env override is set, since
+    // either would win otherwise.
+    if (
+      sys.env.get("STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE").isEmpty &&
+      sys.env.get("STORAGE_ICEBERG_CATALOG_CACHE_IDLE_EXPIRY_MINUTES").isEmpty
+    ) {
+      StorageConfig.icebergCatalogCacheMaxSize shouldBe 64
+      StorageConfig.icebergCatalogCacheIdleExpiryMinutes shouldBe 60
+    }
+  }
+
+  it should "refuse a bound below 1, naming the variable" in {
+    for (value <- Seq(0, -1)) {
+      val error = intercept[IllegalArgumentException] {
+        StorageConfig.requireAtLeastOne(value, "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE")
+      }
+      error.getMessage should include(
+        s"STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE must be at least 1, got $value"
+      )
+    }
+    StorageConfig.requireAtLeastOne(1, "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE") shouldBe 1
+  }
 }

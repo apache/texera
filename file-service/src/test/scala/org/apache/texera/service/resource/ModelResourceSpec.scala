@@ -28,15 +28,14 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, User}
 import org.apache.texera.service.MockLakeFS
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 class ModelResourceSpec
     extends AnyFlatSpec
     with Matchers
     with MockTexeraDB
     with MockLakeFS
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterAll {
 
   private val ownerUser: User = {
     val user = new User

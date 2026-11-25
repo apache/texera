@@ -89,11 +89,6 @@ import scala.collection.mutable.ListBuffer
   * The runtime half of `executeWorkflow` (everything from `createAmberRuntime` on) is
   * out of reach here for the reason above and is exercised by the integration suites.
   *
-  * Known, pre-existing: `ExecutionStatsService` never shuts down its private
-  * `metricsPersistThread` (it does not override `unsubscribeAll`), so the teardown
-  * test below leaks one single-thread executor into the shared JVM, as every
-  * construction of that service already does.
-  *
   * Three further gaps are deliberately described and NOT pinned, because a test that
   * froze the current behaviour would cement it:
   *

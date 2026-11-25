@@ -40,13 +40,13 @@ class ImageVisualizerOpDescSpec
     // operator reaches the nonEmpty assert and surfaces a domain error with
     // the standard "cannot be empty" message rather than a
     // NullPointerException from dereferencing null.
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
+    expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
   }
 
   it should "reject missing binaryContent with a controlled error via generatePythonCode" in {
     // The assert inside createBinaryData is also reachable through the
     // public codegen entry point; the same message must surface there.
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
+    expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
   }
 
   "ImageVisualizerOpDesc.operatorInfo" should "advertise the user-friendly name and Media group" in {
@@ -76,7 +76,7 @@ class ImageVisualizerOpDescSpec
     // the nonEmpty assert, whose message must end with the standard
     // "cannot be empty" phrase.
     opDesc.binaryContent = ""
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
+    expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
   }
 
   it should "render the configured binary content column in createBinaryData" in {
