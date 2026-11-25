@@ -62,7 +62,6 @@ object WorkflowMetrics extends LazyLogging {
   object Outcome {
     case object Success extends Outcome("success")
     case object Failure extends Outcome("failure")
-    case object Cancelled extends Outcome("cancelled")
   }
 
   /** Workflow kind enum. Distinguishes interactive vs. scheduled
@@ -72,7 +71,6 @@ object WorkflowMetrics extends LazyLogging {
   object WorkflowKind {
     case object Interactive extends WorkflowKind("interactive")
     case object Scheduled extends WorkflowKind("scheduled")
-    case object Unknown extends WorkflowKind("unknown")
   }
 
   private val OutcomeKey: AttributeKey[String] = AttributeKey.stringKey("texera.outcome")

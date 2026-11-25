@@ -97,17 +97,14 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .leftJoin(WORKFLOW_COVER_IMAGE)
       .on(WORKFLOW_COVER_IMAGE.WID.eq(WORKFLOW.WID))
 
-    var condition: Condition = DSL.trueCondition()
-    if (uid == null) {
-      condition = WORKFLOW.IS_PUBLIC.eq(true)
-    } else {
-      val privateAccessCondition = grantedAccessCondition(uid)
-      if (includePublic) {
-        condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
+    val condition =
+      if (uid == null) {
+        WORKFLOW.IS_PUBLIC.eq(true)
       } else {
-        condition = privateAccessCondition
+        val privateAccessCondition = grantedAccessCondition(uid)
+        if (includePublic) privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
+        else privateAccessCondition
       }
-    }
 
     baseQuery.where(condition)
   }

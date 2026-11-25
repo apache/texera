@@ -32,7 +32,7 @@ class DeadLetterMonitorActor extends Actor {
         case msg: NetworkMessage =>
           // d.sender is the NetworkSenderActor
           d.sender ! MessageBecomesDeadLetter(msg)
-        case other =>
+        case _ =>
         // skip for now
       }
     case _ =>

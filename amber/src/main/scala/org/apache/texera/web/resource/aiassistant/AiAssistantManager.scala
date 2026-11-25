@@ -67,7 +67,7 @@ object AiAssistantManager {
         noAssistant
       }
     } catch {
-      case e: Exception =>
+      case _: Exception =>
         noAssistant
     } finally {
       if (connection != null) {

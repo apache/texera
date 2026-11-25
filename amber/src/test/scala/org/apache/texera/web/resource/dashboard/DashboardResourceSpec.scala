@@ -116,13 +116,6 @@ class DashboardResourceSpec extends AnyFlatSpec with Matchers {
     orderSql("NameAscending") shouldBe empty // whole string, both ends
   }
 
-  // Two branches in this area are unreachable and are therefore deliberately
-  // NOT tested: `case None => List()` inside getOrderFields and
-  // `case _ => null` inside the private getColumnField. The regex can only
-  // yield the four column names Name/CreateTime/EditTime/ExecutionTime, and
-  // every one of them maps to a non-null Field, so getColumnField never
-  // returns None.
-
   // -- searchAllResources: the dispatch guard --------------------------------
 
   "searchAllResources" should "reject an unknown resourceType before it builds any query" in {

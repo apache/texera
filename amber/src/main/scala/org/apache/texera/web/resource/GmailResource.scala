@@ -23,15 +23,15 @@ import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.web.resource.EmailTemplate.userRegistrationNotification
 import org.apache.texera.web.resource.GmailResource.{
   adminRegistrationNotification,
+  context,
   isValidEmail,
   sendEmail,
-  senderGmail,
-  userDao
+  senderGmail
 }
 import org.slf4j.LoggerFactory
 
@@ -55,14 +55,18 @@ object GmailResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-  private def userDao = new UserDao(context.configuration)
 
   private[resource] def adminRegistrationNotification(
       adminEmail: String,
       emailMessage: EmailMessage
   ): EmailMessage = {
-    val requesterName =
-      Option(userDao.fetchOneByEmail(emailMessage.receiver)).flatMap(user => Option(user.getName))
+    val requesterName = Option(
+      context
+        .select(USER.NAME)
+        .from(USER)
+        .where(USER.EMAIL.eq(emailMessage.receiver))
+        .fetchOne(USER.NAME)
+    )
     userRegistrationNotification(
       receiverEmail = adminEmail,
       userEmail = Some(emailMessage.receiver),
@@ -72,6 +76,8 @@ object GmailResource {
       toAdmin = true
     )
   }
+
+  private val EmailPattern = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
 
   private lazy val senderGmail: String = UserSystemConfig.gmail
   private val smtpProperties = Map(
@@ -98,14 +104,15 @@ object GmailResource {
 
   private def createMimeMessage(
       session: Session,
-      emailMessage: EmailMessage,
+      subject: String,
+      content: String,
       recipientEmail: String
   ): MimeMessage = {
     val email = new MimeMessage(session)
     email.setFrom(new InternetAddress(senderGmail))
     email.addRecipient(Message.RecipientType.TO, new InternetAddress(recipientEmail))
-    email.setSubject(emailMessage.subject)
-    email.setText(emailMessage.content)
+    email.setSubject(subject)
+    email.setText(content)
     email
   }
 
@@ -122,7 +129,8 @@ object GmailResource {
 
     Try {
       val session = createSession()
-      val email = createMimeMessage(session, withDomain(emailMessage), recipientEmail)
+      val content = contentWithDomain(emailMessage)
+      val email = createMimeMessage(session, emailMessage.subject, content, recipientEmail)
       Transport.send(email)
     } match {
       case Success(_)         => Right(())
@@ -142,13 +150,11 @@ object GmailResource {
     * @param email the email address to validate
     * @return true if the email matches the expected format, false otherwise
     */
-  private def isValidEmail(email: String): Boolean = {
-    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
-    email != null && emailRegex.matches(email)
-  }
+  private def isValidEmail(email: String): Boolean =
+    email != null && EmailPattern.matches(email)
 
-  private def withDomain(message: EmailMessage): EmailMessage = {
-    val newContent = UserSystemConfig.appDomain match {
+  private def contentWithDomain(message: EmailMessage): String =
+    UserSystemConfig.appDomain match {
       case Some(domain) =>
         s"""${message.content}
            |
@@ -157,9 +163,6 @@ object GmailResource {
            |""".stripMargin
       case None => message.content
     }
-
-    message.copy(content = newContent)
-  }
 }
 
 @Path("/gmail")
@@ -192,12 +195,15 @@ class GmailResource {
       throw new ForbiddenException("Invalid email address.")
     }
 
-    val adminUsers = userDao.fetchByRole(UserRoleEnum.ADMIN)
-    val adminUserIterator = adminUsers.iterator()
+    val adminEmails = context
+      .select(USER.EMAIL)
+      .from(USER)
+      .where(USER.ROLE.eq(UserRoleEnum.ADMIN))
+      .fetch(USER.EMAIL)
+      .iterator()
 
-    while (adminUserIterator.hasNext) {
-      val admin = adminUserIterator.next()
-      val adminEmail = admin.getEmail
+    while (adminEmails.hasNext) {
+      val adminEmail = adminEmails.next()
 
       try {
         sendEmail(

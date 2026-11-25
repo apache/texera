@@ -55,7 +55,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private def withExecutor(
       matchingType: MatchingType,
-      dictionary: String = dictionaryScan
+      dictionary: String
   )(body: => Unit): Unit = {
     opDesc.dictionary = dictionary
     opDesc.matchingType = matchingType
