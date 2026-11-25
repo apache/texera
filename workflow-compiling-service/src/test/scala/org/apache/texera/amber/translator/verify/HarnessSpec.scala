@@ -54,12 +54,43 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     new Attribute("name", AttributeType.STRING)
   )
 
-  private def tuple(id: Int, name: String): Tuple = {
-    val b = Tuple.builder(schema)
-    b.add(schema.getAttribute("id"), Int.box(id))
-    b.add(schema.getAttribute("name"), name)
+  private def rowOf(rowSchema: Schema)(values: (String, Any)*): Tuple = {
+    val b = Tuple.builder(rowSchema)
+    values.foreach { case (col, value) => b.add(rowSchema.getAttribute(col), value) }
     b.build()
   }
+
+  private def twoColRows(col: String, attrType: AttributeType)(
+      entries: (Int, Any)*
+  ): (Schema, Seq[Tuple]) = {
+    val s = new Schema(new Attribute("id", AttributeType.INTEGER), new Attribute(col, attrType))
+    (s, entries.map { case (id, value) => rowOf(s)("id" -> Int.box(id), col -> value) })
+  }
+
+  private def runStandalone(
+      prefix: String,
+      rowSchema: Schema,
+      inputRows: Seq[Tuple],
+      opDesc: LogicalOp with StandaloneCodeGenerator = new DistinctOpDesc,
+      outputSchemas: Map[PortIdentity, Schema] = Map.empty
+  ): (Path, java.util.List[String]) = {
+    val dir = Files.createTempDirectory(prefix)
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(input, inputRows.iterator, rowSchema)
+    val work = dir.resolve("standalone")
+    Files.createDirectories(work)
+    val result = StandaloneRunner.run(
+      opDesc = opDesc,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = work,
+      outputSchemas = outputSchemas
+    )
+    (work, Files.readAllLines(result.outputs(1)))
+  }
+
+  private def tuple(id: Int, name: String): Tuple =
+    rowOf(schema)("id" -> Int.box(id), "name" -> name)
 
   /** Four rows, the last a repeat of the second. */
   private val rows = Seq(tuple(1, "a"), tuple(2, "b"), tuple(3, "c"), tuple(2, "b"))
@@ -150,20 +181,12 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
 
   private def blobKind(cell: Array[Byte], opDesc: BlobTypeOp = new BlobTypeOp): String = {
     val blobOnly = new Schema(new Attribute("blob", AttributeType.BINARY))
-    val dir = Files.createTempDirectory("harness-spec-blob-kind-")
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(
-      input,
-      Iterator(Tuple.builder(blobOnly).add(blobOnly.getAttribute("blob"), cell).build()),
-      blobOnly
+    val (_, lines) = runStandalone(
+      "harness-spec-blob-kind-",
+      blobOnly,
+      Seq(rowOf(blobOnly)("blob" -> cell)),
+      opDesc
     )
-    val result = StandaloneRunner.run(
-      opDesc = opDesc,
-      inputs = Map(1 -> input),
-      outputPortCount = 1,
-      workDir = dir
-    )
-    val lines = Files.readAllLines(result.outputs(1))
     lines should have size 1
     lines.get(0)
   }
@@ -195,26 +218,15 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
   }
 
   "StandaloneRunner" should "run the generated script and reach the same answer" taggedAs NeedsPython in {
-    withInput { (dir, input) =>
-      val work = dir.resolve("standalone")
-      Files.createDirectories(work)
-      val result = StandaloneRunner.run(
-        opDesc = new DistinctOpDesc,
-        inputs = Map(1 -> input),
-        outputPortCount = 1,
-        workDir = work
-      )
+    val (work, lines) = runStandalone("harness-spec-", schema, rows)
 
-      // The script is kept where it ran, so a failing operator can be opened as
-      // generated rather than described second-hand.
-      Files.exists(work.resolve("script.py")) shouldBe true
+    // The script is kept where it ran, so a failing operator can be opened as
+    // generated rather than described second-hand.
+    Files.exists(work.resolve("script.py")) shouldBe true
 
-      val produced = result.outputs(1)
-      val lines = Files.readAllLines(produced)
-      lines should have size 3
-      lines.get(0) should include("\"id\":1")
-      lines.get(2) should include("\"id\":3")
-    }
+    lines should have size 3
+    lines.get(0) should include("\"id\":1")
+    lines.get(2) should include("\"id\":3")
   }
 
   // A source writes a placeholder where its file should be named, since only
@@ -250,31 +262,10 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
   // run had true and false. The prologue takes the column back to the nullable
   // boolean dtype, which carries the two values and the hole.
   it should "hand a boolean column with a hole to the script as booleans" taggedAs NeedsPython in {
-    val holed = new Schema(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("flag", AttributeType.BOOLEAN)
-    )
-    def row(id: Int, flag: java.lang.Boolean): Tuple = {
-      val b = Tuple.builder(holed)
-      b.add(holed.getAttribute("id"), Int.box(id))
-      b.add(holed.getAttribute("flag"), flag)
-      b.build()
-    }
+    val (holed, inputRows) =
+      twoColRows("flag", AttributeType.BOOLEAN)(1 -> true, 2 -> null, 3 -> false)
+    val (_, lines) = runStandalone("harness-spec-boolean-", holed, inputRows)
 
-    val dir = Files.createTempDirectory("harness-spec-boolean-")
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(input, Iterator(row(1, true), row(2, null), row(3, false)), holed)
-    val work = dir.resolve("standalone")
-    Files.createDirectories(work)
-
-    val result = StandaloneRunner.run(
-      opDesc = new DistinctOpDesc,
-      inputs = Map(1 -> input),
-      outputPortCount = 1,
-      workDir = work
-    )
-
-    val lines = Files.readAllLines(result.outputs(1))
     lines should have size 3
     lines.get(0) should include("\"flag\":true")
     lines.get(1) should include("\"flag\":null")
@@ -286,32 +277,15 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
   // null, so the same column left the script as 6.0 as soon as a row was
   // missing, and the two sides disagreed on every value in it.
   it should "write an integral column with a hole the way the engine writes it" taggedAs NeedsPython in {
-    val holed = new Schema(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("n", AttributeType.INTEGER)
-    )
-    def row(id: Int, n: Integer): Tuple = {
-      val b = Tuple.builder(holed)
-      b.add(holed.getAttribute("id"), Int.box(id))
-      b.add(holed.getAttribute("n"), n)
-      b.build()
-    }
+    val (holed, inputRows) = twoColRows("n", AttributeType.INTEGER)(1 -> 6, 2 -> null, 3 -> 7)
+    val (_, lines) =
+      runStandalone(
+        "harness-spec-integral-",
+        holed,
+        inputRows,
+        outputSchemas = Map(PortIdentity(0) -> holed)
+      )
 
-    val dir = Files.createTempDirectory("harness-spec-integral-")
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(input, Iterator(row(1, 6), row(2, null), row(3, 7)), holed)
-    val work = dir.resolve("standalone")
-    Files.createDirectories(work)
-
-    val result = StandaloneRunner.run(
-      opDesc = new DistinctOpDesc,
-      inputs = Map(1 -> input),
-      outputPortCount = 1,
-      workDir = work,
-      outputSchemas = Map(PortIdentity(0) -> holed)
-    )
-
-    val lines = Files.readAllLines(result.outputs(1))
     lines should have size 3
     lines.get(0) should include("\"n\":6")
     lines.get(0) should not include "\"n\":6.0"
@@ -329,26 +303,12 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
       "2024-01-01 00:00:00.123456789",
       "2500-01-01 00:00:00.0"
     )
-    val dir = Files.createTempDirectory("harness-spec-timestamp-")
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(
-      input,
-      values.iterator.map { v =>
-        Tuple.builder(stamped).add(stamped.getAttribute("ts"), Timestamp.valueOf(v)).build()
-      },
-      stamped
-    )
-    val work = dir.resolve("standalone")
-    Files.createDirectories(work)
-
-    val result = StandaloneRunner.run(
-      opDesc = new DistinctOpDesc,
-      inputs = Map(1 -> input),
-      outputPortCount = 1,
-      workDir = work
+    val (_, lines) = runStandalone(
+      "harness-spec-timestamp-",
+      stamped,
+      values.map(v => rowOf(stamped)("ts" -> Timestamp.valueOf(v)))
     )
 
-    val lines = Files.readAllLines(result.outputs(1))
     lines should have size 3
     values.zipWithIndex.foreach {
       case (v, i) => lines.get(i) should include("\"ts\":\"" + v + "\"")
@@ -360,26 +320,13 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
   // operator that prints the value answered "-0.0" there and "0.0" here.
   it should "keep the sign of a negative zero in a DOUBLE column without a NaN" taggedAs NeedsPython in {
     val zeros = new Schema(new Attribute("x", AttributeType.DOUBLE))
-    val dir = Files.createTempDirectory("harness-spec-signed-zero-")
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(
-      input,
-      Iterator(-0.0, 0.0).map { v =>
-        Tuple.builder(zeros).add(zeros.getAttribute("x"), Double.box(v)).build()
-      },
-      zeros
-    )
-    val work = dir.resolve("standalone")
-    Files.createDirectories(work)
-
-    val result = StandaloneRunner.run(
-      opDesc = new DoubleTextOp,
-      inputs = Map(1 -> input),
-      outputPortCount = 1,
-      workDir = work
+    val (_, lines) = runStandalone(
+      "harness-spec-signed-zero-",
+      zeros,
+      Seq(-0.0, 0.0).map(v => rowOf(zeros)("x" -> Double.box(v))),
+      new DoubleTextOp
     )
 
-    val lines = Files.readAllLines(result.outputs(1))
     lines should have size 2
     lines.get(0) should include("\"text\":\"-0.0\"")
     lines.get(1) should include("\"text\":\"0.0\"")
@@ -390,33 +337,12 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
   // operator is handed a str where the run's was handed bytes, and anything it
   // does with them answers for the base64 rather than for the value.
   it should "hand a binary column to the script as bytes" taggedAs NeedsPython in {
-    val withBlob = new Schema(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("blob", AttributeType.BINARY)
-    )
-    def row(id: Int, blob: Array[Byte]): Tuple = {
-      val b = Tuple.builder(withBlob)
-      b.add(withBlob.getAttribute("id"), Int.box(id))
-      b.add(withBlob.getAttribute("blob"), blob)
-      b.build()
-    }
-
-    val dir = Files.createTempDirectory("harness-spec-binary-")
-    val input = dir.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(
-      input,
-      Iterator(row(1, "hi".getBytes(StandardCharsets.UTF_8)), row(2, null)),
-      withBlob
-    )
-    val work = dir.resolve("standalone")
-    Files.createDirectories(work)
-
-    val result = StandaloneRunner.run(
-      opDesc = new DistinctOpDesc,
-      inputs = Map(1 -> input),
-      outputPortCount = 1,
-      workDir = work
-    )
+    val (withBlob, inputRows) =
+      twoColRows("blob", AttributeType.BINARY)(
+        1 -> "hi".getBytes(StandardCharsets.UTF_8),
+        2 -> null
+      )
+    val (work, lines) = runStandalone("harness-spec-binary-", withBlob, inputRows)
 
     // The prologue decodes that column and no other. Distinct answers the same
     // whether it is handed the bytes or the base64 spelling of them, so what the
@@ -428,7 +354,6 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
 
     // And the column still leaves as the base64 the engine's writer wrote:
     // decoding it on the way in must not turn it into a pickle on the way out.
-    val lines = Files.readAllLines(result.outputs(1))
     lines should have size 2
     lines.get(0) should include("\"blob\":\"aGk=\"")
     lines.get(1) should include("\"blob\":null")
