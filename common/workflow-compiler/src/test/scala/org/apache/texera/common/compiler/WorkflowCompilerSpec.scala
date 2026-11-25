@@ -123,8 +123,8 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   /**
     * A test-only Python operator whose code generation fails with a
     * whitespace-padded message. No shipped operator raises a padded message, so
-    * this is the only way to pin the compiler's regex-group + `trim` extraction
-    * of the marker's payload.
+    * this is the only way to pin the compiler's strip-the-marker + `trim`
+    * extraction of the marker's payload.
     */
   private class PaddedFailurePyOp extends PythonOperatorDescriptor {
     override def asSource(): Boolean = true
@@ -632,7 +632,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     // `message` is the RuntimeException's toString, so the extracted payload is
     // the tail of it: exactly the raised message with its padding removed, and
-    // with the marker itself stripped off by the regex.
+    // with the marker itself stripped off.
     val message = result.operatorIdToError(padded.operatorIdentifier).message
     assert(
       message.endsWith("Operator is not configured properly: padded codegen failure"),

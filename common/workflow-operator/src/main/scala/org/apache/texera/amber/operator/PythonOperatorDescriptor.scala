@@ -24,11 +24,17 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
 
+object PythonOperatorDescriptor {
+
+  /** The whole code of a failed generation starts with this; the compiler reports what follows. */
+  val CodeGenerationFailureMarker = "#EXCEPTION DURING CODE GENERATION:"
+}
+
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
     // An exception with no message or an empty one is reported by its type instead of "null".
-    val message = Option(ex.getMessage).filter(_.nonEmpty).getOrElse(ex.toString)
-    s"#EXCEPTION DURING CODE GENERATION: $message"
+    val message = Option(ex.getMessage).filter(_.nonEmpty).getOrElse(ex.getClass.getName)
+    s"${PythonOperatorDescriptor.CodeGenerationFailureMarker} $message"
   }
 
   override def getPhysicalOp(

@@ -121,10 +121,10 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "embed the exception type when the generation exception has an empty message" in {
-    // `Throwable.toString` renders an empty message as the class name followed by ": ".
+    // The type alone: `Throwable.toString` would add a dangling ": " for an empty message.
     code(
       new EmptyMessagePyOp
-    ) shouldBe "#EXCEPTION DURING CODE GENERATION: java.lang.RuntimeException: "
+    ) shouldBe "#EXCEPTION DURING CODE GENERATION: java.lang.RuntimeException"
   }
 
   it should "build a source PhysicalOp when asSource is true" in {
