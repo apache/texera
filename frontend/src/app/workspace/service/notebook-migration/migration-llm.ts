@@ -175,6 +175,8 @@ const R_FOLDER_DOCUMENTATION: string[] = R_SCRIPT_DOCUMENTATION.map(doc =>
 
 export type MigrationLanguage = "python" | "r";
 
+export const MIGRATION_LANGUAGE_NAMES: Record<MigrationLanguage, string> = { python: "Python", r: "R" };
+
 interface UdfOperator {
   type: string;
   // Overlaid on the schema defaults before the generated code and outputs.

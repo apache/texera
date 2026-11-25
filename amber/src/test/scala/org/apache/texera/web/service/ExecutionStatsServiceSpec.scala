@@ -78,7 +78,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import java.sql.Timestamp
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.{ExecutorService, TimeUnit}
 
 /**
   * The service class was entirely uncovered. It owns two independent outputs: the websocket
@@ -94,9 +94,10 @@ import java.util.concurrent.ExecutorService
   * (DefaultCostEstimatorSpec owns wid 1 / eid 1). They must also differ from each other, so a
   * URI built from the wrong identity is a visibly different URI.
   *
-  * Not covered on purpose: the catch arm around `runtimeStatsWriter.close()` (iceberg's close is
-  * a repeatable buffer flush and does not throw), and the catch arm in `storeRuntimeStatistics`
-  * (it runs on the private persist executor, which swallows anything a test could observe).
+  * Not covered on purpose: the catch arms in `commitAndStop` (iceberg's close is a repeatable
+  * buffer flush and does not throw, and the wait is neither interrupted nor near its timeout),
+  * and the catch arm in `storeRuntimeStatistics` (it runs on the private persist executor, which
+  * swallows anything a test could observe).
   */
 class ExecutionStatsServiceSpec
     extends TestKit(ActorSystem("ExecutionStatsServiceSpec"))
@@ -222,12 +223,15 @@ class ExecutionStatsServiceSpec
   /**
     * The persist callback hands its work to a private single-threaded executor. A no-op task
     * queued behind it can only run once that work is done, which is the barrier a test needs
-    * before it closes the writer and reads the table back.
+    * before it checks that nothing was committed yet.
     */
-  private def awaitPersist(service: ExecutionStatsService): Unit = {
+  private def awaitPersist(service: ExecutionStatsService): Unit =
+    persistExecutor(service).submit((() => ()): Runnable).get()
+
+  private def persistExecutor(service: ExecutionStatsService): ExecutorService = {
     val field = classOf[ExecutionStatsService].getDeclaredField("metricsPersistThread")
     field.setAccessible(true)
-    field.get(service).asInstanceOf[ExecutorService].submit((() => ()): Runnable).get()
+    field.get(service).asInstanceOf[ExecutorService]
   }
 
   /** Reads the committed statistics rows. Opening (never re-creating) the document is what makes
@@ -508,11 +512,9 @@ class ExecutionStatsServiceSpec
           Map("opA" -> metrics(RUNNING, inputs = Seq((0, 1L, 10L))), "opB" -> opBFinal)
         )
       )
-      awaitPersist(f.service)
       // opB is gone from the second report, as happens once an operator completes and stops
       // being polled.
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
-      awaitPersist(f.service)
       f.client.fire(ExecutionStateUpdate(COMPLETED))
 
       val rows = persistedRows()
@@ -570,7 +572,6 @@ class ExecutionStatsServiceSpec
       )
 
       f.client.fire(RuntimeStatisticsPersist(Map("opMulti" -> multiPort)))
-      awaitPersist(f.service)
       f.client.fire(ExecutionStateUpdate(COMPLETED))
 
       val rows = persistedRows()
@@ -581,6 +582,58 @@ class ExecutionStatsServiceSpec
       row.getField[Long]("inputTupleSize") shouldBe 55L
       row.getField[Long]("outputTupleCnt") shouldBe 9L
       row.getField[Long]("outputTupleSize") shouldBe 95L
+    }
+  }
+
+  it should "commit a statistics snapshot that is still queued when the execution terminates" in {
+    withService { f =>
+      // The engine reports the final snapshot right before the terminal state, and the persist
+      // callback only queues it. Keep the persist thread busy so that snapshot is still queued
+      // when the terminal state arrives.
+      persistExecutor(f.service).execute(() => Thread.sleep(200))
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
+
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+
+      persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
+    }
+  }
+
+  it should "stop the persist thread on commit and ignore what arrives after it" in {
+    withService { f =>
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+      persistExecutor(f.service).isShutdown shouldBe true
+
+      // fire passes exceptions through, so a rejected persist task would fail the test here.
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
+      f.client.fire(ExecutionStateUpdate(KILLED))
+      persistedRows() should have size 1
+    }
+  }
+
+  it should "commit and stop the persist thread when the engine reports no terminal state" in {
+    // A fatal error commits right away, since the service lives on until the next run or session
+    // cleanup; a user kill commits when the service is torn down, in the background.
+    Seq[(String, Fixture => Unit)](
+      "fatal error" -> (_.client.fire(FatalError(new RuntimeException("boom"), None))),
+      "teardown" -> (_.service.unsubscribeAll())
+    ).foreach {
+      case (trigger, end) =>
+        withClue(s"$trigger: ") {
+          withService { f =>
+            f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
+            awaitPersist(f.service)
+            persistedRows() shouldBe empty
+
+            end(f)
+
+            val executor = persistExecutor(f.service)
+            executor.isShutdown shouldBe true
+            executor.awaitTermination(30, TimeUnit.SECONDS) shouldBe true
+            persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
+          }
+        }
     }
   }
 }

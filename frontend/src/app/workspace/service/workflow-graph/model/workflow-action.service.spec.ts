@@ -78,6 +78,13 @@ describe("WorkflowActionService", () => {
     jointGraph = (service as any).jointGraph;
   });
 
+  // Some tests stub the provider's connect/disconnect. Put the real ones back before TestBed
+  // teardown destroys the shared model (this hook runs before the file-level teardown), or the
+  // provider is never closed, keeps redialling, and keeps this test's service alive with it.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   /**
    * The shared document has finished its first sync with the room. A seed of the workflow's
    * settings or form definition waits for this, so that a co-editor's newer value is already in
@@ -93,6 +100,15 @@ describe("WorkflowActionService", () => {
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  it("destroys the shared model when its injector is destroyed", () => {
+    const destroy = vi.spyOn(texeraGraph.sharedModel, "destroy");
+
+    TestBed.resetTestingModule();
+
+    // the shared model's provider runs timers that would otherwise keep this service alive
+    expect(destroy).toHaveBeenCalledTimes(1);
+  });
 
   // The operator canvas and the Form View hand one open workflow between them; the arriving view
   // asks this before loading, because seeding a second document for the same workflow would leave

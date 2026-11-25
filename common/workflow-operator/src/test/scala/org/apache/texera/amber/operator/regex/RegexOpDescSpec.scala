@@ -19,26 +19,14 @@
 
 package org.apache.texera.amber.operator.regex
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  runSource
-}
-import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{FilterSearchSpecSupport, LogicalOp}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 
-class RegexOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val workflowId = WorkflowIdentity(1L)
-  private val executionId = ExecutionIdentity(1L)
+class RegexOpDescSpec extends FilterSearchSpecSupport {
 
   private def newDesc(attr: String, re: String, caseInsensitive: Boolean): RegexOpDesc = {
     val d = new RegexOpDesc
@@ -60,17 +48,10 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "RegexOpDesc.getPhysicalOp" should "wire the RegexOpExec class name and carry ports" in {
-    val op = newDesc("col", ".*foo.*", caseInsensitive = false)
-    val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo match {
-      case OpExecWithClassName(className, descString) =>
-        className shouldBe "org.apache.texera.amber.operator.regex.RegexOpExec"
-        descString should not be empty
-      case other => fail(s"expected OpExecWithClassName, got $other")
-    }
-    // Pin the actual port identities (not just counts).
-    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
-    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
+    assertPhysicalOpWired(
+      newDesc("col", ".*foo.*", caseInsensitive = false),
+      "org.apache.texera.amber.operator.regex.RegexOpExec"
+    )
   }
 
   "RegexOpDesc JSON round-trip" should
@@ -113,9 +94,6 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
   // export, and the rows each keeps are named by their input position.
   "RegexOpDesc.generateStandaloneCode" should
     "keep the rows the engine keeps on non-ASCII text" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
-
     val cases = Seq(
       ("é", true, Seq("É", "é", "e")),
       ("σ", true, Seq("Σ", "σ", "ς")),
@@ -137,41 +115,11 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
       ("""x(?iu:é)\d""", false, Seq("xÉ3", "xÉ\u0663", "XÉ3")),
       ("(?iux)é # note", false, Seq("É", "x"))
     )
-    val schema = Schema().add("v", AttributeType.STRING).add("i", AttributeType.INTEGER)
-    val runs = cases.map {
-      case (pattern, caseInsensitive, values) =>
-        val desc = newDesc("v", pattern, caseInsensitive)
-        val exec = new RegexOpExec(objectMapper.writeValueAsString(desc))
-        exec.open()
-        val kept = values.zipWithIndex.flatMap {
-          case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
-        }
-        exec.close()
-        val label = s"'$pattern' caseInsensitive=$caseInsensitive"
-        val engine = s"$label: ${kept.map(_.getFields(1)).mkString(" ")}"
-        val code = (desc.standaloneHelpers() :+
-          desc.generateStandaloneCode(Map(PortIdentity() -> schema))).mkString("\n")
-        val script =
-          s"""in1df = pd.DataFrame({"v": pd.Series(${objectMapper.writeValueAsString(
-            values
-          )}, dtype=object)})
-             |in1df["i"] = range(len(in1df))
-             |ns = {"pd": pd, "in1df": in1df}
-             |exec(${objectMapper.writeValueAsString(code)}, ns)
-             |print(${objectMapper.writeValueAsString(
-            label + ":"
-          )}, " ".join(str(i) for i in ns["out1df"]["i"]))""".stripMargin
-        (engine, script)
-    }
-
-    // The values arrive as JSON arrays, so a missing one reads as null.
-    val driver = (Seq("import pandas as pd", "null = None") ++ runs.map(_._2)).mkString("\n")
-    val (exitCode, out) = runSource(python, "regex-engine-parity-", driver)
-
-    withClue(s"python said:\n$out\n") {
-      exitCode shouldBe 0
-      out.linesIterator.map(_.trim).toList shouldBe runs.map(_._1.trim).toList
-    }
+    assertStandaloneParity("regex-engine-parity-", "caseInsensitive", cases)(
+      newDesc("v", _, _)
+    )(
+      new RegexOpExec(_)
+    )
   }
 
   // The engine reads `Url` from a column `url`, since Schema ignores case. pandas

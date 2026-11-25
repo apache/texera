@@ -19,27 +19,17 @@
 
 package org.apache.texera.amber.operator.regex
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.operator.FilterSearchSpecSupport
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.flatspec.AnyFlatSpec
 
-class RegexOpExecSpec extends AnyFlatSpec {
+class RegexOpExecSpec extends FilterSearchSpecSupport {
 
-  // ---------------------------------------------------------------------------
-  // Fixture builders — mirrors the pattern used by SpecializedFilterOpExecSpec
-  // ---------------------------------------------------------------------------
-
-  private val attr = new Attribute("body", AttributeType.STRING)
-  private val schema: Schema = Schema().add(attr)
-  private def tuple(text: String): Tuple =
-    Tuple.builder(schema).add(attr, text).build()
-
-  private def descJson(regex: String, caseInsensitive: Boolean = false): String = {
+  private def execFor(regex: String, caseInsensitive: Boolean = false): RegexOpExec = {
     val desc = new RegexOpDesc
     desc.attribute = "body"
     desc.regex = regex
     desc.caseInsensitive = caseInsensitive
-    objectMapper.writeValueAsString(desc)
+    new RegexOpExec(objectMapper.writeValueAsString(desc))
   }
 
   // ---------------------------------------------------------------------------
@@ -47,27 +37,22 @@ class RegexOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "RegexOpExec" should "yield the input tuple when the regex matches the attribute" in {
-    val exec = new RegexOpExec(descJson(regex = "hello"))
-    val t = tuple("hello world")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("hello"), "hello world")
   }
 
   it should "use find-semantics — a pattern matches if it appears anywhere in the value" in {
     // `Matcher.find` succeeds on a substring; it is not anchored. Pin
     // this so a future refactor that switched to `matches` (full-string)
     // would surface here.
-    val exec = new RegexOpExec(descJson(regex = "abc"))
-    val t = tuple("xx abc xx")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("abc"), "xx abc xx")
   }
 
   it should "yield nothing when the regex does not match" in {
-    val exec = new RegexOpExec(descJson(regex = "foo"))
-    assert(exec.processTuple(tuple("bar baz"), port = 0).toList.isEmpty)
+    assertMisses(execFor("foo"), "bar baz")
   }
 
   it should "yield the tuple when the regex character class matches at least one char" in {
-    val exec = new RegexOpExec(descJson(regex = "\\d+"))
+    val exec = execFor("\\d+")
     assert(exec.processTuple(tuple("answer is 42 plus"), port = 0).toList.size == 1)
   }
 
@@ -76,21 +61,16 @@ class RegexOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "RegexOpExec with caseInsensitive = true" should "match case-insensitively" in {
-    val exec = new RegexOpExec(descJson(regex = "HELLO", caseInsensitive = true))
-    val t = tuple("hello world")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("HELLO", caseInsensitive = true), "hello world")
   }
 
   "RegexOpExec with caseInsensitive = false" should
     "NOT match when the case differs (default behavior)" in {
-    val exec = new RegexOpExec(descJson(regex = "HELLO", caseInsensitive = false))
-    assert(exec.processTuple(tuple("hello world"), port = 0).toList.isEmpty)
+    assertMisses(execFor("HELLO", caseInsensitive = false), "hello world")
   }
 
   it should "still match identical case under case-sensitive mode" in {
-    val exec = new RegexOpExec(descJson(regex = "HELLO", caseInsensitive = false))
-    val t = tuple("Say HELLO!")
-    assert(exec.processTuple(t, port = 0).toList == List(t))
+    assertMatches(execFor("HELLO", caseInsensitive = false), "Say HELLO!")
   }
 
   // ---------------------------------------------------------------------------
@@ -104,7 +84,7 @@ class RegexOpExecSpec extends AnyFlatSpec {
     // `[` is an invalid character class — but the pattern is lazily
     // compiled inside `matchRegex`. The constructor must succeed; the
     // failure only surfaces on the first processTuple call.
-    val exec = new RegexOpExec(descJson(regex = "["))
+    val exec = execFor("[")
     intercept[java.util.regex.PatternSyntaxException] {
       exec.processTuple(tuple("anything"), port = 0).toList
     }
@@ -115,12 +95,10 @@ class RegexOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   it should "produce stable results across repeated processTuple calls (pattern cached)" in {
-    val exec = new RegexOpExec(descJson(regex = "match"))
-    val hit = tuple("match here")
-    val miss = tuple("no signal")
-    assert(exec.processTuple(hit, port = 0).toList == List(hit))
-    assert(exec.processTuple(miss, port = 0).toList.isEmpty)
-    assert(exec.processTuple(hit, port = 0).toList == List(hit))
+    val exec = execFor("match")
+    assertMatches(exec, "match here")
+    assertMisses(exec, "no signal")
+    assertMatches(exec, "match here")
   }
 
   // ---------------------------------------------------------------------------
@@ -128,17 +106,15 @@ class RegexOpExecSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   it should "yield nothing when the column is empty" in {
-    val exec = new RegexOpExec(descJson(regex = "hello"))
     // A blank CSV cell arrives as null. This used to throw a NullPointerException on
     // the toString instead of answering the filter.
-    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+    assertMisses(execFor("hello"), null)
   }
 
   it should "yield nothing when the column is empty and the regex matches anything" in {
-    val exec = new RegexOpExec(descJson(regex = ".*"))
     // `.*` finds a match in every value, including the empty string, but a row with
     // no value has none to search, so it is filtered out rather than kept.
-    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+    assertMisses(execFor(".*"), null)
   }
 
   "RegexOpExec construction" should

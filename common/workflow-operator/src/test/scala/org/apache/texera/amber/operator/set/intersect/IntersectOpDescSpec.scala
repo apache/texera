@@ -21,8 +21,7 @@ package org.apache.texera.amber.operator.set.intersect
 
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
-  canImport,
-  configuredPython,
+  requirePython,
   runSource
 }
 
@@ -100,52 +99,24 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
   // an Arrow file is read into.
   "IntersectOpDesc.generateStandaloneCode" should
     "keep the null row a null row matches and not the NaN row" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
-
-    val driver =
-      s"""import pandas as pd, numpy as np
-         |
-         |def col(vals, mask):
-         |    return pd.arrays.FloatingArray(np.array(vals), np.array(mask))
-         |
-         |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
-         |in2df = pd.DataFrame({"v": col([0.0], [True])})
-         |${exported()}
-         |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
-         |""".stripMargin
-
-    val (exitCode, out) = runSource(python, "intersect-null-nan-", driver)
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      exitCode shouldBe 0
-      out.trim shouldBe "1 ['NULL']"
-    }
+    SetRows.verifyNullVsNan(new IntersectOpDesc, "intersect-null-nan-", "1 ['NULL']")
   }
 
   // The engine's HashSet compares rows with Scala's ==, under which NaN equals
   // nothing, and hashes them by each double's bits, which tell 0.0 from -0.0.
   // A finite value and a null on both sides are the controls.
   it should "match rows by the engine's equality for NaN and signed zero" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
-
-    val exec = new IntersectOpExec
-    exec.open()
-    SetRows.left.foreach(t => exec.processTuple(t, 0))
-    SetRows.right.foreach(t => exec.processTuple(t, 1))
-    exec.onFinish(0)
-    val engine = SetRows.rendered(exec.onFinish(1))
-
-    val out = SetRows.runExport(python, exported(), "intersect-nan-zero-")
-    withClue(s"script:\n${exported()}")(out shouldBe engine)
+    SetRows.verifyNanAndSignedZeroParity(
+      new IntersectOpDesc,
+      new IntersectOpExec,
+      "intersect-nan-zero-"
+    )
   }
 
   // The engine's Tuple equality includes the schema, so x:DOUBLE=1 on the left and
   // y:DOUBLE=1 on the right share no row, though their values are equal.
   it should "keep no row when the two inputs are declared differently" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+    val python = requirePython("pandas", "numpy")
 
     val leftSchema = Schema().add("x", AttributeType.DOUBLE)
     val rightSchema = Schema().add("y", AttributeType.DOUBLE)
@@ -174,10 +145,5 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
       exitCode shouldBe 0
       out.trim shouldBe "0 ['x']"
     }
-  }
-
-  private def exported(): String = {
-    val desc = new IntersectOpDesc
-    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
   }
 }

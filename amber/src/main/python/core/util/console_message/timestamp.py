@@ -24,6 +24,4 @@ def current_time_in_local_timezone():
     local_timezone = tzlocal.get_localzone()
 
     # Get the current time in the local timezone
-    local_time = datetime.datetime.now(local_timezone)
-
-    return local_time
+    return datetime.datetime.now(local_timezone)

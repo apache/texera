@@ -75,7 +75,7 @@ def main():
 
     namespace = {"base64": RecordingBase64(), "pd": PandasStub()}
     methods = "\n".join(lift(source, name) for name in WANTED)
-    exec("class Reader:\n    MAX_REMOTE_FETCH_BYTES = %d\n%s\n" % (limit, methods), namespace)
+    exec(f"class Reader:\n    MAX_REMOTE_FETCH_BYTES = {limit:d}\n{methods}\n", namespace)
     reader_class = namespace["Reader"]
     reader_class._looks_like_html = recorder("_looks_like_html", False)
     reader_class._html_to_image_bytes = recorder("_html_to_image_bytes", b"")

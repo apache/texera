@@ -50,26 +50,23 @@ class FigureFactoryTableOpDescSpec
     opDesc.columns = List(column("col_one"), column("col_two"))
 
   it should "throw AssertionError with a 'cannot be empty' message when columns list is empty (manipulateTable)" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
+    expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when columns list is empty (createFigureFactoryTablePlotlyFigure)" in {
-    val ex =
-      expectError[AssertionError]("cannot be empty")(opDesc.createFigureFactoryTablePlotlyFigure())
+    expectError[AssertionError]("cannot be empty")(opDesc.createFigureFactoryTablePlotlyFigure())
   }
 
   it should "throw AssertionError mentioning 'at least 30' when rowHeight is below 30" in {
     withColumns()
     opDesc.rowHeight = 10.0
-    val ex =
-      expectError[AssertionError]("at least 30")(opDesc.createFigureFactoryTablePlotlyFigure())
+    expectError[AssertionError]("at least 30")(opDesc.createFigureFactoryTablePlotlyFigure())
   }
 
   it should "throw AssertionError mentioning 'non-negative' when fontSize is negative" in {
     withColumns()
     opDesc.fontSize = -1.0
-    val ex =
-      expectError[AssertionError]("non-negative")(opDesc.createFigureFactoryTablePlotlyFigure())
+    expectError[AssertionError]("non-negative")(opDesc.createFigureFactoryTablePlotlyFigure())
   }
 
   it should "not throw with default fontSize (12) and rowHeight (30) once columns are set" in {

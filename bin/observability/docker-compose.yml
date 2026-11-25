@@ -22,7 +22,7 @@
 # It does NOT redefine the services: it `include`s the single-node compose, the
 # single source of truth for every container definition. The observability
 # services there are gated behind compose profiles, so they are selected via
-# COMPOSE_PROFILES + the service list (see start_app.sh `up_obs`). The other
+# COMPOSE_PROFILES + the service list. The other
 # single-node services are not profile-gated, so they are simply not named and
 # stay down.
 #

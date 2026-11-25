@@ -74,7 +74,7 @@ class ExpressionEvaluator:
         value_str = repr(value)
         type_str = type(value).__name__
 
-        to_be_expanded = list()
+        to_be_expanded = []
 
         if ExpressionEvaluator._has_attributes(value):
             to_be_expanded += ExpressionEvaluator._extract_attributes(value)
@@ -185,7 +185,7 @@ class ExpressionEvaluator:
     ):
         return [
             TypedValue(
-                expression=f"__getitem__({repr(k)})" if to_getitem else k,
+                expression=f"__getitem__({k!r})" if to_getitem else k,
                 value_ref=repr(k) if ref_as_repr else k,
                 value_str=repr(v),
                 value_type=type(v).__name__,
