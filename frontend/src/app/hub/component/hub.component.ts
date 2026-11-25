@@ -32,7 +32,6 @@ import { MODEL_ICON } from "../../common/icon/model-icon";
 @Component({
   selector: "texera-hub",
   templateUrl: "hub.component.html",
-  styleUrls: ["hub.component.scss"],
   imports: [NgIf, NzMenuItemComponent, ɵNzTransitionPatchDirective, NzTooltipDirective, RouterLink, NzIconDirective],
 })
 export class HubComponent {

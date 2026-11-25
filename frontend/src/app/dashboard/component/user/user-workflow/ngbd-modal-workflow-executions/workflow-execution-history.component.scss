@@ -24,10 +24,6 @@
   margin: 0;
 }
 
-.ant-table-thead > tr > th {
-  padding: 0px;
-}
-
 nz-table th {
   text-align: center;
 }
@@ -63,9 +59,4 @@ nz-table th {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 0;
-}
-
-.ant-table {
-  width: 100%;
-  table-layout: fixed;
 }

@@ -19,49 +19,13 @@
 
 @use "../../resource-detail-shared" as detail;
 
-nz-layout {
-  height: 100%;
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-.grayed-out {
-  filter: grayscale(1) opacity(0.7);
-  background-color: #f0f0f0; /* Adjust the color as needed */
-}
-
-.disabled-click {
-  pointer-events: none;
-}
-
-.file-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 @include detail.status-tags;
 
 @include detail.like-states;
 
-.file-size {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 @include detail.header("dataset");
 
 @include detail.tab-bar;
-
-.versions-tab-content {
-  @include detail.scrollable-tab;
-}
 
 .data-card-tab-content {
   @include detail.scrollable-tab;
@@ -105,10 +69,6 @@ body {
     padding: 0 0 8px !important;
     font-size: 14px;
     font-weight: 600;
-  }
-
-  .ant-collapse-content-box {
-    padding: 0 !important;
   }
 }
 
