@@ -18,7 +18,6 @@
  */
 
 import { Component, EventEmitter, Input, Output, TemplateRef, ViewChild } from "@angular/core";
-import { NgTemplateOutlet } from "@angular/common";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
@@ -65,7 +64,6 @@ class StubListItemComponent {
 /** Host used only to obtain a real TemplateRef for the card-view render test. */
 @Component({
   standalone: true,
-  imports: [NgTemplateOutlet],
   template: `<ng-template
     #tpl
     let-entry

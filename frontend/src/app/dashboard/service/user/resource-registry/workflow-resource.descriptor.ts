@@ -60,6 +60,6 @@ export class WorkflowResourceDescriptor implements ResourceDescriptor {
   isPublic = (id: number) =>
     this.workflowPersistService.getWorkflowIsPublished(id).pipe(map(published => published === "Public"));
   setPublished = (id: number, next: boolean) => this.workflowPersistService.updateWorkflowIsPublished(id, next);
-  // No `coverUrl`/`setCover`: a workflow cover is a data URL carried on the entry itself, not a
+  // No `coverUrl`: a workflow cover is a data URL carried on the entry itself, not a
   // committed file that has to be fetched.
 }

@@ -63,10 +63,6 @@ object TexeraWebApplication {
 
   def main(args: Array[String]): Unit = {
 
-    // TODO: figure out a safety way of calling discardUncommittedChangesOfAllDatasets
-    // Currently in kubernetes, multiple pods calling this function can result into thread competition
-    // discardUncommittedChangesOfAllDatasets()
-
     // start web server
     new TexeraWebApplication().run(
       "server",

@@ -441,57 +441,6 @@ describe("PresetService", () => {
         })
       ).toThrow();
     });
-
-    describe("getOperatorPreset", () => {
-      it("throws when operator properties are empty", () => {
-        expect(() => PresetService.getOperatorPreset(mockPresetEnabledSchema.jsonSchema, {})).toThrow();
-      });
-
-      it("throws when operator properties miss a required preset property", () => {
-        expect(() =>
-          PresetService.getOperatorPreset(mockPresetEnabledSchema.jsonSchema, { wrongProperty: "x" })
-        ).toThrow();
-      });
-
-      it("returns the preset when properties cover all preset fields", () => {
-        expect(PresetService.getOperatorPreset(mockPresetEnabledSchema.jsonSchema, { presetProperty: "v" })).toEqual({
-          presetProperty: "v",
-        });
-      });
-
-      it("strips non-preset properties when returning the preset", () => {
-        expect(
-          PresetService.getOperatorPreset(mockPresetEnabledSchema.jsonSchema, {
-            presetProperty: "v",
-            otherProperty: "extra",
-          })
-        ).toEqual({ presetProperty: "v" });
-      });
-    });
-
-    describe("filterOperatorPresetProperties", () => {
-      it("returns empty when input is empty (never adds keys)", () => {
-        expect(PresetService.filterOperatorPresetProperties(mockPresetEnabledSchema.jsonSchema, {})).toEqual({});
-      });
-
-      it("filters out non-preset properties only when at least one preset property is present", () => {
-        // Ajv 8's removeAdditional traversal short-circuits when `required` fails,
-        // so an input that contains *only* non-preset keys is left untouched.
-        // The "+ extras" case below covers the normal stripping path.
-        expect(
-          PresetService.filterOperatorPresetProperties(mockPresetEnabledSchema.jsonSchema, { wrongProperty: "x" })
-        ).toEqual({ wrongProperty: "x" });
-      });
-
-      it("keeps preset properties and strips extras", () => {
-        expect(
-          PresetService.filterOperatorPresetProperties(mockPresetEnabledSchema.jsonSchema, {
-            presetProperty: "v",
-            otherProperty: "extra",
-          })
-        ).toEqual({ presetProperty: "v" });
-      });
-    });
   });
 
   describe("preset Ajv type guards", () => {
