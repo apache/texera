@@ -28,14 +28,11 @@ import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../notification/notification.service";
-import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
 import { checkIfWorkflowBroken } from "../../util/workflow-check";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
-export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
-export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_DELETE_URL = WORKFLOW_BASE_URL + "/delete";
@@ -47,7 +44,6 @@ export const WORKFLOW_OWNER_NAME = WORKFLOW_BASE_URL + "/owner_name";
 export const WORKFLOW_NAME = WORKFLOW_BASE_URL + "/workflow_name";
 export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/publicised";
 export const WORKFLOW_DESCRIPTION = WORKFLOW_BASE_URL + "/workflow_description";
-export const WORKFLOW_USER_ACCESS = WORKFLOW_BASE_URL + "/workflow_user_access";
 export const WORKFLOW_SIZE = WORKFLOW_BASE_URL + "/size";
 export const WORKFLOW_SET_DEFAULT_VIEW_URL = WORKFLOW_BASE_URL + "/set-default-view";
 
@@ -223,35 +219,6 @@ export class WorkflowPersistService {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(
       filter((workflow: Workflow) => workflow != null),
       map(WorkflowUtilService.parseWorkflowInfo)
-    );
-  }
-
-  private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflow[]> {
-    return this.http.get<DashboardWorkflow[]>(url).pipe(
-      map((dashboardWorkflowEntries: DashboardWorkflow[]) =>
-        dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflow) => {
-          return {
-            ...workflowEntry,
-            dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
-          };
-        })
-      )
-    );
-  }
-
-  /**
-   * retrieves a list of workflows from backend database that belongs to the user in the session.
-   */
-  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflow[]> {
-    return this.makeRequestAndFormatWorkflowResponse(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
-  }
-
-  /**
-   * Search workflows by a text query from backend database that belongs to the user in the session.
-   */
-  public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
-    return this.makeRequestAndFormatWorkflowResponse(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${toQueryStrings(keywords, params)}`
     );
   }
 

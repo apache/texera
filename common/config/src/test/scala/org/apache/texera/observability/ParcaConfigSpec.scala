@@ -55,7 +55,7 @@ class ParcaConfigSpec extends AnyFlatSpec with Matchers {
   }
 
   private val parcaYaml = resolveBundled("bin/observability/parca/parca.yaml")
-  private val agentEnv = resolveBundled("bin/observability/parca/parca-agent.env")
+  private val compose = resolveBundled("bin/single-node/docker-compose.yml")
   private val readme = resolveBundled("bin/observability/parca/README.md")
 
   // ----- parca.yaml -----------------------------------------------------
@@ -76,21 +76,21 @@ class ParcaConfigSpec extends AnyFlatSpec with Matchers {
     text should include("Apache License, Version 2.0")
   }
 
-  // ----- parca-agent.env ------------------------------------------------
+  // ----- Compose agent command -----------------------------------------
 
-  "parca-agent.env" should "exist and pin the bundled image version reference" in {
-    Files.exists(agentEnv) shouldBe true
-    val text = new String(Files.readAllBytes(agentEnv), StandardCharsets.UTF_8)
+  "docker-compose.yml" should "exist and pin the bundled agent image version" in {
+    Files.exists(compose) shouldBe true
+    val text = new String(Files.readAllBytes(compose), StandardCharsets.UTF_8)
     text should include("v0.47.1")
   }
 
   it should "point the agent at the bundled Parca server hostname" in {
-    val text = new String(Files.readAllBytes(agentEnv), StandardCharsets.UTF_8)
-    text should include("PARCA_AGENT_REMOTE_STORE_ADDRESS=parca:7070")
+    val text = new String(Files.readAllBytes(compose), StandardCharsets.UTF_8)
+    text should include("--remote-store-address=parca:7070")
   }
 
   it should "carry the deployment label so the gateway can filter Texera processes" in {
-    val text = new String(Files.readAllBytes(agentEnv), StandardCharsets.UTF_8)
+    val text = new String(Files.readAllBytes(compose), StandardCharsets.UTF_8)
     text should include("deployment=texera")
   }
 
@@ -100,7 +100,12 @@ class ParcaConfigSpec extends AnyFlatSpec with Matchers {
     // This assertion makes the design intent enforceable. Comments
     // are skipped — they're allowed (and required) to explain the
     // rule.
-    val configLines = new String(Files.readAllBytes(agentEnv), StandardCharsets.UTF_8).linesIterator
+    val configLines = new String(Files.readAllBytes(compose), StandardCharsets.UTF_8)
+      .split("  parca-agent:", 2)
+      .last
+      .split("    deploy:", 2)
+      .head
+      .linesIterator
       .map(_.trim)
       .filter(line => line.nonEmpty && !line.startsWith("#"))
       .toSeq
