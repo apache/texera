@@ -100,9 +100,10 @@ class ParcaConfigSpec extends AnyFlatSpec with Matchers {
     // This assertion makes the design intent enforceable. Comments
     // are skipped — they're allowed (and required) to explain the
     // rule.
-    val configLines = new String(Files.readAllBytes(compose), StandardCharsets.UTF_8)
-      .split("  parca-agent:", 2)
-      .last
+    val afterAgentKey = new String(Files.readAllBytes(compose), StandardCharsets.UTF_8)
+      .split("(?m)^  parca-agent:$", 2)
+    afterAgentKey should have length 2
+    val configLines = afterAgentKey.last
       .split("    deploy:", 2)
       .head
       .linesIterator
