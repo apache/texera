@@ -63,7 +63,7 @@ trait WorkerBatchInternalQueue {
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
-  // the values in below maps are in batches
+  // The counters hold cumulative byte counts per channel.
   private val inQueueSizeMapping =
     new mutable.HashMap[ChannelIdentity, Long]() // read and written by main thread
   @volatile private var outQueueSizeMapping =
@@ -71,18 +71,7 @@ trait WorkerBatchInternalQueue {
 
   def enqueueData(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
-    elem match {
-      case DataElement(dataPayload, from) =>
-        dataPayload match {
-          case frame: DataFrame =>
-            inQueueSizeMapping(from) =
-              inQueueSizeMapping.getOrElseUpdate(from, 0L) + frame.inMemSize
-          case _ =>
-          // do nothing
-        }
-      case _ =>
-      // do nothing
-    }
+    addFrameBytes(elem, inQueueSizeMapping)
   }
 
   def enqueueCommand(cmd: DirectControlMessagePayload, from: ChannelIdentity): Unit = {
@@ -95,20 +84,20 @@ trait WorkerBatchInternalQueue {
 
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()
-    elem match {
-      case DataElement(dataPayload, from) =>
-        dataPayload match {
-          case frame: DataFrame =>
-            outQueueSizeMapping(from) =
-              outQueueSizeMapping.getOrElseUpdate(from, 0L) + frame.inMemSize
-          case _ =>
-          // do nothing
-        }
-      case _ =>
-      // do nothing
-    }
+    addFrameBytes(elem, outQueueSizeMapping)
     elem
   }
+
+  /** Adds a data frame's in-memory size to its sender's count in `counts`. */
+  private def addFrameBytes(
+      elem: InternalQueueElement,
+      counts: mutable.HashMap[ChannelIdentity, Long]
+  ): Unit =
+    elem match {
+      case DataElement(frame: DataFrame, from) =>
+        counts(from) = counts.getOrElseUpdate(from, 0L) + frame.inMemSize
+      case _ =>
+    }
 
   def disableDataQueue(): Unit = dataQueue.enable(false)
 

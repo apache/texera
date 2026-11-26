@@ -149,23 +149,13 @@ class ProxyServer(FlightServerBase):
             description="Process the actor message",
         )
 
-        # the data message handler for each data message, needs to be
-        # implemented during runtime.
-        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(
-            NotImplementedError
-        )
+        # The runtime installs the data, control, and actor handlers.
+        def unregistered_handler(*args, **kwargs):
+            raise NotImplementedError
 
-        # the control message handler for each control message, needs to be
-        # implemented during runtime.
-        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(
-            NotImplementedError
-        )
-
-        # the actor command message handler for each actor message, needs to be
-        # implemented during runtime.
-        self.process_actor = lambda *args, **kwargs: (_ for _ in ()).throw(
-            NotImplementedError
-        )
+        self.process_data = unregistered_handler
+        self.process_control = unregistered_handler
+        self.process_actor = unregistered_handler
 
     ###########################
     # Flights related methods #
@@ -230,28 +220,18 @@ class ProxyServer(FlightServerBase):
 
         action_name = action.type
         logger.debug(f"python getting a call on {action_name}")
-        # get action by name
-        if action_name in self._procedures:
-            procedure, _ = self._procedures.get(action_name)
-            if not action:
-                raise KeyError(f"Unknown action {action_name!r}")
-
-            payload = action.body.to_pybytes()
-            # invoke the action
-            result = procedure(payload) if payload else procedure()
-
-            # serialize the result
-            if isinstance(result, bytes):
-                encoded = result
-            else:
-                encoded = str(result).encode("utf-8")
-            yield Result(py_buffer(encoded))
-
-            # For "shutdown", tear the server down only after the Result has been yielded
-            if action_name == "shutdown":
-                threading.Thread(target=self.graceful_shutdown).start()
-        else:
+        if action_name not in self._procedures:
             raise KeyError(f"Unknown action {action_name!r}")
+        procedure, _ = self._procedures.get(action_name)
+
+        payload = action.body.to_pybytes()
+        result = procedure(payload) if payload else procedure()
+        encoded = result if isinstance(result, bytes) else str(result).encode("utf-8")
+        yield Result(py_buffer(encoded))
+
+        # For "shutdown", tear the server down only after the Result has been yielded.
+        if action_name == "shutdown":
+            threading.Thread(target=self.graceful_shutdown).start()
 
     @logger.catch(reraise=True)
     def register(self, name: str, action: Callable, description: str = "") -> None:
