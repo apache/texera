@@ -79,8 +79,11 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     const firstDiv = doc.body.querySelector("div");
     if (firstDiv) firstDiv.style.height = "100%";
 
-    const serializer = new XMLSerializer();
-    const newHtmlString = serializer.serializeToString(doc);
+    // Serialized as HTML, not XML: XMLSerializer escapes <, > and & inside <script> and <style>,
+    // and the iframe, parsing HTML, reads that text literally, so inline scripts and styles broke.
+    // The doctype sits outside documentElement, so it is carried over on its own.
+    const doctype = doc.doctype ? new XMLSerializer().serializeToString(doc.doctype) : "";
+    const newHtmlString = doctype + doc.documentElement.outerHTML;
 
     this.htmlData = this.sanitizer.bypassSecurityTrustHtml(newHtmlString); // this line bypasses angular security
   }
