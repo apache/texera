@@ -33,37 +33,11 @@
     <nz-tabs nzCentered>
       <nz-tab nzTitle="Quota Table">
         <div class="info-container">
-          <div class="info-box">
-            <h2 class="info-heading">Files Uploaded</h2>
-            <p class="info-content">{{ this.createdFiles.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Datasets Uploaded</h2>
-            <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Total Size of Datasets</h2>
-            <p class="info-content">{{ formatSize(this.totalUploadedDatasetSize) }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Workflows Created</h2>
-            <p class="info-content">{{ this.createdWorkflows.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Files with Access</h2>
-            <p class="info-content">{{ this.accessFiles.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Workflows with Access</h2>
-            <p class="info-content">{{ this.accessWorkflows.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Total Size of the Files</h2>
-            <p class="info-content">{{ formatSize(this.totalFileSize) }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Total Result Cache Size</h2>
-            <p class="info-content">{{ formatSize(this.totalQuotaSize) }}</p>
+          <div
+            *ngFor="let item of quotaSummaryItems"
+            class="info-box">
+            <h2 class="info-heading">{{ item.heading }}</h2>
+            <p class="info-content">{{ item.value }}</p>
           </div>
         </div>
       </nz-tab>
@@ -89,7 +63,7 @@
                 <tr *ngFor="let execution of executionTable.data">
                   <td>{{ execution.workflowName }}</td>
                   <td>{{ execution.eid }}</td>
-                  <td>{{ formatSize(execution.resultBytes + execution.logBytes + execution.runTimeStatsBytes) }}</td>
+                  <td>{{ formatSize(executionSize(execution)) }}</td>
                   <td>
                     <button
                       nz-popconfirm

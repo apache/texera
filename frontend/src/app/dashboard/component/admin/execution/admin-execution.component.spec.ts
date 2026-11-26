@@ -32,21 +32,60 @@ import { WorkflowWebsocketService } from "../../../../workspace/service/workflow
 import { NO_SORT } from "./admin-execution.component";
 import { of } from "rxjs";
 
+const DEFAULT_NOW = 1_700_000_000_000;
+
+function createExecution(over: Partial<Execution> = {}, defaults: Partial<Execution> = {}): Execution {
+  return {
+    access: true,
+    workflowId: 1,
+    workflowName: "wf",
+    executionId: 1,
+    executionName: "exec",
+    userName: "alice",
+    executionStatus: "COMPLETED",
+    startTime: 0,
+    endTime: 0,
+    executionTime: 0,
+    ...defaults,
+    ...over,
+  } as unknown as Execution;
+}
+
+async function setupAdminExecution(
+  opts: { detectChanges?: boolean; stubFetches?: boolean; fakeTimers?: boolean } = {}
+): Promise<{
+  fixture: ComponentFixture<AdminExecutionComponent>;
+  component: AdminExecutionComponent;
+  service: AdminExecutionService;
+}> {
+  await TestBed.configureTestingModule({
+    providers: [AdminExecutionService, ...commonTestProviders],
+    imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
+  }).compileComponents();
+
+  const fixture = TestBed.createComponent(AdminExecutionComponent);
+  const component = fixture.componentInstance;
+  const service = TestBed.inject(AdminExecutionService);
+  if (opts.stubFetches !== false) {
+    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
+    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
+  }
+  if (opts.detectChanges) {
+    fixture.detectChanges();
+  }
+  if (opts.fakeTimers) {
+    vi.useFakeTimers();
+    vi.setSystemTime(DEFAULT_NOW);
+  }
+  return { fixture, component, service };
+}
+
 describe("AdminDashboardComponent", () => {
   let component: AdminExecutionComponent;
   let fixture: ComponentFixture<AdminExecutionComponent>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      providers: [AdminExecutionService, ...commonTestProviders],
-      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
-    }).compileComponents();
-  });
-
-  beforeEach(() => {
-    fixture = TestBed.createComponent(AdminExecutionComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    ({ fixture, component } = await setupAdminExecution({ detectChanges: true, stubFetches: false }));
   });
 
   afterEach(() => fixture.destroy());
@@ -56,17 +95,7 @@ describe("AdminDashboardComponent", () => {
   }));
 
   it("renders the workflow link to /user/workflow/<id> when the admin has access", () => {
-    component.listOfExecutions = [
-      {
-        access: true,
-        workflowId: 42,
-        workflowName: "demo workflow",
-        executionId: 1,
-        executionName: "exec",
-        userName: "alice",
-        executionStatus: "COMPLETED",
-      } as unknown as Execution,
-    ];
+    component.listOfExecutions = [createExecution({ workflowId: 42, workflowName: "demo workflow" })];
     component.isLoading = false;
     fixture.detectChanges();
 
@@ -81,18 +110,10 @@ describe("AdminExecutionComponent pagination (#3586)", () => {
   let service: AdminExecutionService;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      providers: [AdminExecutionService, ...commonTestProviders],
-      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(AdminExecutionComponent);
-    component = fixture.componentInstance;
-    service = TestBed.inject(AdminExecutionService);
+    ({ fixture, component, service } = await setupAdminExecution());
     // Keep any data fetch inert and synchronous so the page-bar state can be asserted directly.
     // Note: we deliberately do NOT call fixture.detectChanges() (no ngOnInit/auto-refresh) and
     // drive onQueryParamsChange() directly, the way ng-zorro's nz-table does on a page click.
-    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
     vi.spyOn(service, "getTotalWorkflows").mockImplementation(() => of(component.totalWorkflows));
   });
 
@@ -102,69 +123,23 @@ describe("AdminExecutionComponent pagination (#3586)", () => {
     component.onQueryParamsChange({ pageSize, pageIndex, sort: [], filter: [] } as NzTableQueryParams);
   }
 
-  it("moves to the page the user clicks (page 1 -> page 5)", () => {
-    component.totalWorkflows = 65; // 13 pages at size 5
-    component.pageSize = 5;
-    component.currentPageIndex = 0;
+  it.each<[string, number, number, number, number, number, number, number]>([
+    ["moves to the page the user clicks (page 1 -> page 5)", 65, 5, 0, 5, 5, 5, 4],
+    // On a page-size change ng-zorro emits the new size together with pageIndex=1; must follow pageIndex=1.
+    ["follows the emitted page index when the page size changes (reset to first page)", 65, 5, 4, 20, 1, 20, 0],
+    ["syncs both page size and page index from a single event, order-independently", 65, 5, 4, 20, 3, 20, 2],
+    ["clamps to the last existing page when a larger page size removes pages", 65, 5, 12, 50, 13, 50, 1],
+    ["handles single-page results (stays on the only page)", 3, 5, 0, 5, 1, 5, 0],
+    ["clamps to the first page for empty results even if a later page is requested", 0, 5, 0, 5, 5, 5, 0],
+  ])("%s", (_name, total, initialSize, initialIndex, nextSize, nextPage, expectedSize, expectedIndex) => {
+    component.totalWorkflows = total;
+    component.pageSize = initialSize;
+    component.currentPageIndex = initialIndex;
 
-    changeParams(5, 5);
+    changeParams(nextSize, nextPage);
 
-    expect(component.pageSize).toBe(5);
-    expect(component.currentPageIndex).toBe(4); // 0-indexed page 5
-  });
-
-  it("follows the emitted page index when the page size changes (reset to first page)", () => {
-    // On a page-size change ng-zorro emits the new size together with pageIndex=1.
-    component.totalWorkflows = 65;
-    component.pageSize = 5;
-    component.currentPageIndex = 4; // currently on page 5
-
-    changeParams(20, 1);
-
-    expect(component.pageSize).toBe(20);
-    expect(component.currentPageIndex).toBe(0); // must follow pageIndex=1, not stay on page 5
-  });
-
-  it("syncs both page size and page index from a single event, order-independently", () => {
-    component.totalWorkflows = 65;
-    component.pageSize = 5;
-    component.currentPageIndex = 4;
-
-    changeParams(20, 3); // size and index change together
-
-    expect(component.pageSize).toBe(20);
-    expect(component.currentPageIndex).toBe(2); // page 3 at the new size
-  });
-
-  it("clamps to the last existing page when a larger page size removes pages", () => {
-    component.totalWorkflows = 65; // 2 pages at size 50
-    component.pageSize = 5;
-    component.currentPageIndex = 12; // last page at size 5
-
-    changeParams(50, 13);
-
-    expect(component.pageSize).toBe(50);
-    expect(component.currentPageIndex).toBe(1); // clamp to page 2 (the last page)
-  });
-
-  it("handles single-page results (stays on the only page)", () => {
-    component.totalWorkflows = 3; // 1 page
-    component.pageSize = 5;
-    component.currentPageIndex = 0;
-
-    changeParams(5, 1);
-
-    expect(component.currentPageIndex).toBe(0);
-  });
-
-  it("clamps to the first page for empty results even if a later page is requested", () => {
-    component.totalWorkflows = 0;
-    component.pageSize = 5;
-    component.currentPageIndex = 0;
-
-    changeParams(5, 5); // requesting page 5 with no data at all
-
-    expect(component.currentPageIndex).toBe(0);
+    expect(component.pageSize).toBe(expectedSize);
+    expect(component.currentPageIndex).toBe(expectedIndex);
   });
 
   it("does not refetch when neither page size nor page index changed (sort/filter handled elsewhere)", () => {
@@ -195,41 +170,12 @@ describe("AdminExecutionComponent methods (#6550)", () => {
   let fixture: ComponentFixture<AdminExecutionComponent>;
   let service: AdminExecutionService;
 
-  const NOW = 1_700_000_000_000; // fixed clock (ms) for Date.now()-based logic
-
-  function makeExecution(over: Partial<Execution>): Execution {
-    return {
-      access: true,
-      workflowId: 1,
-      workflowName: "wf",
-      executionId: 1,
-      executionName: "exec",
-      userName: "alice",
-      executionStatus: "COMPLETED",
-      startTime: 0,
-      endTime: 0,
-      executionTime: 0,
-      ...over,
-    } as unknown as Execution;
-  }
+  const NOW = DEFAULT_NOW; // fixed clock (ms) for Date.now()-based logic
+  const makeExecution = (over: Partial<Execution> = {}) => createExecution(over);
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      providers: [AdminExecutionService, ...commonTestProviders],
-      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(AdminExecutionComponent);
-    component = fixture.componentInstance;
-    service = TestBed.inject(AdminExecutionService);
-    // Keep data fetches inert and synchronous. We deliberately do NOT call
-    // detectChanges(), so ngOnInit's pollers never start.
-    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
-    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
-    // Fixed clock makes the Date.now()-based methods deterministic and also keeps the
-    // websocket heartbeat interval (created in the action handlers) from ever firing.
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
+    // Keep data fetches inert and install fake timers so Date.now()-based methods and intervals are deterministic.
+    ({ fixture, component, service } = await setupAdminExecution({ fakeTimers: true }));
   });
 
   afterEach(() => {
@@ -410,18 +356,14 @@ describe("AdminExecutionComponent methods (#6550)", () => {
       expect(service.getExecutionList).toHaveBeenCalledTimes(1);
     });
 
-    it("pauseExecution sends a pause request", () => {
-      component.pauseExecution(9);
+    it.each<[string, "pauseExecution" | "resumeExecution", string]>([
+      ["pauseExecution sends a pause request", "pauseExecution", "WorkflowPauseRequest"],
+      ["resumeExecution sends a resume request", "resumeExecution", "WorkflowResumeRequest"],
+    ])("%s", (_name, method, requestType) => {
+      component[method](9);
 
       expect(openWebsocket).toHaveBeenCalledWith(9);
-      expect(send).toHaveBeenCalledWith("WorkflowPauseRequest", {});
-    });
-
-    it("resumeExecution sends a resume request", () => {
-      component.resumeExecution(9);
-
-      expect(openWebsocket).toHaveBeenCalledWith(9);
-      expect(send).toHaveBeenCalledWith("WorkflowResumeRequest", {});
+      expect(send).toHaveBeenCalledWith(requestType, {});
     });
 
     it("clickToViewHistory opens the history modal for the workflow", () => {
@@ -508,34 +450,20 @@ describe("AdminExecutionComponent template rendering", () => {
   let fixture: ComponentFixture<AdminExecutionComponent>;
   let service: AdminExecutionService;
 
-  const makeExecution = (overrides: Partial<Execution> = {}): Execution => ({
-    workflowName: "a-very-long-workflow-name-to-truncate",
-    workflowId: 11,
-    userName: "alice",
-    userId: 1,
-    executionId: 21,
-    executionStatus: "COMPLETED",
-    executionTime: 3661_000,
-    executionName: "run-1",
-    startTime: 1_700_000_000_000,
-    endTime: 1_700_000_100_000,
-    access: true,
-    ...overrides,
-  });
+  const makeExecution = (overrides: Partial<Execution> = {}): Execution =>
+    createExecution(overrides, {
+      workflowName: "a-very-long-workflow-name-to-truncate",
+      workflowId: 11,
+      userId: 1,
+      executionId: 21,
+      executionTime: 3661_000,
+      executionName: "run-1",
+      startTime: DEFAULT_NOW,
+      endTime: 1_700_000_100_000,
+    });
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      providers: [AdminExecutionService, ...commonTestProviders],
-      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(AdminExecutionComponent);
-    component = fixture.componentInstance;
-    service = TestBed.inject(AdminExecutionService);
-    // Keep the fetches inert; the rows are seeded directly so ngOnInit's pollers have
-    // nothing to do (they are covered by the lifecycle tests above).
-    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
-    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
+    ({ fixture, component, service } = await setupAdminExecution());
   });
 
   afterEach(() => fixture.destroy());
@@ -629,41 +557,40 @@ describe("AdminExecutionComponent template rendering", () => {
     expect(cellsOf(0)[0]).toContain("(77)");
   });
 
-  it("pauses the execution when the pause control is clicked on a running row", () => {
-    const pauseSpy = vi.spyOn(component, "pauseExecution").mockImplementation(() => {});
-    renderRows([makeExecution({ executionStatus: "RUNNING", workflowId: 42 })]);
+  it.each<
+    [string, "RUNNING" | "PAUSED", number, "pauseExecution" | "resumeExecution", "pause" | "redo", "redo" | "pause"]
+  >([
+    // A native click verifies [disabled]; the opposite control stays disabled and kill stays enabled.
+    [
+      "pauses the execution when the pause control is clicked on a running row",
+      "RUNNING",
+      42,
+      "pauseExecution",
+      "pause",
+      "redo",
+    ],
+    [
+      "resumes the execution when the resume control is clicked on a paused row",
+      "PAUSED",
+      43,
+      "resumeExecution",
+      "redo",
+      "pause",
+    ],
+  ])("%s", (_name, executionStatus, workflowId, spyMethod, activeIcon, oppositeIcon) => {
+    const spy = vi.spyOn(component, spyMethod).mockImplementation(() => {});
+    renderRows([makeExecution({ executionStatus, workflowId })]);
 
-    const pauseButton = actionButton("pause");
-    expect(pauseButton).toBeTruthy();
-    // A native click (rather than triggerEventHandler) so the [disabled] predicate is part of
-    // what is being asserted: a running execution is exactly the case that must be pausable.
-    const nativePause = pauseButton!.nativeElement as HTMLButtonElement;
-    expect(nativePause.disabled).toBe(false);
-    // The other two controls in the same row, in their opposite state: a running execution
-    // cannot be resumed, and can still be killed.
-    expect(isDisabled("redo")).toBe(true);
+    const button = actionButton(activeIcon);
+    expect(button).toBeTruthy();
+    const nativeBtn = button!.nativeElement as HTMLButtonElement;
+    expect(nativeBtn.disabled).toBe(false);
+    expect(isDisabled(oppositeIcon)).toBe(true);
     expect(isDisabled("stop")).toBe(false);
 
-    nativePause.click();
+    nativeBtn.click();
 
-    expect(pauseSpy).toHaveBeenCalledWith(42);
-  });
-
-  it("resumes the execution when the resume control is clicked on a paused row", () => {
-    const resumeSpy = vi.spyOn(component, "resumeExecution").mockImplementation(() => {});
-    renderRows([makeExecution({ executionStatus: "PAUSED", workflowId: 43 })]);
-
-    const resumeButton = actionButton("redo");
-    expect(resumeButton).toBeTruthy();
-    const nativeResume = resumeButton!.nativeElement as HTMLButtonElement;
-    expect(nativeResume.disabled).toBe(false);
-    // A paused execution cannot be paused again, and is still killable.
-    expect(isDisabled("pause")).toBe(true);
-    expect(isDisabled("stop")).toBe(false);
-
-    nativeResume.click();
-
-    expect(resumeSpy).toHaveBeenCalledWith(43);
+    expect(spy).toHaveBeenCalledWith(workflowId);
   });
 
   it("greys out kill, pause and resume once the execution has finished", () => {

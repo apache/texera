@@ -135,20 +135,42 @@ export class MultipartUploadService {
         return lastStats;
       };
 
-      // 1. INIT: ask backend to create a LakeFS multipart upload session
-      const initParams = new HttpParams()
-        .set("type", "init")
-        .set("ownerEmail", ownerEmail)
-        .set(endpoint.nameParamKey, resourceName)
-        .set("filePath", encodeURIComponent(filePath))
-        .set("fileSizeBytes", file.size.toString())
-        .set("partSizeBytes", partSize.toString())
-        .set("restart", restart);
+      const sumUploaded = (): number => {
+        let total = baselineUploaded;
+        partProgress.forEach(bytes => {
+          total += bytes;
+        });
+        return total;
+      };
 
-      const init$ = this.http.post<{ missingParts: number[]; completedPartsCount: number }>(
-        `${AppSettings.getApiEndpoint()}/${endpoint.baseUrl}/multipart-upload`,
-        {},
-        { params: initParams }
+      const emitProgress = (
+        percentage: number,
+        status: MultipartUploadProgress["status"],
+        stats = {
+          uploadSpeed: 0,
+          estimatedTimeRemaining: 0,
+          totalTime: status === "initializing" ? 0 : getTotalTime(),
+        }
+      ) => observer.next({ filePath, percentage, status, ...stats });
+
+      const emitUploading = () => {
+        const totalUploaded = sumUploaded();
+        const percentage = Math.round((totalUploaded / file.size) * 100);
+        emitProgress(Math.min(percentage, 99), "uploading", calculateStats(totalUploaded));
+      };
+
+      // 1. INIT: ask backend to create a LakeFS multipart upload session
+      const init$ = this.postMultipartControl<{ missingParts: number[]; completedPartsCount: number }>(
+        endpoint,
+        "init",
+        ownerEmail,
+        resourceName,
+        {
+          filePath: encodeURIComponent(filePath),
+          fileSizeBytes: file.size,
+          partSizeBytes: partSize,
+          restart,
+        }
       );
 
       const subscription = init$
@@ -166,14 +188,7 @@ export class MultipartUploadService {
             baselineUploaded = file.size - missingBytes;
             const baselinePct = partCount > 0 ? Math.round((completedPartsCount / partCount) * 100) : 0;
 
-            observer.next({
-              filePath,
-              percentage: baselinePct,
-              status: "initializing",
-              uploadSpeed: 0,
-              estimatedTimeRemaining: 0,
-              totalTime: 0,
-            });
+            emitProgress(baselinePct, "initializing");
             // 2. Upload each part to /multipart-upload/part using XMLHttpRequest
             return from(missingParts).pipe(
               mergeMap(partNumber => {
@@ -187,21 +202,7 @@ export class MultipartUploadService {
                   xhr.upload.addEventListener("progress", event => {
                     if (event.lengthComputable) {
                       partProgress.set(partNumber, event.loaded);
-
-                      let totalUploaded = baselineUploaded; // CHANGED
-                      partProgress.forEach(bytes => {
-                        totalUploaded += bytes;
-                      });
-
-                      const percentage = Math.round((totalUploaded / file.size) * 100);
-                      const stats = calculateStats(totalUploaded);
-
-                      observer.next({
-                        filePath,
-                        percentage: Math.min(percentage, 99),
-                        status: "uploading",
-                        ...stats,
-                      });
+                      emitUploading();
                     }
                   });
 
@@ -209,24 +210,9 @@ export class MultipartUploadService {
                     if (xhr.status === 200 || xhr.status === 204) {
                       // Mark part as fully uploaded
                       partProgress.set(partNumber, chunk.size);
-
-                      let totalUploaded = baselineUploaded;
-                      partProgress.forEach(bytes => {
-                        totalUploaded += bytes;
-                      });
-
                       // Force stats recompute on completion
                       lastUpdateTime = 0;
-                      const percentage = Math.round((totalUploaded / file.size) * 100);
-                      const stats = calculateStats(totalUploaded);
-
-                      observer.next({
-                        filePath,
-                        percentage: Math.min(percentage, 99),
-                        status: "uploading",
-                        ...stats,
-                      });
-
+                      emitUploading();
                       partObserver.complete();
                     } else {
                       partObserver.error(new Error(`Failed to upload part ${partNumber} (HTTP ${xhr.status})`));
@@ -262,48 +248,15 @@ export class MultipartUploadService {
               }, concurrencyLimit),
               toArray(), // wait for all parts
               // 3. FINISH: notify backend that all parts are done
-              switchMap(() => {
-                const finishParams = new HttpParams()
-                  .set("type", "finish")
-                  .set("ownerEmail", ownerEmail)
-                  .set(endpoint.nameParamKey, resourceName)
-                  .set("filePath", encodeURIComponent(filePath));
-
-                return this.http.post(
-                  `${AppSettings.getApiEndpoint()}/${endpoint.baseUrl}/multipart-upload`,
-                  {},
-                  { params: finishParams }
-                );
-              }),
+              switchMap(() => this.finalizeMultipartUpload(endpoint, ownerEmail, resourceName, filePath, false)),
               tap(() => {
-                const totalTime = getTotalTime();
-                observer.next({
-                  filePath,
-                  percentage: 100,
-                  status: "finished",
-                  uploadSpeed: 0,
-                  estimatedTimeRemaining: 0,
-                  totalTime,
-                });
+                emitProgress(100, "finished");
                 observer.complete();
               }),
               catchError((error: unknown) => {
                 // On error, compute best-effort percentage from bytes we've seen
-                let totalUploaded = baselineUploaded;
-                partProgress.forEach(bytes => {
-                  totalUploaded += bytes;
-                });
-                const percentage = file.size > 0 ? Math.round((totalUploaded / file.size) * 100) : 0;
-
-                observer.next({
-                  filePath,
-                  percentage,
-                  status: "failed",
-                  uploadSpeed: 0,
-                  estimatedTimeRemaining: 0,
-                  totalTime: getTotalTime(),
-                });
-
+                const percentage = file.size > 0 ? Math.round((sumUploaded() / file.size) * 100) : 0;
+                emitProgress(percentage, "failed");
                 return throwError(() => error);
               })
             );
@@ -317,21 +270,31 @@ export class MultipartUploadService {
     });
   }
 
+  private postMultipartControl<T>(
+    endpoint: FileResourceEndpoint,
+    type: string,
+    ownerEmail: string,
+    resourceName: string,
+    extraParams: Record<string, string | number | boolean> = {}
+  ): Observable<T> {
+    let params = new HttpParams()
+      .set("type", type)
+      .set("ownerEmail", ownerEmail)
+      .set(endpoint.nameParamKey, resourceName);
+    for (const [key, value] of Object.entries(extraParams)) {
+      params = params.set(key, String(value));
+    }
+    return this.http.post<T>(`${AppSettings.getApiEndpoint()}/${endpoint.baseUrl}/multipart-upload`, {}, { params });
+  }
+
   public listMultipartUploads(
     endpoint: FileResourceEndpoint,
     ownerEmail: string,
     resourceName: string
   ): Observable<string[]> {
-    const params = new HttpParams()
-      .set("type", "list")
-      .set("ownerEmail", ownerEmail)
-      .set(endpoint.nameParamKey, resourceName);
-
-    return this.http
-      .post<{
-        filePaths: string[];
-      }>(`${AppSettings.getApiEndpoint()}/${endpoint.baseUrl}/multipart-upload`, {}, { params })
-      .pipe(map(res => res?.filePaths ?? []));
+    return this.postMultipartControl<{ filePaths: string[] }>(endpoint, "list", ownerEmail, resourceName).pipe(
+      map(res => res?.filePaths ?? [])
+    );
   }
 
   public findExistingUploadFiles(
@@ -356,16 +319,8 @@ export class MultipartUploadService {
     filePath: string,
     isAbort: boolean
   ): Observable<Response> {
-    const params = new HttpParams()
-      .set("type", isAbort ? "abort" : "finish")
-      .set("ownerEmail", ownerEmail)
-      .set(endpoint.nameParamKey, resourceName)
-      .set("filePath", encodeURIComponent(filePath));
-
-    return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${endpoint.baseUrl}/multipart-upload`,
-      {},
-      { params }
-    );
+    return this.postMultipartControl<Response>(endpoint, isAbort ? "abort" : "finish", ownerEmail, resourceName, {
+      filePath: encodeURIComponent(filePath),
+    });
   }
 }

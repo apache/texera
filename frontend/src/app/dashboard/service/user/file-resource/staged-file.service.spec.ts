@@ -38,7 +38,7 @@ describe("StagedFileService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [StagedFileService, ...commonTestProviders],
+      providers: commonTestProviders,
     });
     service = TestBed.inject(StagedFileService);
     http = TestBed.inject(HttpTestingController);
@@ -61,26 +61,19 @@ describe("StagedFileService", () => {
       expect(await pending).toEqual(staged);
     });
 
-    it(`reverts one staged ${name} path`, () => {
-      service.resetFileDiff(endpoint, 7, "dir/a b.txt").subscribe();
-
-      // The path is encoded into the query param, so a space or slash survives the round trip.
-      const req = http.expectOne(
-        `${API}/${endpoint.baseUrl}/7/diff?filePath=${encodeURIComponent(encodeURIComponent("dir/a b.txt"))}`
-      );
-      expect(req.request.method).toBe("PUT");
-      req.flush({});
-    });
-
-    it(`stages a deletion of a committed ${name} file`, () => {
-      service.deleteFile(endpoint, 7, "dir/a.txt").subscribe();
-
-      const req = http.expectOne(
-        `${API}/${endpoint.baseUrl}/7/file?filePath=${encodeURIComponent(encodeURIComponent("dir/a.txt"))}`
-      );
-      expect(req.request.method).toBe("DELETE");
-      req.flush({});
-    });
+    for (const [description, operation, method, route, path] of [
+      [`reverts one staged ${name} path`, "resetFileDiff", "PUT", "diff", "dir/a b.txt"],
+      [`stages a deletion of a committed ${name} file`, "deleteFile", "DELETE", "file", "dir/a.txt"],
+    ] as const) {
+      it(description, () => {
+        service[operation](endpoint, 7, path).subscribe();
+        // The path is encoded into the query param, so a space or slash survives the round trip.
+        const encodedPath = encodeURIComponent(encodeURIComponent(path));
+        const req = http.expectOne(`${API}/${endpoint.baseUrl}/7/${route}?filePath=${encodedPath}`);
+        expect(req.request.method).toBe(method);
+        req.flush({});
+      });
+    }
   }
 
   it("surfaces a server error rather than swallowing it", async () => {

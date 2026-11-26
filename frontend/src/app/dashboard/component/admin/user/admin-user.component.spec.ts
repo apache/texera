@@ -36,18 +36,27 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
-const userA: User = {
+const baseUser: User = {
+  uid: 0,
+  name: "",
+  email: "",
+  role: Role.REGULAR,
+  comment: "",
+  joiningReason: "",
+};
+const mk = (o: Partial<User>): User => ({ ...baseUser, ...o });
+
+const userA: User = mk({
   uid: 1,
   name: "Alice",
   email: "alice@example.com",
-  role: Role.REGULAR,
   comment: "c1",
   joiningReason: "r1",
   accountCreation: 1000,
   lastLogin: 2000,
-};
+});
 
-const userB: User = {
+const userB: User = mk({
   uid: 2,
   name: "Bob",
   email: "bob@example.com",
@@ -55,7 +64,7 @@ const userB: User = {
   comment: "c2",
   joiningReason: "r2",
   accountCreation: 3000,
-};
+});
 
 describe("AdminUserComponent", () => {
   let component: AdminUserComponent;
@@ -114,114 +123,71 @@ describe("AdminUserComponent", () => {
     expect(placeholderTags[0].closest("tr")?.textContent).toContain("test1");
   });
 
-  it("should search email case-insensitively", () => {
-    component.userList = [
-      {
-        name: "Alice",
-        email: "alice@example.com",
-        comment: "Needs review",
-      } as any,
-      {
-        name: "Bob",
-        email: "bob@example.com",
-        comment: "Approved",
-      } as any,
-    ];
+  type SearchField = "name" | "email" | "comment";
+  const searchKey = (f: SearchField): `${SearchField}SearchValue` => `${f}SearchValue`;
+  const runSearch = (f: SearchField): void =>
+    f === "name" ? component.searchByName() : f === "email" ? component.searchByEmail() : component.searchByComment();
+  const searchUsers = (): User[] => [
+    mk({ name: "Alice", email: "alice@example.com", comment: "Needs review" }),
+    mk({ name: "Bob", email: "bob@example.com", comment: "Approved" }),
+  ];
 
-    component.emailSearchValue = "ALICE@EXAMPLE.COM";
-    component.searchByEmail();
-
-    expect(component.listOfDisplayUser.length).toBe(1);
-    expect(component.listOfDisplayUser[0].email).toBe("alice@example.com");
+  (
+    [
+      ["email", "ALICE@EXAMPLE.COM", "alice@example.com"],
+      ["comment", "NEEDS REVIEW", "Needs review"],
+    ] as const
+  ).forEach(([field, query, expected]) => {
+    it(`should search ${field} case-insensitively`, () => {
+      component.userList = searchUsers();
+      component[searchKey(field)] = query;
+      runSearch(field);
+      expect(component.listOfDisplayUser.length).toBe(1);
+      expect(component.listOfDisplayUser[0][field]).toBe(expected);
+    });
   });
 
-  it("should search comment case-insensitively", () => {
-    component.userList = [
-      {
-        name: "Alice",
-        email: "alice@example.com",
-        comment: "Needs review",
-      } as any,
-      {
-        name: "Bob",
-        email: "bob@example.com",
-        comment: "Approved",
-      } as any,
-    ];
-
-    component.commentSearchValue = "NEEDS REVIEW";
-    component.searchByComment();
-
-    expect(component.listOfDisplayUser.length).toBe(1);
-    expect(component.listOfDisplayUser[0].comment).toBe("Needs review");
+  (
+    [
+      ["email", "  ALICE@EXAMPLE.COM  ", "ALICE@EXAMPLE.COM", "alice@example.com"],
+      ["comment", "  Needs review  ", "Needs review", "Needs review"],
+    ] as const
+  ).forEach(([field, query, trimmed, expected]) => {
+    it(`should trim active ${field} search value without lowercasing the stored input`, () => {
+      component.userList = [searchUsers()[0]];
+      component[searchKey(field)] = query;
+      runSearch(field);
+      expect(component[searchKey(field)]).toBe(trimmed);
+      expect(component.listOfDisplayUser.length).toBe(1);
+      expect(component.listOfDisplayUser[0][field]).toBe(expected);
+    });
   });
 
-  it("should trim active email search value without lowercasing the stored input", () => {
-    component.userList = [
-      {
-        name: "Alice",
-        email: "alice@example.com",
-        comment: "Needs review",
-      } as any,
-    ];
-
-    component.emailSearchValue = "  ALICE@EXAMPLE.COM  ";
-    component.searchByEmail();
-
-    expect(component.emailSearchValue).toBe("ALICE@EXAMPLE.COM");
-    expect(component.listOfDisplayUser.length).toBe(1);
-    expect(component.listOfDisplayUser[0].email).toBe("alice@example.com");
+  (
+    [
+      ["name", "Alice", "email", "alice@example.com", "comment", "Needs review"],
+      ["email", "bob@example.com", "name", "Alice", "comment", "Needs review"],
+      ["comment", "Approved", "name", "Alice", "email", "alice@example.com"],
+    ] as const
+  ).forEach(([field, query, f1, v1, f2, v2]) => {
+    it(`should clear inactive search values when searching by ${field}`, () => {
+      component[searchKey(f1)] = v1;
+      component[searchKey(f2)] = v2;
+      component[searchKey(field)] = query;
+      runSearch(field);
+      expect(component[searchKey(f1)]).toBe("");
+      expect(component[searchKey(f2)]).toBe("");
+    });
   });
 
-  it("should trim active comment search value without lowercasing the stored input", () => {
-    component.userList = [
-      {
-        name: "Alice",
-        email: "alice@example.com",
-        comment: "Needs review",
-      } as any,
-    ];
-
-    component.commentSearchValue = "  Needs review  ";
-    component.searchByComment();
-
-    expect(component.commentSearchValue).toBe("Needs review");
-    expect(component.listOfDisplayUser.length).toBe(1);
-    expect(component.listOfDisplayUser[0].comment).toBe("Needs review");
-  });
-
-  it("should clear inactive search values when searching by name", () => {
-    component.emailSearchValue = "alice@example.com";
-    component.commentSearchValue = "Needs review";
-
-    component.nameSearchValue = "Alice";
-    component.searchByName();
-
-    expect(component.emailSearchValue).toBe("");
-    expect(component.commentSearchValue).toBe("");
-  });
-
-  it("should clear inactive search values when searching by email", () => {
-    component.nameSearchValue = "Alice";
-    component.commentSearchValue = "Needs review";
-
-    component.emailSearchValue = "bob@example.com";
-    component.searchByEmail();
-
-    expect(component.nameSearchValue).toBe("");
-    expect(component.commentSearchValue).toBe("");
-  });
-
-  it("should clear inactive search values when searching by comment", () => {
-    component.nameSearchValue = "Alice";
-    component.emailSearchValue = "alice@example.com";
-
-    component.commentSearchValue = "Approved";
-    component.searchByComment();
-
-    expect(component.nameSearchValue).toBe("");
-    expect(component.emailSearchValue).toBe("");
-  });
+  function stageEdit(editName = userA.name): void {
+    component.userList = [userA];
+    component.editUid = userA.uid;
+    component.editName = editName;
+    component.editEmail = userA.email;
+    component.editRole = userA.role;
+    component.editComment = userA.comment;
+  }
 
   it("addUser creates a user through the service and reloads the list", () => {
     const listCallsBefore = adminUserServiceSpy.getUserList.mock.calls.length;
@@ -245,13 +211,8 @@ describe("AdminUserComponent", () => {
   });
 
   it("saveEdit persists a changed row and updates the local lists", () => {
-    component.userList = [userA];
+    stageEdit("Alice Updated");
     component.listOfDisplayUser = [userA];
-    component.editUid = userA.uid;
-    component.editName = "Alice Updated";
-    component.editEmail = userA.email;
-    component.editRole = userA.role;
-    component.editComment = userA.comment;
 
     component.saveEdit();
 
@@ -268,12 +229,7 @@ describe("AdminUserComponent", () => {
   });
 
   it("saveEdit is a no-op when nothing changed", () => {
-    component.userList = [userA];
-    component.editUid = userA.uid;
-    component.editName = userA.name;
-    component.editEmail = userA.email;
-    component.editRole = userA.role;
-    component.editComment = userA.comment;
+    stageEdit();
 
     component.saveEdit();
 
@@ -284,13 +240,7 @@ describe("AdminUserComponent", () => {
   it("saveEdit surfaces a service error through the message service", () => {
     const errorSpy = vi.spyOn(TestBed.inject(NzMessageService), "error").mockReturnValue({} as any);
     adminUserServiceSpy.updateUser.mockReturnValue(throwError(() => ({ error: { message: "update failed" } })));
-
-    component.userList = [userA];
-    component.editUid = userA.uid;
-    component.editName = "Changed";
-    component.editEmail = userA.email;
-    component.editRole = userA.role;
-    component.editComment = userA.comment;
+    stageEdit("Changed");
 
     component.saveEdit();
 
@@ -377,76 +327,63 @@ describe("AdminUserComponent", () => {
     expect(component.getFeedbackCount(999)).toBe(0); // absent uid defaults to 0
   });
 
-  it("clickToViewFeedbacks opens the feedback modal for the given uid", () => {
-    const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
+  (
+    [
+      ["feedback", 7, FeedbackComponent, () => component.clickToViewFeedbacks(7)],
+      ["quota", 9, UserQuotaComponent, () => component.clickToViewQuota(9)],
+    ] as const
+  ).forEach(([kind, uid, expectedContent, openModal]) => {
+    it(`clickToView${kind === "feedback" ? "Feedbacks" : "Quota"} opens the ${kind} modal for the given uid`, () => {
+      const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
 
-    component.clickToViewFeedbacks(7);
+      openModal();
 
-    expect(createSpy).toHaveBeenCalledTimes(1);
-    const config = createSpy.mock.calls[0][0];
-    expect(config.nzContent).toBe(FeedbackComponent);
-    expect(config.nzData).toEqual({ uid: 7 });
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      const config = createSpy.mock.calls[0][0];
+      expect(config.nzContent).toBe(expectedContent);
+      expect(config.nzData).toEqual({ uid });
+    });
   });
-
-  it("clickToViewQuota opens the quota modal for the given uid", () => {
-    const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
-
-    component.clickToViewQuota(9);
-
-    expect(createSpy).toHaveBeenCalledTimes(1);
-    const config = createSpy.mock.calls[0][0];
-    expect(config.nzContent).toBe(UserQuotaComponent);
-    expect(config.nzData).toEqual({ uid: 9 });
-  });
-
-  const baseUser: User = {
-    uid: 0,
-    name: "",
-    email: "",
-    role: Role.REGULAR,
-    comment: "",
-    joiningReason: "",
-  };
-  const mk = (o: Partial<User>): User => ({ ...baseUser, ...o });
 
   describe("startEdit caret focus", () => {
     const fakeInput = (value: string) => ({ value, focus: vi.fn(), setSelectionRange: vi.fn() });
 
-    it("focuses the name input and places the caret at the end after the setTimeout macrotask", fakeAsync(() => {
-      const input = fakeInput("Alice");
-      component.nameInputRef = { nativeElement: input } as any;
+    (
+      [
+        [
+          "name",
+          userA,
+          "nameInputRef",
+          "Alice",
+          "focuses the name input and places the caret at the end after the setTimeout macrotask",
+        ],
+        ["email", userB, "emailInputRef", "bob@example.com", "focuses the email input and places the caret at the end"],
+        [
+          "comment",
+          userA,
+          "commentTextareaRef",
+          "some comment",
+          "focuses the comment textarea and places the caret at the end",
+        ],
+      ] as const
+    ).forEach(([attribute, user, refKey, value, title]) => {
+      it(
+        title,
+        fakeAsync(() => {
+          const el = fakeInput(value);
+          component[refKey] = { nativeElement: el } as any;
 
-      component.startEdit(userA, "name");
-      tick();
+          component.startEdit(user, attribute);
+          tick();
 
-      expect(input.focus).toHaveBeenCalledTimes(1);
-      expect(input.setSelectionRange).toHaveBeenCalledWith(5, 5);
-    }));
-
-    it("focuses the email input and places the caret at the end", fakeAsync(() => {
-      const input = fakeInput("bob@example.com");
-      component.emailInputRef = { nativeElement: input } as any;
-
-      component.startEdit(userB, "email");
-      tick();
-
-      expect(input.focus).toHaveBeenCalledTimes(1);
-      expect(input.setSelectionRange).toHaveBeenCalledWith(15, 15);
-    }));
-
-    it("focuses the comment textarea and places the caret at the end", fakeAsync(() => {
-      const textarea = fakeInput("some comment");
-      component.commentTextareaRef = { nativeElement: textarea } as any;
-
-      component.startEdit(userA, "comment");
-      tick();
-
-      expect(textarea.focus).toHaveBeenCalledTimes(1);
-      expect(textarea.setSelectionRange).toHaveBeenCalledWith(12, 12);
-    }));
+          expect(el.focus).toHaveBeenCalledTimes(1);
+          expect(el.setSelectionRange).toHaveBeenCalledWith(value.length, value.length);
+        })
+      );
+    });
 
     it("does nothing on the timer when the matching input ref is absent", fakeAsync(() => {
-      // nameInputRef is left undefined, so the name branch's `&& this.nameInputRef` guard is false.
+      // nameInputRef is left undefined, so there is no name element to focus.
       component.startEdit(userA, "name");
       expect(() => tick()).not.toThrow();
       expect(component.editAttribute).toBe("name");
@@ -457,13 +394,7 @@ describe("AdminUserComponent", () => {
     it("falls back to err.message when err.error.message is absent", () => {
       const errorSpy = vi.spyOn(TestBed.inject(NzMessageService), "error").mockReturnValue({} as any);
       adminUserServiceSpy.updateUser.mockReturnValue(throwError(() => new Error("network down")));
-
-      component.userList = [userA];
-      component.editUid = userA.uid;
-      component.editName = "Changed";
-      component.editEmail = userA.email;
-      component.editRole = userA.role;
-      component.editComment = userA.comment;
+      stageEdit("Changed");
 
       component.saveEdit();
 
@@ -524,23 +455,49 @@ describe("AdminUserComponent", () => {
       expect(component.sortByID(mk({ uid: 5 }), mk({ uid: 2 }))).toBe(3);
     });
 
-    it("sortByName compares names and falls back to uid on a tie", () => {
-      expect(component.sortByName(mk({ uid: 1, name: "Alice" }), mk({ uid: 2, name: "Bob" }))).toBeLessThan(0);
-      // equal names (both empty via null coalescing) -> uid tiebreak
-      expect(component.sortByName(mk({ uid: 1, name: null as any }), mk({ uid: 2, name: null as any }))).toBe(-1);
-    });
-
-    it("sortByEmail compares emails and falls back to uid on a tie", () => {
-      expect(component.sortByEmail(mk({ uid: 1, email: "a@x.com" }), mk({ uid: 2, email: "b@x.com" }))).toBeLessThan(0);
-      expect(component.sortByEmail(mk({ uid: 1, email: null as any }), mk({ uid: 2, email: null as any }))).toBe(-1);
-    });
-
-    it("sortByComment compares comments and falls back to uid on a tie", () => {
-      expect(component.sortByComment(mk({ uid: 1, comment: "aaa" }), mk({ uid: 2, comment: "bbb" }))).toBeLessThan(0);
-      expect(component.sortByComment(mk({ uid: 1, comment: null as any }), mk({ uid: 2, comment: null as any }))).toBe(
-        -1
-      );
-    });
+    const stringSortCases = [
+      ["sortByName", "name", "Alice", "Bob", null as any, "sortByName compares names and falls back to uid on a tie"],
+      [
+        "sortByEmail",
+        "email",
+        "a@x.com",
+        "b@x.com",
+        null as any,
+        "sortByEmail compares emails and falls back to uid on a tie",
+      ],
+      [
+        "sortByComment",
+        "comment",
+        "aaa",
+        "bbb",
+        null as any,
+        "sortByComment compares comments and falls back to uid on a tie",
+      ],
+      [
+        "sortByAffiliation",
+        "affiliation",
+        "MIT",
+        "UCLA",
+        undefined,
+        "sortByAffiliation compares affiliations and falls back to uid on a tie",
+      ],
+      [
+        "sortByJoiningReason",
+        "joiningReason",
+        "research",
+        "teaching",
+        null as any,
+        "sortByJoiningReason compares joining reasons and falls back to uid on a tie",
+      ],
+    ] as const;
+    const itSortsStrings = ([fn, field, low, high, empty, title]: (typeof stringSortCases)[number]) =>
+      it(title, () => {
+        expect(component[fn](mk({ uid: 1, [field]: low }), mk({ uid: 2, [field]: high }))).toBeLessThan(0);
+        // equal values (empty via null/undefined coalescing) -> uid tiebreak
+        expect(component[fn](mk({ uid: 1, [field]: empty }), mk({ uid: 2, [field]: empty }))).toBe(-1);
+      });
+    // Registered around the role and account-creation cases to keep the original test order.
+    stringSortCases.slice(0, 3).forEach(itSortsStrings);
 
     it("sortByRole compares roles and falls back to uid on a tie", () => {
       // "REGULAR".localeCompare("ADMIN") is positive, so REGULAR sorts after ADMIN
@@ -563,29 +520,7 @@ describe("AdminUserComponent", () => {
       ).toBe(-1);
     });
 
-    it("sortByAffiliation compares affiliations and falls back to uid on a tie", () => {
-      expect(
-        component.sortByAffiliation(mk({ uid: 1, affiliation: "MIT" }), mk({ uid: 2, affiliation: "UCLA" }))
-      ).toBeLessThan(0);
-      expect(
-        component.sortByAffiliation(mk({ uid: 1, affiliation: undefined }), mk({ uid: 2, affiliation: undefined }))
-      ).toBe(-1);
-    });
-
-    it("sortByJoiningReason compares joining reasons and falls back to uid on a tie", () => {
-      expect(
-        component.sortByJoiningReason(
-          mk({ uid: 1, joiningReason: "research" }),
-          mk({ uid: 2, joiningReason: "teaching" })
-        )
-      ).toBeLessThan(0);
-      expect(
-        component.sortByJoiningReason(
-          mk({ uid: 1, joiningReason: null as any }),
-          mk({ uid: 2, joiningReason: null as any })
-        )
-      ).toBe(-1);
-    });
+    stringSortCases.slice(3).forEach(itSortsStrings);
 
     it("sortByActive ranks active users first and falls back to uid when equal", () => {
       const nowSeconds = Math.floor(Date.now() / 1000);
@@ -666,47 +601,34 @@ describe("AdminUserComponent", () => {
     it("does the same for the email and comment cells, and saves when the cell loses focus", () => {
       const saveSpy = vi.spyOn(component, "saveEdit").mockImplementation(() => {});
       renderUsers([userA]);
+      const cell = (col: number) => fixture.nativeElement.querySelectorAll("tbody tr td")[col];
 
-      const cells = () => fixture.nativeElement.querySelectorAll("tbody tr td");
-      cells()[3].querySelector(".container").click();
-      fixture.detectChanges();
-      expect(component.editAttribute).toBe("email");
-      const emailInput = cells()[3].querySelector("input[type=email]");
-      expect(emailInput).not.toBeNull();
-      emailInput.value = "alicia@example.com";
-      emailInput.dispatchEvent(new Event("input"));
-      fixture.detectChanges();
-      expect(component.editEmail).toBe("alicia@example.com");
-      emailInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      expect(saveSpy).toHaveBeenCalled();
+      (
+        [
+          [3, "email", "input[type=email]", "alicia@example.com", "editEmail"],
+          [6, "comment", "textarea", "reviewed", "editComment"],
+        ] as const
+      ).forEach(([col, attr, selector, value, editProp]) => {
+        saveSpy.mockClear();
+        cell(col).querySelector(".container").click();
+        fixture.detectChanges();
+        expect(component.editAttribute).toBe(attr);
+        const input = cell(col).querySelector(selector);
+        expect(input).not.toBeNull();
+        input.value = value;
+        input.dispatchEvent(new Event("input"));
+        fixture.detectChanges();
+        expect(component[editProp]).toBe(value);
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        expect(saveSpy).toHaveBeenCalled();
 
-      // Cleared between the two so each binding is what its own assertion proves.
-      saveSpy.mockClear();
-      cells()[3]
-        .querySelector("div")
-        .dispatchEvent(new Event("focusout", { bubbles: true }));
-      expect(saveSpy).toHaveBeenCalled();
-
-      saveSpy.mockClear();
-      cells()[6].querySelector(".container").click();
-      fixture.detectChanges();
-      expect(component.editAttribute).toBe("comment");
-      const textarea = cells()[6].querySelector("textarea");
-      expect(textarea).not.toBeNull();
-      textarea.value = "reviewed";
-      textarea.dispatchEvent(new Event("input"));
-      fixture.detectChanges();
-      expect(component.editComment).toBe("reviewed");
-
-      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      expect(saveSpy).toHaveBeenCalled();
-
-      saveSpy.mockClear();
-      cells()[6]
-        .querySelector("div")
-        .dispatchEvent(new Event("focusout", { bubbles: true }));
-
-      expect(saveSpy).toHaveBeenCalled();
+        // Cleared between the two so each binding is what its own assertion proves.
+        saveSpy.mockClear();
+        cell(col)
+          .querySelector("div")
+          .dispatchEvent(new Event("focusout", { bubbles: true }));
+        expect(saveSpy).toHaveBeenCalled();
+      });
     });
 
     it("updates the role through the row's select", () => {
