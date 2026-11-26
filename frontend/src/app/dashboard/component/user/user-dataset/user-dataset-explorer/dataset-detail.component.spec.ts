@@ -658,6 +658,54 @@ describe("DatasetDetailComponent behavior", () => {
       expect(datasetServiceStub.getDatasetCoverUrl).not.toHaveBeenCalled();
     });
 
+    it("keeps the new dataset's details when the old dataset's reply lands late", () => {
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      fixture.detectChanges();
+
+      const lateDataset = new Subject<DashboardDataset>();
+      datasetServiceStub.getDataset.mockReturnValueOnce(lateDataset);
+      params.next({ did: "5" });
+      datasetServiceStub.getDataset.mockReturnValueOnce(
+        of(makeDashboardDataset({ dataset: makeDataset({ did: 6, name: "six" }) }))
+      );
+      params.next({ did: "6" });
+
+      lateDataset.next(makeDashboardDataset({ dataset: makeDataset({ name: "five" }) }));
+
+      expect(component.datasetName).toBe("six");
+    });
+
+    /** Opens 5 with its cover url still in flight, then moves on to 6, whose cover resolves at once. */
+    const leaveDatasetWithCoverInFlight = (): Subject<{ url: string }> => {
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      fixture.detectChanges();
+      const withCover = (did: number) =>
+        of(makeDashboardDataset({ dataset: makeDataset({ did, coverImage: "c.png" }) }));
+
+      const lateCoverUrl = new Subject<{ url: string }>();
+      datasetServiceStub.getDataset.mockReturnValueOnce(withCover(5));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValueOnce(lateCoverUrl);
+      params.next({ did: "5" });
+      datasetServiceStub.getDataset.mockReturnValueOnce(withCover(6));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValueOnce(of({ url: "http://cover/6" }));
+      params.next({ did: "6" });
+      return lateCoverUrl;
+    };
+
+    it("keeps the new dataset's cover when the old dataset's cover url lands late", () => {
+      leaveDatasetWithCoverInFlight().next({ url: "http://cover/5" });
+
+      expect(component.coverImageUrl).toBe("http://cover/6");
+    });
+
+    it("keeps the new dataset's cover when the old dataset's cover url fails late", () => {
+      leaveDatasetWithCoverInFlight().error(new Error("boom"));
+
+      expect(component.coverImageUrl).toBe("http://cover/6");
+    });
+
     /**
      * Stands in for the platform time-zone formatter so the assertions do not depend on
      * whichever zone the machine running the suite sits in. `formatted` maps the requested
