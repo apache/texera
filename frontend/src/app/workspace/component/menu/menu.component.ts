@@ -1067,10 +1067,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       });
   }
 
-  onClickGetAllVersions() {
-    this.workflowVersionService.displayWorkflowVersions();
-  }
-
   private handleWorkflowVersionDisplay(): void {
     this.workflowVersionService
       .getDisplayParticularVersionStream()
