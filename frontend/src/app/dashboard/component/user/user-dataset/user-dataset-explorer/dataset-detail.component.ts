@@ -29,7 +29,7 @@ import {
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
-import { switchMap, throttleTime } from "rxjs/operators";
+import { switchMap, tap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
@@ -62,7 +62,7 @@ import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-re
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
 import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
-export const THROTTLE_TIME_MS = 1000;
+const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({
@@ -167,12 +167,11 @@ export class DatasetDetailComponent implements OnInit {
   ngOnInit(): void {
     this.route.params
       .pipe(
-        switchMap(params => {
+        tap(params => {
           this.did = params["did"];
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
           this.retrieveLatestVersionFile();
-          return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
       )

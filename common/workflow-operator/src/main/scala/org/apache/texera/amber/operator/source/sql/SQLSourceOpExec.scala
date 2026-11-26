@@ -242,7 +242,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
             curLowerBound.longValue <= upperBound.longValue
           case AttributeType.DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
-          case AttributeType.STRING | AttributeType.ANY | AttributeType.BOOLEAN | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
@@ -298,7 +298,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
           case AttributeType.DOUBLE =>
             nextLowerBound = curLowerBound.doubleValue + desc.interval
             isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
         queryBuilder ++= " AND " + attribute.getName +
@@ -332,7 +332,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
             String.valueOf(value)
           case AttributeType.TIMESTAMP =>
             "'" + new Timestamp(value.longValue).toString + "'"
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
@@ -368,7 +368,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
             resultSet.getTimestamp(1).getTime
           case AttributeType.DOUBLE =>
             resultSet.getDouble(1)
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
         resultSet.close()

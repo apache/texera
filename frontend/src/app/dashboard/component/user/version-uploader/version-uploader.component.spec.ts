@@ -23,11 +23,7 @@ import { By } from "@angular/platform-browser";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { concat, Observable, of, Subject, throwError } from "rxjs";
-import {
-  ABORT_RETRY_BACKOFF_BASE_MS,
-  ABORT_RETRY_MAX_ATTEMPTS,
-  VersionUploaderComponent,
-} from "./version-uploader.component";
+import { VersionUploaderComponent } from "./version-uploader.component";
 import {
   MultipartUploadProgress,
   MultipartUploadService,
@@ -257,6 +253,10 @@ describe("VersionUploaderComponent", () => {
    * and the caller's callback must fire exactly once down every one of those paths.
    */
   describe("aborting an upload", () => {
+    // The component's abort policy: up to ten retries after a 409, each waiting 100 ms times its number.
+    const ABORT_RETRY_BACKOFF_BASE_MS = 100;
+    const ABORT_RETRY_MAX_ATTEMPTS = 10;
+
     beforeEach(() => {
       vi.useFakeTimers();
     });

@@ -21,7 +21,7 @@ import { OperatorLink, OperatorPredicate } from "../types/workflow-common.interf
 
 /** The operator types that open and close a loop block, as the backend names them. */
 export const LOOP_START_OP_TYPE = "LoopStart";
-export const LOOP_END_OP_TYPE = "LoopEnd";
+const LOOP_END_OP_TYPE = "LoopEnd";
 
 type BlockOperator = Pick<OperatorPredicate, "operatorID" | "operatorType">;
 type BlockLink = {

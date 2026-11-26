@@ -51,9 +51,9 @@ import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { FilesUploaderComponent } from "../files-uploader/files-uploader.component";
 import { StagedObjectsListComponent } from "../staged-objects-list/staged-objects-list.component";
 
-export const ABORT_RETRY_MAX_ATTEMPTS = 10;
-export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
-export const FINISHED_TASK_HIDE_DELAY_MS = 5000;
+const ABORT_RETRY_MAX_ATTEMPTS = 10;
+const ABORT_RETRY_BACKOFF_BASE_MS = 100;
+const FINISHED_TASK_HIDE_DELAY_MS = 5000;
 
 /**
  * The "Create New Version" panel of a versioned resource's detail page: pick files, watch them
@@ -380,16 +380,12 @@ export class VersionUploaderComponent implements OnInit {
           },
           error: (res: unknown) => {
             const err = res as HttpErrorResponse;
-            // Already gone, treat as done.
-            if (err.status === HttpStatusCode.NotFound) {
-              done();
-              return;
-            }
             // Backend is still finalizing/aborting; retry with a tiny backoff.
             if (err.status === HttpStatusCode.Conflict && attempt < ABORT_RETRY_MAX_ATTEMPTS) {
               setTimeout(() => abortWithRetry(attempt + 1), ABORT_RETRY_BACKOFF_BASE_MS * (attempt + 1));
               return;
             }
+            // Any other error ends the abort, including a 404 for an upload that is already gone.
             done();
           },
         });

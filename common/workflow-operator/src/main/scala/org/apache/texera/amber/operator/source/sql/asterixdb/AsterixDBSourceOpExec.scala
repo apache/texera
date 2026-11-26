@@ -260,7 +260,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
             String.valueOf(value)
           case AttributeType.TIMESTAMP =>
             "datetime('" + formatter.format(new Timestamp(value.longValue).toInstant) + "')"
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
