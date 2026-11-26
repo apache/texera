@@ -29,7 +29,7 @@ import {
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
-import { switchMap, tap } from "rxjs/operators";
+import { filter, switchMap, tap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
@@ -186,16 +186,26 @@ export class DatasetDetailComponent implements OnInit {
       .subscribe();
   }
 
-  /** Opening the page counts as a view; the like state needs a signed-in viewer. */
+  /**
+   * Opening the page counts as a view; the like state needs a signed-in viewer. A reply that
+   * lands after the route has moved on to another dataset is dropped, so it cannot overwrite
+   * that dataset's values.
+   */
   private loadHubActivity(did: number): void {
     this.hubService
       .postView(did, this.currentUid ?? 0, EntityType.Dataset)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.did === did),
+        untilDestroyed(this)
+      )
       .subscribe(count => (this.viewCount = count));
 
     this.hubService
       .getCounts([EntityType.Dataset], [did], [ActionType.Like])
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.did === did),
+        untilDestroyed(this)
+      )
       .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
 
     if (this.currentUid === undefined) {
@@ -203,7 +213,10 @@ export class DatasetDetailComponent implements OnInit {
     }
     this.hubService
       .isLiked([did], [EntityType.Dataset])
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.did === did),
+        untilDestroyed(this)
+      )
       .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
   }
 
