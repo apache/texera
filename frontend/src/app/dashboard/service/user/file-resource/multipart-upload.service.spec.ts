@@ -209,6 +209,77 @@ describe("MultipartUploadService", () => {
     await done;
   });
 
+  // ─── progress statistics ──────────────────────────────────────────────────
+
+  it("smooths, throttles and shifts the progress statistics across events", async () => {
+    let now = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const { done, emissions } = startUpload("big.bin", { bytes: new Uint8Array(100), chunkSize: 100 });
+    flushInit();
+    const xhr = FakeXMLHttpRequest.instances[0];
+
+    xhr.emitProgress(5, false); // non-lengthComputable -> ignored
+    xhr.emitProgress(10); // first update: startTime set, elapsed 0
+    xhr.emitProgress(20); // same timestamp -> throttled (returns cached stats)
+    now = 1_002_000;
+    xhr.emitProgress(30); // elapsed>0 so speed/avg become positive
+    now = 1_003_000;
+    xhr.emitProgress(90); // large ETA drop -> smoothing clamps the change
+    now = 1_004_000;
+    xhr.emitProgress(99); // >95% complete -> ETA capped to 10s
+    now = 1_005_000;
+    xhr.emitProgress(99);
+    now = 1_006_000;
+    xhr.emitProgress(99); // 6th sample -> speedSamples window shifts
+    xhr.respond(200);
+    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "finish")).flush({});
+    await done;
+
+    const uploading = emissions.filter(e => e.status === "uploading");
+    expect(uploading.length).toBeGreaterThan(0);
+    expect(uploading.every(e => e.percentage <= 99)).toBe(true);
+    // Once real elapsed time exists the smoothed speed becomes positive.
+    expect(uploading.some(e => (e.uploadSpeed ?? 0) > 0)).toBe(true);
+    // ETA is always reported as a non-negative integer number of seconds.
+    expect(
+      uploading.every(e => Number.isInteger(e.estimatedTimeRemaining) && (e.estimatedTimeRemaining ?? -1) >= 0)
+    ).toBe(true);
+    expect(emissions.at(-1)).toMatchObject({
+      status: "finished",
+      percentage: 100,
+      uploadSpeed: 0,
+      estimatedTimeRemaining: 0,
+    });
+  });
+
+  it("clamps a sharply rising ETA to the +30% smoothing bound", async () => {
+    let now = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const { done, emissions } = startUpload("rise.bin", { bytes: new Uint8Array(100), chunkSize: 100 });
+    flushInit();
+    const xhr = FakeXMLHttpRequest.instances[0];
+
+    // Stalling at 10 of 100 bytes keeps the ETAs far enough apart that rounding cannot hide the clamp.
+    xhr.emitProgress(10); // first update: elapsed 0 -> ETA 0
+    now = 1_001_000;
+    xhr.emitProgress(10); // 10 B/s sample -> ETA 18s, sets lastETA
+    now = 1_100_000;
+    xhr.emitProgress(10); // huge elapsed collapses avg speed -> raw ETA ~27s, clamped to +30%
+    xhr.respond(200);
+    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "finish")).flush({});
+    await done;
+
+    const uploading = emissions.filter(e => e.status === "uploading");
+    expect(uploading.length).toBeGreaterThanOrEqual(3);
+
+    const etaBefore = uploading[1].estimatedTimeRemaining ?? 0;
+    const etaAfter = uploading[2].estimatedTimeRemaining ?? 0;
+
+    expect(etaBefore).toBe(18);
+    expect(etaAfter).toBe(Math.round(etaBefore * 1.3));
+    expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
+  });
+
   // ─── failure and teardown ─────────────────────────────────────────────────
 
   it("fails the upload when a part returns a non-2xx status", async () => {
@@ -229,6 +300,19 @@ describe("MultipartUploadService", () => {
     FakeXMLHttpRequest.instances[0].fail();
 
     expect(await outcome).toBeInstanceOf(Error);
+  });
+
+  it("reports a 0% failure when the finish call errors for an empty file", async () => {
+    // An empty file has no parts, so init leads straight to finish.
+    const { done: outcome, emissions } = startUpload("empty.bin", { bytes: "", captureError: true });
+
+    flushInit({ missingParts: [], completedPartsCount: 0 });
+    expect(FakeXMLHttpRequest.instances.length).toBe(0);
+    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "finish")).error(new ProgressEvent("error"));
+
+    expect(await outcome).not.toBeNull();
+    expect(emissions[0]).toMatchObject({ status: "initializing", percentage: 0 });
+    expect(emissions.at(-1)).toMatchObject({ status: "failed", percentage: 0 });
   });
 
   it("aborts the in-flight part request when the caller unsubscribes", () => {
