@@ -45,7 +45,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.{OPERATOR_PORT_EXECUTIONS, WORKFLOW_EXECUTIONS}
 import org.apache.texera.dao.jooq.generated.enums.{
   OutputModeEnum,
@@ -76,9 +76,6 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion
 }
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.net.URI
 import java.sql.Timestamp
@@ -88,12 +85,7 @@ import java.util.Locale
   * Sends requests through the Jersey pipeline production uses, against an embedded database and
   * real Iceberg tables in a local Hadoop catalog, the way WorkflowCore's storage specs read them.
   */
-class ResultResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class ResultResourceSpec extends DatabaseFlatSpec() {
 
   private val Running: Short = 1
   private val Completed: Short = 3
@@ -109,6 +101,7 @@ class ResultResourceSpec
     Tuple.builder(schema).addSequentially(Array[Any](id, s"first-$id", s"last-$id")).build()
 
   private val rows: Seq[Tuple] = (0 until 25).map(tuple)
+  private val twoPorts = Seq(0 -> rows, 1 -> (100 until 125).map(tuple))
 
   // Mirror production's mapper: ResultService registers DefaultScalaModule on Dropwizard's.
   private val mapper: ObjectMapper = Jackson.newObjectMapper().registerModule(DefaultScalaModule)
@@ -145,8 +138,7 @@ class ResultResourceSpec
   private var vid: Integer = _
   private var unit: Integer = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit = {
     LocalHadoopIcebergCatalog.ensure()
     resources.before()
 
@@ -197,10 +189,10 @@ class ResultResourceSpec
 
   override protected def afterAll(): Unit = {
     resources.after()
-    shutdownDB()
+    super.afterAll()
   }
 
-  override protected def beforeEach(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext.deleteFrom(OPERATOR_PORT_EXECUTIONS).execute()
     getDSLContext.deleteFrom(WORKFLOW_EXECUTIONS).execute()
   }
@@ -294,6 +286,16 @@ class ResultResourceSpec
     uri
   }
 
+  private def executionWithResults(
+      startedBy: User = owner,
+      on: Option[Integer] = Some(unit),
+      ports: Seq[(Int, Seq[Tuple])] = Seq(0 -> rows)
+  ): Integer = {
+    val eid = insertExecution(startedBy, on = on)
+    ports.foreach { case (port, data) => storeResult(eid, port = port, data = data) }
+    eid
+  }
+
   private def write(document: VirtualDocument[_], data: Seq[Tuple], writerId: String): Unit = {
     val writer = document.writer(writerId).asInstanceOf[BufferedItemWriter[Tuple]]
     writer.open()
@@ -322,6 +324,11 @@ class ResultResourceSpec
   private def statisticsPath(eid: Integer) = s"/results/executions/$eid/operators/op/statistics"
   private def readPaths(eid: Integer) =
     Seq(resultsPath(eid), pagesPath(eid), statisticsPath(eid))
+
+  private def assertReadStatus(eid: Integer, status: Int, callers: User*): Unit =
+    for (caller <- callers; path <- readPaths(eid)) {
+      withClue(s"${caller.getName} on $path")(get(caller, path).getStatus shouldBe status)
+    }
 
   private def columnNames(page: JsonNode): List[String] =
     (0 until page.get("schema").size).toList
@@ -352,20 +359,16 @@ class ResultResourceSpec
 
   "Reading an execution" should "be allowed for the user who started it" in {
     // The public viewer started this one, so its results are theirs despite holding no grant.
-    val eid = insertExecution(publicViewer)
-    storeResult(eid)
+    val eid = executionWithResults(publicViewer)
 
-    readPaths(eid).foreach(path => withClue(path)(get(publicViewer, path).getStatus shouldBe 200))
+    assertReadStatus(eid, 200, publicViewer)
   }
 
   it should "be allowed for anyone who can use the computing unit it ran on" in {
-    val eid = insertExecution(publicViewer)
-    storeResult(eid)
+    val eid = executionWithResults(publicViewer)
 
     // The unit's owner, and a user the unit was shared with who holds nothing on the workflow.
-    for (caller <- Seq(owner, unitSharer); path <- readPaths(eid)) {
-      withClue(s"${caller.getName} on $path")(get(caller, path).getStatus shouldBe 200)
-    }
+    assertReadStatus(eid, 200, owner, unitSharer)
   }
 
   it should "be refused for a user who only has the workflow, granted or public" in {
@@ -373,14 +376,11 @@ class ResultResourceSpec
     // No table is stored, so a refusal that came after reading it would be a 404.
     insertResult(eid)
 
-    for (caller <- Seq(grantee, publicViewer); path <- readPaths(eid)) {
-      withClue(s"${caller.getName} on $path")(get(caller, path).getStatus shouldBe 403)
-    }
+    assertReadStatus(eid, 403, grantee, publicViewer)
   }
 
   it should "be refused to all but its starter when no computing unit was recorded" in {
-    val eid = insertExecution(owner, on = None)
-    storeResult(eid)
+    val eid = executionWithResults(on = None)
 
     readPaths(eid).foreach { path =>
       withClue(path) {
@@ -391,9 +391,7 @@ class ResultResourceSpec
   }
 
   it should "give an execution that does not exist the same refusal" in {
-    readPaths(Integer.MAX_VALUE).foreach { path =>
-      withClue(path)(get(owner, path).getStatus shouldBe 403)
-    }
+    assertReadStatus(Integer.MAX_VALUE, 403, owner)
   }
 
   it should "be refused without a token" in {
@@ -445,8 +443,7 @@ class ResultResourceSpec
   }
 
   "GET a page" should "return the requested rows with the schema and the full row count" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     val page = getJson(owner, pagesPath(eid), "pageIndex" -> 2, "pageSize" -> 10)
 
@@ -465,9 +462,7 @@ class ResultResourceSpec
   }
 
   it should "default to the first ten rows of port 0" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
-    storeResult(eid, port = 1, data = (100 until 125).map(tuple))
+    val eid = executionWithResults(ports = twoPorts)
 
     val page = getJson(owner, pagesPath(eid))
 
@@ -476,23 +471,19 @@ class ResultResourceSpec
   }
 
   it should "read the port it is asked for" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
-    storeResult(eid, port = 1, data = (100 until 125).map(tuple))
+    val eid = executionWithResults(ports = twoPorts)
 
     getJson(owner, pagesPath(eid), "port" -> 1).get("table").get(0).get("id").asInt shouldBe 100
   }
 
   it should "stop at the end of the result" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     getJson(owner, pagesPath(eid), "pageIndex" -> 3, "pageSize" -> 10).get("table").size shouldBe 5
   }
 
   it should "keep the schema on a page past the end" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     val page = getJson(owner, pagesPath(eid), "pageIndex" -> 9, "pageSize" -> 10)
 
@@ -502,8 +493,7 @@ class ResultResourceSpec
   }
 
   it should "apply the column offset and limit" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     // With the limit left at its default too: offset plus limit does not fit in an Int.
     columnNames(getJson(owner, pagesPath(eid), "columnOffset" -> 1)) shouldBe
@@ -514,8 +504,7 @@ class ResultResourceSpec
   }
 
   it should "search the columns ignoring case, before the offset and limit" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     columnNames(getJson(owner, pagesPath(eid), "columnSearch" -> "NAME")) shouldBe
       List("first_name", "Last_Name")
@@ -528,8 +517,7 @@ class ResultResourceSpec
   }
 
   it should "search the columns the same way in any locale" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
     val default = Locale.getDefault
     // By Turkish rules "ID" lowercases to "ıd", with a dotless i, which misses "id".
     Locale.setDefault(Locale.forLanguageTag("tr"))
@@ -570,8 +558,7 @@ class ResultResourceSpec
   }
 
   it should "accept the largest page size" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     getJson(owner, pagesPath(eid), "pageSize" -> 1000).get("table").size shouldBe 25
   }
@@ -617,22 +604,19 @@ class ResultResourceSpec
     get(owner, pagesPath(eid)).getStatus shouldBe 500
   }
 
-  it should "answer 500, not 404, when the catalog is unavailable" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
-
-    withFailingCatalog(succeeding = 0) {
+  private def assertUnavailableResult(succeedingLoads: Int): Unit = {
+    val eid = executionWithResults()
+    withFailingCatalog(succeeding = succeedingLoads) {
       get(owner, pagesPath(eid)).getStatus shouldBe 500
     }
   }
 
-  it should "answer 500, not an empty page, when the catalog fails after opening the result" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+  it should "answer 500, not 404, when the catalog is unavailable" in {
+    assertUnavailableResult(succeedingLoads = 0)
+  }
 
-    withFailingCatalog(succeeding = 1) {
-      get(owner, pagesPath(eid)).getStatus shouldBe 500
-    }
+  it should "answer 500, not an empty page, when the catalog fails after opening the result" in {
+    assertUnavailableResult(succeedingLoads = 1)
   }
 
   it should "answer 503 for a result in a warehouse it cannot read" in {
@@ -647,8 +631,7 @@ class ResultResourceSpec
   }
 
   "GET statistics" should "return the table's per-column statistics" in {
-    val eid = insertExecution(owner)
-    storeResult(eid)
+    val eid = executionWithResults()
 
     getJson(owner, statisticsPath(eid)) shouldBe mapper.readTree(
       """{

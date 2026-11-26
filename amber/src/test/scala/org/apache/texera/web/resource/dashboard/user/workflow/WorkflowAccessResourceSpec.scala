@@ -49,14 +49,15 @@ class WorkflowAccessResourceSpec extends WorkflowAccessDatabaseSpec(withTargetUs
     super.beforeEach()
     workflowAccessResource = new WorkflowAccessResource()
 
-    owner = newUser(ownerUid, "owner", "owner@test.com")
-    userWithWrite = newUser(userWithWriteUid, "user_with_write", "write@test.com")
-    userWithRead = newUser(userWithReadUid, "user_with_read", "read@test.com")
+    val (seededOwner, writer, reader) = newAccessUsers()
+    owner = seededOwner
+    userWithWrite = writer
+    userWithRead = reader
     targetUser = newUser(targetUserUid, "target_user", "target@test.com")
     val testWorkflow = newWorkflow()
 
     // Clean up before each test
-    cleanupTestData()
+    cleanup()
 
     // Insert test data
     userDao.insert(owner)
@@ -80,36 +81,29 @@ class WorkflowAccessResourceSpec extends WorkflowAccessDatabaseSpec(withTargetUs
       .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOne()
 
+  private def assertAccessRevoked(caller: User, targetUid: Int, targetEmail: String): Unit = {
+    assert(accessRow(targetUid) != null, s"$targetEmail should have access before revocation")
+    workflowAccessResource.revokeAccess(testWorkflowWid, targetEmail, new SessionUser(caller))
+    assert(accessRow(targetUid) == null, s"$targetEmail should no longer have access")
+  }
+
+  private def assertOwnerRevocationRejected(caller: User): Unit = {
+    val exception = intercept[ForbiddenException] {
+      workflowAccessResource.revokeAccess(
+        testWorkflowWid,
+        "owner@test.com",
+        new SessionUser(caller)
+      )
+    }
+    assert(exception.getMessage.contains("owner cannot revoke their own access"))
+  }
+
   "WorkflowAccessResource.revokeAccess" should "successfully revoke access when user has WRITE permission" in {
-    val sessionUser = new SessionUser(userWithWrite)
-
-    // Verify target user has access before revocation
-    val accessBefore = accessRow(targetUserUid)
-    assert(accessBefore != null, "Target user should have access before revocation")
-
-    // Revoke access
-    workflowAccessResource.revokeAccess(testWorkflowWid, "target@test.com", sessionUser)
-
-    // Verify access has been revoked
-    val accessAfter = accessRow(targetUserUid)
-
-    assert(accessAfter == null, "Target user's access should be revoked")
+    assertAccessRevoked(userWithWrite, targetUserUid, "target@test.com")
   }
 
   it should "successfully allow user to revoke their own access" in {
-    val sessionUser = new SessionUser(userWithRead)
-
-    // Verify user has access before revocation
-    val accessBefore = accessRow(userWithReadUid)
-    assert(accessBefore != null, "User should have access before revocation")
-
-    // User revokes their own access
-    workflowAccessResource.revokeAccess(testWorkflowWid, "read@test.com", sessionUser)
-
-    // Verify access has been revoked
-    val accessAfter = accessRow(userWithReadUid)
-
-    assert(accessAfter == null, "User's own access should be revoked")
+    assertAccessRevoked(userWithRead, userWithReadUid, "read@test.com")
   }
 
   it should "throw ForbiddenException when user without WRITE permission tries to revoke others' access" in {
@@ -126,29 +120,11 @@ class WorkflowAccessResourceSpec extends WorkflowAccessDatabaseSpec(withTargetUs
   }
 
   it should "throw ForbiddenException when trying to revoke owner's access" in {
-    val sessionUser = new SessionUser(userWithWrite)
-
-    val exception = intercept[ForbiddenException] {
-      workflowAccessResource.revokeAccess(testWorkflowWid, "owner@test.com", sessionUser)
-    }
-
-    assert(
-      exception.getMessage.contains("owner cannot revoke their own access"),
-      "Exception message should indicate owner cannot revoke their own access"
-    )
+    assertOwnerRevocationRejected(userWithWrite)
   }
 
   it should "throw ForbiddenException when owner tries to revoke their own access" in {
-    val sessionUser = new SessionUser(owner)
-
-    val exception = intercept[ForbiddenException] {
-      workflowAccessResource.revokeAccess(testWorkflowWid, "owner@test.com", sessionUser)
-    }
-
-    assert(
-      exception.getMessage.contains("owner cannot revoke their own access"),
-      "Exception message should indicate owner cannot revoke their own access"
-    )
+    assertOwnerRevocationRejected(owner)
   }
 
   it should "throw BadRequestException when email does not exist" in {
@@ -203,7 +179,7 @@ class WorkflowAccessResourceSpec extends WorkflowAccessDatabaseSpec(withTargetUs
     assert(accessAfterSecond == null, "Target user's access should still be revoked")
   }
 
-  // Always inserts at newGranteeUid (the only extra uid cleanupTestData removes),
+  // Always inserts at newGranteeUid (the only extra uid the fixture cleanup removes),
   // so callers can't leak a user row across tests.
   private def seedUserWithoutAccess(name: String, email: String): User = {
     val user = newUser(newGranteeUid, name, email)

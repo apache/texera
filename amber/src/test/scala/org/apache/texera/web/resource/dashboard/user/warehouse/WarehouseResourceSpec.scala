@@ -21,10 +21,9 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.web.resource.dashboard.WarehouseAccountFixture
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource.{
   lakekeeperWarehouseName,
   CreateWarehouseRequest
@@ -32,9 +31,6 @@ import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource
 import org.apache.texera.web.service.LakekeeperClient
 import org.jooq.{ExecuteContext, ExecuteListener}
 import org.jooq.impl.{DefaultConfiguration, DefaultExecuteListenerProvider}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.util.UUID
 import javax.ws.rs.{
@@ -52,12 +48,7 @@ import scala.collection.mutable
   * The feature flag is a constructor dependency, so the two gate states are two resource
   * instances — no global state is touched, and suites cannot interfere with each other.
   */
-class WarehouseResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class WarehouseResourceSpec extends DatabaseFlatSpec() {
 
   private val createdNames = mutable.Buffer[String]()
   private val deletedIds = mutable.Buffer[UUID]()
@@ -83,27 +74,16 @@ class WarehouseResourceSpec
   private var sessionUser: SessionUser = _
   private var otherUser: SessionUser = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-
-    val userDao = new UserDao(getDSLContext.configuration())
-    val user = new User
-    user.setName("warehouse_spec_user")
-    user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    userDao.insert(user)
-    sessionUser = new SessionUser(user)
-
-    val other = new User
-    other.setName("warehouse_spec_other")
-    other.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    other.setAvatar("other-avatar.png")
-    userDao.insert(other)
-    otherUser = new SessionUser(other)
+  override protected def onBeforeAll(): Unit = {
+    sessionUser = new SessionUser(
+      WarehouseAccountFixture.seed(getDSLContext, "warehouse_spec_user")
+    )
+    otherUser = new SessionUser(
+      WarehouseAccountFixture.seed(getDSLContext, "warehouse_spec_other", Some("other-avatar.png"))
+    )
   }
 
-  override protected def afterAll(): Unit = closeConnectionPool()
-
-  override protected def beforeEach(): Unit = {
+  override protected def cleanup(): Unit = {
     createFailure = None
     deleteFailure = None
     createdNames.clear()

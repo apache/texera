@@ -20,66 +20,32 @@
 package org.apache.texera.web.resource.dashboard.user.quota
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
-}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   User,
   Workflow,
   WorkflowExecutions,
-  WorkflowOfUser,
-  WorkflowUserAccess,
   WorkflowVersion
 }
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
+import org.apache.texera.web.resource.dashboard.UserDashboardFixtureSupport
 
-import java.sql.Timestamp
-import java.util.UUID
 import scala.jdk.CollectionConverters._
 import javax.ws.rs.WebApplicationException
 
-class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
+class UserQuotaResourceSpec
+    extends DatabaseFlatSpec(cleanupBeforeEach = false)
+    with UserDashboardFixtureSupport {
 
   private val testUid = 4000 + scala.util.Random.nextInt(1000)
   private val testWid = 5000 + scala.util.Random.nextInt(1000)
-
-  private var userDao: UserDao = _
-  private var workflowDao: WorkflowDao = _
-  private var workflowVersionDao: WorkflowVersionDao = _
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
-  private var workflowExecutionsDao: WorkflowExecutionsDao = _
-  private var datasetDao: DatasetDao = _
 
   private var testUser: User = _
   private var testWorkflow: Workflow = _
   private var testVersion: WorkflowVersion = _
   private val resource = new UserQuotaResource
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-
-    userDao = new UserDao(getDSLContext.configuration())
-    workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
-    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
-    datasetDao = new DatasetDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
 
   // Each test starts from a clean slate for the ids under test, then seeds
   // only what it needs, so tests are order-independent.
@@ -92,20 +58,8 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
     testUser.setEmail("quota@example.com")
     userDao.insert(testUser)
 
-    testWorkflow = new Workflow
-    testWorkflow.setWid(testWid)
-    testWorkflow.setName("quota_workflow_" + UUID.randomUUID().toString.substring(0, 8))
-    testWorkflow.setContent("{}")
-    testWorkflow.setDescription("desc")
-    testWorkflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    testWorkflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    workflowDao.insert(testWorkflow)
-
-    testVersion = new WorkflowVersion
-    testVersion.setWid(testWid)
-    testVersion.setContent("{}")
-    testVersion.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflowVersionDao.insert(testVersion)
+    testWorkflow = seedWorkflow(testWid, "quota_workflow_")
+    testVersion = seedVersion(testWid)
   }
 
   private def cleanupTestData(): Unit = {
@@ -140,69 +94,23 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.VID.in(vidSubquery))
       .execute()
-    getDSLContext.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(testWid)).execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.UID.eq(testUid))
-      .execute()
-    getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(WORKFLOW_OF_USER.UID.eq(testUid)).execute()
-    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    deleteWorkflow(testWid, WORKFLOW_USER_ACCESS.UID.eq(testUid), WORKFLOW_OF_USER.UID.eq(testUid))
     getDSLContext.deleteFrom(DATASET).where(DATASET.OWNER_UID.eq(testUid)).execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.eq(testUid)).execute()
   }
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
-  private def insertOwnership(): Unit = {
-    val ownership = new WorkflowOfUser
-    ownership.setUid(testUid)
-    ownership.setWid(testWid)
-    workflowOfUserDao.insert(ownership)
-  }
+  private def insertOwnership(): Unit = seedOwnership(testUid, testWid)
 
-  private def insertAccess(): Unit = {
-    val access = new WorkflowUserAccess
-    access.setUid(testUid)
-    access.setWid(testWid)
-    access.setPrivilege(PrivilegeEnum.READ)
-    workflowUserAccessDao.insert(access)
-  }
+  private def insertAccess(): Unit = seedAccess(testUid, testWid, PrivilegeEnum.READ)
 
-  private def insertWriteAccess(): Unit = {
-    val access = new WorkflowUserAccess
-    access.setUid(testUid)
-    access.setWid(testWid)
-    access.setPrivilege(PrivilegeEnum.WRITE)
-    workflowUserAccessDao.insert(access)
-  }
+  private def insertWriteAccess(): Unit = seedAccess(testUid, testWid, PrivilegeEnum.WRITE)
 
-  private def insertExecution(): WorkflowExecutions = {
-    val execution = new WorkflowExecutions
-    execution.setVid(testVersion.getVid)
-    execution.setUid(testUid)
-    execution.setStatus(0.toByte)
-    execution.setResult("")
-    execution.setLogLocation("")
-    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
-    execution.setBookmarked(false)
-    execution.setName("exec-" + UUID.randomUUID().toString.substring(0, 8))
-    execution.setEnvironmentVersion("test-env-1.0")
-    workflowExecutionsDao.insert(execution)
-    execution
-  }
+  private def insertExecution(): WorkflowExecutions =
+    seedExecution(testVersion.getVid, testUid, "exec-" + uniqueSuffix)
 
-  private def insertDataset(): Dataset = {
-    val dataset = new Dataset
-    dataset.setOwnerUid(testUid)
-    dataset.setName("quota_ds_" + UUID.randomUUID().toString.substring(0, 8))
-    dataset.setRepositoryName("repo-" + UUID.randomUUID().toString.substring(0, 8))
-    dataset.setIsPublic(false)
-    dataset.setIsDownloadable(true)
-    dataset.setDescription("")
-    dataset.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    datasetDao.insert(dataset)
-    dataset
-  }
+  private def insertDataset(): Dataset = seedDataset(testUid, "quota_ds_")
 
   // ─── getUserCreatedWorkflow ────────────────────────────────────────────────
 
@@ -376,7 +284,7 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
     val otherUser = new User
     otherUser.setUid(testUid + 100000)
     otherUser.setName("otherUser")
-    otherUser.setEmail("otherUser-" + UUID.randomUUID().toString.substring(0, 8) + "@example.com")
+    otherUser.setEmail("otherUser-" + uniqueSuffix + "@example.com")
 
     val refused = intercept[WebApplicationException] {
       resource.deleteCollection(execution.getEid, new SessionUser(otherUser))

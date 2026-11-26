@@ -19,14 +19,11 @@
 
 package org.apache.texera.web.service
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+
+import org.apache.texera.web.resource.dashboard.WarehouseAccountFixture
 
 import java.util.UUID
 
@@ -34,31 +31,15 @@ import java.util.UUID
   * Spec for [[WorkflowService.resolveLakekeeperWarehouseName]] (#6932): the ownership check and the
   * never-silently-fall-back rule for an execution's chosen warehouse.
   */
-class WorkflowServiceWarehouseSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+class WorkflowServiceWarehouseSpec extends DatabaseFlatSpec(cleanupBeforeEach = false) {
 
   private var ownerUid: Integer = _
   private var intruderUid: Integer = _
   private var whid: Integer = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-
-    val userDao = new UserDao(getDSLContext.configuration())
-    val owner = new User
-    owner.setName("resolve_spec_owner")
-    owner.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    userDao.insert(owner)
-    ownerUid = owner.getUid
-
-    val intruder = new User
-    intruder.setName("resolve_spec_intruder")
-    intruder.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    userDao.insert(intruder)
-    intruderUid = intruder.getUid
+  override protected def onBeforeAll(): Unit = {
+    ownerUid = WarehouseAccountFixture.seed(getDSLContext, "resolve_spec_owner").getUid
+    intruderUid = WarehouseAccountFixture.seed(getDSLContext, "resolve_spec_intruder").getUid
 
     val row = getDSLContext.newRecord(USER_WAREHOUSE)
     row.setUid(ownerUid)
@@ -69,8 +50,6 @@ class WorkflowServiceWarehouseSpec
     row.store()
     whid = row.getWhid
   }
-
-  override protected def afterAll(): Unit = closeConnectionPool()
 
   "resolveLakekeeperWarehouseName" should "require a pick while warehouses are enabled" in {
     // A run must name the warehouse it writes into, the same way it names a computing

@@ -128,6 +128,13 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
     record
   }
 
+  private def pinnedMetadata(grantedAccess: java.lang.Boolean): Record =
+    translatedRecord(
+      grantedAccess = grantedAccess,
+      publishedName = "as-published",
+      publishedDescription = "described-as-published"
+    )
+
   private def workflowOf(record: Record, uid: Integer): DashboardWorkflow =
     WorkflowSearchQueryBuilder.toEntryImpl(uid, record).workflow.get
 
@@ -136,11 +143,7 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
   "toEntryImpl" should "serve the published name and description to a viewer without granted access" in {
     // Publishing pins what the public sees, and a listing is where the public meets a workflow, so
     // the listing has to serve the pinned copy too rather than the author's live metadata.
-    val record = translatedRecord(
-      grantedAccess = java.lang.Boolean.FALSE,
-      publishedName = "as-published",
-      publishedDescription = "described-as-published"
-    )
+    val record = pinnedMetadata(java.lang.Boolean.FALSE)
 
     val workflow = workflowOf(record, viewerUid).workflow
 
@@ -162,11 +165,7 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "leave the author's live name and description for a viewer who was granted access" in {
-    val record = translatedRecord(
-      grantedAccess = java.lang.Boolean.TRUE,
-      publishedName = "as-published",
-      publishedDescription = "described-as-published"
-    )
+    val record = pinnedMetadata(java.lang.Boolean.TRUE)
 
     val workflow = workflowOf(record, ownerUid).workflow
 

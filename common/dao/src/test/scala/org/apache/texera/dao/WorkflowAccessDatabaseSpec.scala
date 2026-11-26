@@ -28,16 +28,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowOfUser,
   WorkflowUserAccess
 }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.Timestamp
 
 abstract class WorkflowAccessDatabaseSpec(withTargetUser: Boolean)
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true) {
 
   protected val ownerUid = 1000 + scala.util.Random.nextInt(1000)
   protected val userWithWriteUid = 2000 + scala.util.Random.nextInt(1000)
@@ -49,11 +44,7 @@ abstract class WorkflowAccessDatabaseSpec(withTargetUser: Boolean)
   protected var workflowOfUserDao: WorkflowOfUserDao = _
   protected var workflowUserAccessDao: WorkflowUserAccessDao = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit = {
     workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
     workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
   }
@@ -65,6 +56,13 @@ abstract class WorkflowAccessDatabaseSpec(withTargetUser: Boolean)
     user.setEmail(email)
     user
   }
+
+  protected def newAccessUsers(): (User, User, User) =
+    (
+      newUser(ownerUid, "owner", "owner@test.com"),
+      newUser(userWithWriteUid, "user_with_write", "write@test.com"),
+      newUser(userWithReadUid, "user_with_read", "read@test.com")
+    )
 
   protected def newWorkflow(): Workflow = {
     val workflow = new Workflow
@@ -87,11 +85,7 @@ abstract class WorkflowAccessDatabaseSpec(withTargetUser: Boolean)
     )
   }
 
-  override protected def afterEach(): Unit = {
-    cleanupTestData()
-  }
-
-  protected def cleanupTestData(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid))
@@ -113,9 +107,5 @@ abstract class WorkflowAccessDatabaseSpec(withTargetUser: Boolean)
       .deleteFrom(USER)
       .where(USER.UID.in(userIds.map(Int.box): _*))
       .execute()
-  }
-
-  override protected def afterAll(): Unit = {
-    closeConnectionPool()
   }
 }

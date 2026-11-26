@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource
 
 import org.apache.texera.amber.util.JSONUtils
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_USER_ACCESS}
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -32,9 +32,6 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, Workfl
 import org.apache.texera.web.model.collab.request._
 import org.apache.texera.web.resource.CollaborationResource._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import java.sql.Timestamp
 import java.util.concurrent.{Future => JFuture}
@@ -60,12 +57,8 @@ import scala.collection.mutable.ArrayBuffer
 // by "AcquireLockRequest should rethrow when the holder slot holds the null
 // sentinel" as current behaviour, not as desired behaviour.
 class CollaborationResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockFactory
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true)
+    with MockFactory {
 
   private var resource: CollaborationResource = _
 
@@ -79,29 +72,17 @@ class CollaborationResourceSpec
   // session: with one uid the privilege predicate cannot be observed at all.
   private val readOnlyUid = 8202
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def afterAll(): Unit = {
-    closeConnectionPool()
-  }
-
   // The five maps live on the companion object, i.e. they are JVM-wide mutable
   // state shared by every test in the suite. Clearing them here is what keeps
   // this spec order-independent.
-  override def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit = {
     sessionIdSessionMap.clear()
     sessionIdWIdMap.clear()
     sessionIdUIdMap.clear()
     wIdSessionIdsMap.clear()
     wIdLockHolderSessionIdMap.clear()
-    cleanupAccess()
+    cleanup()
     resource = new CollaborationResource()
-  }
-
-  override def afterEach(): Unit = {
-    cleanupAccess()
   }
 
   // Seeds user accessUid + workflow accessWid + a workflow_user_access row with
@@ -135,7 +116,7 @@ class CollaborationResourceSpec
       )
   }
 
-  private def cleanupAccess(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(accessWid))
