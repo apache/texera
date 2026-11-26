@@ -146,7 +146,6 @@ export class WorkflowVersionService {
       .attr("path." + position + "boundary/stroke", "rgba(" + color + ")");
   }
 
-  // TODO: the logic of the function will be refined later
   public getWorkflowsDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
     this.operatorPropertyDiff = {};
     const difference: DifferentOpIDsList = { added: [], modified: [], deleted: [] };
@@ -165,7 +164,7 @@ export class WorkflowVersionService {
     const firstById = operatorsById(workflowContent1);
     const secondById = operatorsById(workflowContent2);
     for (const id of Object.keys(secondById)) {
-      if (!Object.prototype.propertyIsEnumerable.call(firstById, id)) {
+      if (!Object.hasOwn(firstById, id)) {
         difference.added.push(id);
       } else if (!isEqual(firstById[id], secondById[id])) {
         difference.modified.push(id);
@@ -174,7 +173,7 @@ export class WorkflowVersionService {
     }
 
     for (const id of Object.keys(firstById)) {
-      if (!Object.prototype.propertyIsEnumerable.call(secondById, id)) {
+      if (!Object.hasOwn(secondById, id)) {
         difference.deleted.push(id);
       }
     }
