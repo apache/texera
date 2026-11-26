@@ -29,7 +29,7 @@ import {
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
-import { filter, switchMap, tap } from "rxjs/operators";
+import { catchError, filter, map, switchMap, tap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
@@ -38,7 +38,7 @@ import { isDefined } from "../../../../../common/util/predicate";
 import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { HttpErrorResponse } from "@angular/common/http";
-import { EMPTY, Observable, Subscription } from "rxjs";
+import { EMPTY, Observable, of, Subscription } from "rxjs";
 import { formatCount } from "src/app/common/util/format.util";
 import { replaceOneImmutable } from "src/app/common/util/array-utils";
 import { format } from "date-fns";
@@ -285,9 +285,13 @@ export class DatasetDetailComponent implements OnInit {
   retrieveDatasetInfo() {
     if (this.did) {
       const did = this.did;
+      // As in loadHubActivity, a dataset that arrives after the route has moved on is dropped.
       this.datasetService
         .getDataset(did, this.isLogin)
-        .pipe(untilDestroyed(this))
+        .pipe(
+          filter(() => this.did === did),
+          untilDestroyed(this)
+        )
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
@@ -301,11 +305,15 @@ export class DatasetDetailComponent implements OnInit {
           if (dataset.coverImage) {
             this.datasetService
               .getDatasetCoverUrl(did)
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                next: ({ url }) => (this.coverImageUrl = url),
-                error: () => (this.coverImageUrl = null),
-              });
+              .pipe(
+                map(({ url }) => url),
+                // A failed presign means no cover. Turned into a value here, a late failure is
+                // dropped by the filter below just like a late url (filter lets errors through).
+                catchError(() => of(null)),
+                filter(() => this.did === did),
+                untilDestroyed(this)
+              )
+              .subscribe(url => (this.coverImageUrl = url));
           } else {
             this.coverImageUrl = null;
           }

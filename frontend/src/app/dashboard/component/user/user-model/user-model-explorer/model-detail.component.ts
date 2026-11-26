@@ -20,7 +20,7 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { catchError, map, switchMap, tap } from "rxjs/operators";
+import { catchError, filter, map, switchMap, tap } from "rxjs/operators";
 import { Observable, of } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -191,7 +191,11 @@ export class ModelDetailComponent implements OnInit {
       .subscribe();
   }
 
-  /** Opening the page counts as a view; the like state needs a signed-in viewer. */
+  /**
+   * Opening the page counts as a view; the like state needs a signed-in viewer. A reply that
+   * lands after the route has moved on to another model is dropped, so it cannot overwrite
+   * that model's values.
+   */
   private loadHubActivity(): void {
     if (!this.mid) {
       return;
@@ -199,12 +203,18 @@ export class ModelDetailComponent implements OnInit {
     const mid = this.mid;
     this.hubService
       .postView(mid, this.currentUid ?? 0, EntityType.Model)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe(count => (this.viewCount = count));
 
     this.hubService
       .getCounts([EntityType.Model], [mid], [ActionType.Like])
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
 
     if (this.currentUid === undefined) {
@@ -212,7 +222,10 @@ export class ModelDetailComponent implements OnInit {
     }
     this.hubService
       .isLiked([mid], [EntityType.Model])
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
   }
 
@@ -234,9 +247,13 @@ export class ModelDetailComponent implements OnInit {
       return;
     }
     const mid = this.mid;
+    // As in loadHubActivity, a model that arrives after the route has moved on is dropped.
     this.modelService
       .getModel(mid, this.isLogin)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe({
         next: dashboardModel => {
           const model = dashboardModel.model;
@@ -270,11 +287,15 @@ export class ModelDetailComponent implements OnInit {
   private loadCoverImageUrl(mid: number): void {
     this.modelService
       .getModelCoverUrl(mid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ url }) => (this.coverImageUrl = url),
-        error: () => (this.coverImageUrl = null),
-      });
+      .pipe(
+        map(({ url }) => url),
+        // A failed presign means no cover. Turned into a value here, a late failure is dropped
+        // by the filter below just like a late url (filter lets errors through).
+        catchError(() => of(null)),
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
+      .subscribe(url => (this.coverImageUrl = url));
   }
 
   retrieveModelVersionList(): void {
