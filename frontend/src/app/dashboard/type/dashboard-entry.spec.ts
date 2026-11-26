@@ -117,6 +117,7 @@ function makeComputingUnit(): DashboardWorkflowComputingUnit {
       },
     },
     metrics: { cpuUsage: "0.5", memoryUsage: "1Gi" },
+    accessPrivilege: "WRITE",
     ownerName: "Bob",
     ownerAvatar: "avatar",
   });

@@ -661,49 +661,72 @@ describe("TexeraLoginComponent", () => {
     const appleButton = (): HTMLElement | null => host().querySelector("button.apple-button");
 
     describe("provider flags", () => {
+      type ProviderNode = "tabs" | "form" | "google" | "orcid" | "apple" | "divider";
+      const providerNodes: Record<ProviderNode, () => Element | null> = {
+        tabs: () => host().querySelector("nz-tabs"),
+        form: () => host().querySelector("form"),
+        google: () => host().querySelector("asl-google-signin-button"),
+        orcid: orcidButton,
+        apple: appleButton,
+        divider: () => host().querySelector("nz-divider"),
+      };
+
+      // Renders the card with the given flags, then checks each named node: true expects it
+      // rendered, false expects it absent, and a node left out is not checked.
       const expectProviderDom = (
-        [localLogin, googleLogin, orcidLogin, appleLogin]: [boolean, boolean, boolean, boolean],
-        expected: Array<boolean | null>
+        flags: Parameters<typeof render>[0],
+        expected: Partial<Record<ProviderNode, boolean>>
       ): void => {
-        render({ localLogin, googleLogin, orcidLogin, appleLogin });
-        const nodes = [
-          host().querySelector("nz-tabs"),
-          host().querySelector("form"),
-          host().querySelector("asl-google-signin-button"),
-          orcidButton(),
-          appleButton(),
-          host().querySelector("nz-divider"),
-        ];
-        expected.forEach((want, i) => {
-          if (want === true) expect(nodes[i]).toBeTruthy();
-          else if (want === false) expect(nodes[i]).toBeNull();
-        });
+        render(flags);
+        for (const node of Object.keys(expected) as ProviderNode[]) {
+          if (expected[node]) expect(providerNodes[node]()).toBeTruthy();
+          else expect(providerNodes[node]()).toBeNull();
+        }
       };
 
       it("renders the local form and every social button when all are enabled", () => {
-        expectProviderDom([true, true, true, true], [true, true, true, true, true, true]);
+        // The "or continue with" divider only makes sense when the local form has company.
+        expectProviderDom(
+          { localLogin: true, googleLogin: true, orcidLogin: true, appleLogin: true },
+          { tabs: true, form: true, google: true, orcid: true, apple: true, divider: true }
+        );
       });
 
       it("drops every social button but keeps the form when only local login is enabled", () => {
-        expectProviderDom([true, false, false, false], [true, true, false, false, false, false]);
+        expectProviderDom(
+          { localLogin: true, googleLogin: false, orcidLogin: false, appleLogin: false },
+          { tabs: true, form: true, google: false, orcid: false, apple: false, divider: false }
+        );
       });
 
       it("drops the tabs and the form but keeps the google button when only google is enabled", () => {
-        expectProviderDom([false, true, false, false], [false, false, true, false, false, false]);
+        expectProviderDom(
+          { localLogin: false, googleLogin: true, orcidLogin: false, appleLogin: false },
+          { tabs: false, form: false, google: true, orcid: false, apple: false, divider: false }
+        );
       });
 
       // ORCID carries the divider on its own: it is a second way to "continue with"
       // something other than the local form, so the label still reads correctly.
       it("keeps the orcid button and the divider when google is disabled but orcid is not", () => {
-        expectProviderDom([true, false, true, false], [null, true, false, true, null, true]);
+        expectProviderDom(
+          { localLogin: true, googleLogin: false, orcidLogin: true, appleLogin: false },
+          { form: true, google: false, orcid: true, divider: true }
+        );
       });
 
       it("drops the tabs and the form but keeps the orcid button when only orcid is enabled", () => {
-        expectProviderDom([false, false, true, false], [false, false, false, true, false, false]);
+        expectProviderDom(
+          { localLogin: false, googleLogin: false, orcidLogin: true, appleLogin: false },
+          { tabs: false, form: false, google: false, orcid: true, apple: false, divider: false }
+        );
       });
 
       it("renders no sign-in path when every provider is disabled", () => {
-        expectProviderDom([false, false, false, false], [false, false, false, false, false, false]);
+        expectProviderDom(
+          { localLogin: false, googleLogin: false, orcidLogin: false, appleLogin: false },
+          { tabs: false, form: false, google: false, orcid: false, apple: false, divider: false }
+        );
         // The brand and footer are outside every flag, so the card is never empty.
         expect(host().querySelector(".brand")).toBeTruthy();
         expect(host().querySelector("p.foot")).toBeTruthy();
@@ -712,11 +735,17 @@ describe("TexeraLoginComponent", () => {
       // Apple alone alongside the form still earns the divider. Nothing covered this before,
       // which is what let the divider condition and the render helper drift apart.
       it("keeps the divider when Apple is the only social provider", () => {
-        expectProviderDom([true, false, false, true], [null, true, false, null, true, true]);
+        expectProviderDom(
+          { localLogin: true, googleLogin: false, orcidLogin: false, appleLogin: true },
+          { form: true, google: false, apple: true, divider: true }
+        );
       });
 
       it("drops the tabs and the form but keeps Apple's slot when only Apple is enabled", () => {
-        expectProviderDom([false, false, false, true], [false, false, false, null, true, false]);
+        expectProviderDom(
+          { localLogin: false, googleLogin: false, orcidLogin: false, appleLogin: true },
+          { tabs: false, form: false, apple: true, divider: false }
+        );
       });
     });
 

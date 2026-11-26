@@ -46,7 +46,6 @@ export function makeDashboardComputingUnit(
   overrides: ComputingUnitFixtureOverrides = {}
 ): DashboardWorkflowComputingUnit {
   const { computingUnit: cuOverride, ...topOverrides } = overrides;
-  const hasExplicitResource = cuOverride !== undefined && "resource" in cuOverride;
   const defaultResource: WorkflowComputingUnitResourceLimit = {
     cpuLimit: "1",
     memoryLimit: "1Gi",
@@ -55,10 +54,7 @@ export function makeDashboardComputingUnit(
     shmSize: "0",
     nodeAddresses: [],
   };
-  const resource =
-    hasExplicitResource && cuOverride?.resource === undefined
-      ? (undefined as unknown as WorkflowComputingUnitResourceLimit)
-      : { ...defaultResource, ...(cuOverride?.resource ?? {}) };
+  const resource = { ...defaultResource, ...(cuOverride?.resource ?? {}) };
 
   return {
     status: "Running",

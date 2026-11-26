@@ -409,14 +409,10 @@ describe("UserComputingUnitListItemComponent", () => {
 
   describe("fallback getters when metrics/resource are absent", () => {
     it("returns N/A for every usage and limit getter", () => {
-      const item = bareComponent(
-        makeEntry({
-          metrics: undefined,
-          computingUnit: {
-            resource: undefined as unknown as DashboardWorkflowComputingUnit["computingUnit"]["resource"],
-          },
-        })
-      );
+      const entry = makeEntry({ metrics: undefined });
+      entry.computingUnit.resource =
+        undefined as unknown as DashboardWorkflowComputingUnit["computingUnit"]["resource"];
+      const item = bareComponent(entry);
 
       expect(item.getCurrentComputingUnitCpuUsage()).toBe("N/A");
       expect(item.getCurrentComputingUnitMemoryUsage()).toBe("N/A");
