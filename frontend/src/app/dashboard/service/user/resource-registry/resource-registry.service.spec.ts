@@ -75,7 +75,6 @@ describe("ResourceRegistryService", () => {
       getModel: vi.fn().mockReturnValue(of({ model: { isPublic: true } })),
       updateModelPublicity: vi.fn().mockReturnValue(of({})),
       getModelCoverUrl: vi.fn().mockReturnValue(of({ url: "http://cover" })),
-      updateModelCoverImage: vi.fn().mockReturnValue(of({})),
     };
 
     downloadService = {
@@ -252,10 +251,8 @@ describe("ResourceRegistryService", () => {
     expect(await firstValueFrom(model.isPublic!(3))).toBe(true);
     model.setPublished!(3, false);
     expect(await firstValueFrom(model.coverUrl!(3))).toBe("http://cover");
-    model.setCover!(3, "v1/preview.png");
 
     expect(modelService["updateModelPublicity"]).toHaveBeenCalledWith(3);
-    expect(modelService["updateModelCoverImage"]).toHaveBeenCalledWith(3, "v1/preview.png");
   });
 
   it("reads ownership off the kind's own payload", () => {

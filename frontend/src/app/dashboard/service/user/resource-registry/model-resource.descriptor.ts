@@ -59,5 +59,4 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   // The endpoint toggles, so `next` is the caller's expectation rather than a payload.
   setPublished = (id: number) => this.modelService.updateModelPublicity(id);
   coverUrl = (id: number) => this.modelService.getModelCoverUrl(id).pipe(map(({ url }) => url));
-  setCover = (id: number, path: string) => this.modelService.updateModelCoverImage(id, path);
 }

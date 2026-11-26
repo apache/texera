@@ -98,10 +98,10 @@ class CollaborationResource extends LazyLogging {
             logger.debug("Message propagated to workflow " + sessionWId.toString)
           }
         }
-      case heartbeat: HeartBeatRequest =>
+      case _: HeartBeatRequest =>
         send(senderSession, HeartBeatResponse())
 
-      case tryLock: TryLockRequest =>
+      case _: TryLockRequest =>
         val wId = sessionIdWIdMap(senderSessId)
         if (wId == DUMMY_WID) {
           send(senderSession, WorkflowAccessEvent(workflowReadonly = false))
@@ -128,7 +128,7 @@ class CollaborationResource extends LazyLogging {
           }
         }
 
-      case acquireLock: AcquireLockRequest =>
+      case _: AcquireLockRequest =>
         try {
           val senderSessId = senderSession.getId
           val senderWid = sessionIdWIdMap(senderSessId)
@@ -148,7 +148,7 @@ class CollaborationResource extends LazyLogging {
             throw exception
         }
 
-      case restoreVersion: RestoreVersionRequest =>
+      case _: RestoreVersionRequest =>
         for (sessionId <- sessionIdSessionMap.keySet) {
           // only send to other sessions, not the session that sent the message
           val session = sessionIdSessionMap(sessionId)
