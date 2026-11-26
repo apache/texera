@@ -544,6 +544,34 @@ describe("DatasetDetailComponent behavior", () => {
       expect(hubServiceStub.isLiked).toHaveBeenLastCalledWith([6], [EntityType.Dataset]);
     });
 
+    it("keeps the new dataset's like count, view count and liked state when the old dataset's replies land late", () => {
+      // The route moves on to 6 while 5's hub calls are still in flight, and 5's replies
+      // arrive after 6's.
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      login();
+      fixture.detectChanges();
+
+      const lateViewCount = new Subject<number>();
+      const lateCounts = new Subject<unknown[]>();
+      const lateStatuses = new Subject<unknown[]>();
+      hubServiceStub.postView.mockReturnValueOnce(lateViewCount);
+      hubServiceStub.getCounts.mockReturnValueOnce(lateCounts);
+      hubServiceStub.isLiked.mockReturnValueOnce(lateStatuses);
+      params.next({ did: "5" });
+
+      hubServiceStub.postView.mockReturnValueOnce(of(80));
+      hubServiceStub.getCounts.mockReturnValueOnce(of([{ counts: { like: 8 } }]));
+      hubServiceStub.isLiked.mockReturnValueOnce(of([{ isLiked: false }]));
+      params.next({ did: "6" });
+
+      lateViewCount.next(30);
+      lateCounts.next([{ counts: { like: 3 } }]);
+      lateStatuses.next([{ isLiked: true }]);
+
+      expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([8, 80, false]);
+    });
+
     it("reads a counts response with no like tally as no likes, and no liked record as not liked", () => {
       // Both are legitimate wire shapes: `counts` is a partial map keyed by action
       // type, and `isLiked` simply omits entities the user has no record against.
