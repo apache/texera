@@ -116,9 +116,14 @@ abstract class ModelResourceTestSupport(ownerUserName: String)
       user
     )
 
-  /** Uploads `bytes` as file `path` of model `mid` as the owner and asserts a 200. */
-  protected def upload(mid: Integer, path: String, bytes: Array[Byte]): Unit =
-    uploadOneShot(mid, path, bytes).getStatus shouldEqual 200
+  /** Uploads `bytes` as file `path` of model `mid` as `user` and asserts a 200. */
+  protected def upload(
+      mid: Integer,
+      path: String,
+      bytes: Array[Byte],
+      user: SessionUser = sessionUser
+  ): Unit =
+    uploadOneShot(mid, path, bytes, user).getStatus shouldEqual 200
 
   /** Grants user `uid` `privilege` on model `mid` by inserting the access row directly. */
   protected def grantAccess(mid: Integer, uid: Integer, privilege: PrivilegeEnum): Unit =

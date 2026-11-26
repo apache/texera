@@ -69,7 +69,7 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val model = newModel()
     val mid = model.model.getMid
 
-    uploadOneShot(mid, "model.pt", Array.fill[Byte](2048)(0x5a)).getStatus shouldEqual 200
+    upload(mid, "model.pt", Array.fill[Byte](2048)(0x5a))
 
     val version = modelResource.createModelVersion("initial", mid, sessionUser)
     version.modelVersion.getName should startWith("v1")
@@ -99,11 +99,7 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
 
   it should "accept a .pth extension as well" in {
     val model = newModel()
-    uploadOneShot(
-      model.model.getMid,
-      "weights.pth",
-      Array.fill[Byte](1024)(0x1)
-    ).getStatus shouldEqual 200
+    upload(model.model.getMid, "weights.pth", Array.fill[Byte](1024)(0x1))
   }
 
   "createModelVersion" should "reject a version when there are no staged changes" in {
@@ -117,7 +113,7 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
   "deleteModelFile" should "remove a staged file" in {
     val model = newModel()
     val mid = model.model.getMid
-    uploadOneShot(mid, "scratch.pt", Array.fill[Byte](512)(0x2)).getStatus shouldEqual 200
+    upload(mid, "scratch.pt", Array.fill[Byte](512)(0x2))
     modelResource.deleteModelFile(mid, urlEnc("scratch.pt"), sessionUser).getStatus shouldEqual 200
   }
 
@@ -129,13 +125,9 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val mid = model.model.getMid
 
     // a typical model folder: weights plus config/tokenizer companions
-    uploadOneShot(mid, "model.pt", Array.fill[Byte](256)(0x5)).getStatus shouldEqual 200
-    uploadOneShot(
-      mid,
-      "config.json",
-      "{\"hidden\":8}".getBytes(StandardCharsets.UTF_8)
-    ).getStatus shouldEqual 200
-    uploadOneShot(mid, "tokenizer.txt", Array.fill[Byte](32)(0x4)).getStatus shouldEqual 200
+    upload(mid, "model.pt", Array.fill[Byte](256)(0x5))
+    upload(mid, "config.json", "{\"hidden\":8}".getBytes(StandardCharsets.UTF_8))
+    upload(mid, "tokenizer.txt", Array.fill[Byte](32)(0x4))
 
     val version = modelResource.createModelVersion("folder", mid, sessionUser)
     version.fileNodes.nonEmpty shouldBe true
@@ -149,17 +141,9 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val mid = model.model.getMid
 
     // a HuggingFace-style layout: files inside subdirectories
-    uploadOneShot(mid, "pytorch_model.bin", Array.fill[Byte](128)(0x6)).getStatus shouldEqual 200
-    uploadOneShot(
-      mid,
-      "tokenizer/vocab.txt",
-      Array.fill[Byte](64)(0x7)
-    ).getStatus shouldEqual 200
-    uploadOneShot(
-      mid,
-      "shards/part-00001/data.bin",
-      Array.fill[Byte](64)(0x8)
-    ).getStatus shouldEqual 200
+    upload(mid, "pytorch_model.bin", Array.fill[Byte](128)(0x6))
+    upload(mid, "tokenizer/vocab.txt", Array.fill[Byte](64)(0x7))
+    upload(mid, "shards/part-00001/data.bin", Array.fill[Byte](64)(0x8))
 
     modelResource.createModelVersion("nested", mid, sessionUser)
 
@@ -186,14 +170,14 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val mid = model.model.getMid
 
     // v1: four files, with b at a known size
-    uploadOneShot(mid, "a.pt", Array.fill[Byte](100)(0x1)).getStatus shouldEqual 200
-    uploadOneShot(mid, "b.pt", Array.fill[Byte](200)(0x2)).getStatus shouldEqual 200
-    uploadOneShot(mid, "c.pt", Array.fill[Byte](300)(0x3)).getStatus shouldEqual 200
-    uploadOneShot(mid, "d.pt", Array.fill[Byte](400)(0x4)).getStatus shouldEqual 200
+    upload(mid, "a.pt", Array.fill[Byte](100)(0x1))
+    upload(mid, "b.pt", Array.fill[Byte](200)(0x2))
+    upload(mid, "c.pt", Array.fill[Byte](300)(0x3))
+    upload(mid, "d.pt", Array.fill[Byte](400)(0x4))
     val v1 = modelResource.createModelVersion("first", mid, sessionUser)
 
     // v2: re-upload ONLY b, with a different size so the two revisions are distinguishable
-    uploadOneShot(mid, "b.pt", Array.fill[Byte](999)(0x9)).getStatus shouldEqual 200
+    upload(mid, "b.pt", Array.fill[Byte](999)(0x9))
     val v2 = modelResource.createModelVersion("second", mid, sessionUser)
 
     def nodesOf(mvid: Integer) =
@@ -226,12 +210,7 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     // The collaborator can write, but the model still belongs to ownerUser.
     grantAccess(mid, collaboratorUser.getUid, PrivilegeEnum.WRITE)
 
-    uploadOneShot(
-      mid,
-      "weights.bin",
-      Array.fill[Byte](64)(0x3),
-      collaboratorSession
-    ).getStatus shouldEqual 200
+    upload(mid, "weights.bin", Array.fill[Byte](64)(0x3), collaboratorSession)
 
     val created = modelResource.createModelVersion("from-collab", mid, collaboratorSession)
     val versionName = created.modelVersion.getName
@@ -260,7 +239,7 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val model = newModel()
     val mid = model.model.getMid
 
-    uploadOneShot(mid, "weights.pt", Array.fill[Byte](32)(0x1)).getStatus shouldEqual 200
+    upload(mid, "weights.pt", Array.fill[Byte](32)(0x1))
 
     // The insert happens after the LakeFS commit, so an unchecked name would strand the
     // staged file behind a commit no version points at.
@@ -283,7 +262,7 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val model = newModel()
     val mid = model.model.getMid
 
-    uploadOneShot(mid, "weights.pt", Array.fill[Byte](32)(0x1)).getStatus shouldEqual 200
+    upload(mid, "weights.pt", Array.fill[Byte](32)(0x1))
 
     intercept[BadRequestException] {
       modelResource.createModelVersion("2024/01 snapshot", mid, sessionUser)
@@ -298,8 +277,8 @@ class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_use
     val modelA = newModel()
     val modelB = newModel()
 
-    uploadOneShot(modelA.model.getMid, "a.pt", Array.fill[Byte](16)(0x1)).getStatus shouldEqual 200
-    uploadOneShot(modelB.model.getMid, "b.pt", Array.fill[Byte](16)(0x2)).getStatus shouldEqual 200
+    upload(modelA.model.getMid, "a.pt", Array.fill[Byte](16)(0x1))
+    upload(modelB.model.getMid, "b.pt", Array.fill[Byte](16)(0x2))
     modelResource.createModelVersion("va", modelA.model.getMid, sessionUser)
     val versionOfB = modelResource.createModelVersion("vb", modelB.model.getMid, sessionUser)
 

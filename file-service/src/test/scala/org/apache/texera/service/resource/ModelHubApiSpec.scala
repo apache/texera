@@ -39,8 +39,6 @@ class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
 
   lazy val modelDao = new ModelDao(getDSLContext.configuration())
 
-  /** The owner's session, under the name these tests use for it. */
-  lazy val ownerSession: SessionUser = sessionUser
   lazy val readerSession = new SessionUser(readerUser)
   lazy val strangerSession = new SessionUser(strangerUser)
 
@@ -52,11 +50,11 @@ class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
   private def commitVersionWithCover(mid: Integer): ModelVersion = {
     upload(mid, "cover.jpg", Array.fill[Byte](512)(0xff.toByte))
     upload(mid, "model.pt", Array.fill[Byte](64)(0x1))
-    modelResource.createModelVersion("init", mid, ownerSession).modelVersion
+    modelResource.createModelVersion("init", mid, sessionUser).modelVersion
   }
 
   /** Sets the cover image of model `mid` to `path` as `user`. */
-  private def setCover(mid: Integer, path: String, user: SessionUser = ownerSession): Response =
+  private def setCover(mid: Integer, path: String, user: SessionUser = sessionUser): Response =
     modelResource.updateModelCoverImage(mid, CoverImageUtils.CoverImageRequest(path), user)
 
   private def urlOf(response: Response): Option[String] =
@@ -148,7 +146,7 @@ class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
     val mid = newModel(isPublic = true).model.getMid
 
     assertThrows[NotFoundException] {
-      modelResource.getModelCover(mid, Optional.of(ownerSession))
+      modelResource.getModelCover(mid, Optional.of(sessionUser))
     }
   }
 
@@ -173,7 +171,7 @@ class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
     val version = commitVersionWithCover(mid)
     setCover(mid, s"${version.getName}/cover.jpg")
 
-    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(sessionUser))
 
     response.getStatus shouldEqual 200
     urlOf(response) shouldBe defined
@@ -199,19 +197,19 @@ class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
     model.setCoverImage("v9 - deleted/cover.jpg")
     modelDao.update(model)
 
-    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(sessionUser))
     response.getStatus shouldEqual 200
     urlOf(response) shouldBe empty
 
     assertThrows[NotFoundException] {
-      modelResource.getModelCover(mid, Optional.of(ownerSession))
+      modelResource.getModelCover(mid, Optional.of(sessionUser))
     }
   }
 
   it should "return a null url rather than 404 when no cover image is set" in {
     val mid = newModel(isPublic = true).model.getMid
 
-    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(sessionUser))
 
     response.getStatus shouldEqual 200
     urlOf(response) shouldBe empty
@@ -298,7 +296,7 @@ class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
 
     val anonymous = modelResource.retrievePublicModelVersionRootFileNodes(mid, version.getMvid)
     val authenticated =
-      modelResource.retrieveModelVersionRootFileNodes(mid, version.getMvid, ownerSession)
+      modelResource.retrieveModelVersionRootFileNodes(mid, version.getMvid, sessionUser)
 
     anonymous.fileNodes.map(_.getName).sorted shouldEqual
       authenticated.fileNodes.map(_.getName).sorted
