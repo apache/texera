@@ -135,6 +135,33 @@ class TestNetworkSender:
                 network_sender._send_data(channel_id, NotAPayload())
 
     @pytest.mark.timeout(5)
+    def test_send_control_invokes_control_action_and_discards_reply(
+        self, network_sender, channel_id, monkeypatch
+    ):
+        # _send_control must still invoke the "control" action with the
+        # serialized PythonControlMessage. The reply (unused credits) is
+        # discarded, so the method itself returns None even when the proxy
+        # hands back a non-empty body.
+        from proto.org.apache.texera.amber.engine.common import (
+            DirectControlMessagePayloadV2,
+            PythonControlMessage,
+        )
+
+        seen = []
+        monkeypatch.setattr(
+            network_sender._proxy_client,
+            "call_action",
+            lambda action, payload: seen.append((action, payload))
+            or b"\x05\x00\x00\x00",
+        )
+        control_payload = DirectControlMessagePayloadV2()
+
+        assert network_sender._send_control(channel_id, control_payload) is None
+
+        expected = bytes(PythonControlMessage(tag=channel_id, payload=control_payload))
+        assert seen == [("control", expected)]
+
+    @pytest.mark.timeout(5)
     def test_receive_routes_a_data_element_to_send_data(
         self, network_sender, channel_id, monkeypatch
     ):

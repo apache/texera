@@ -20,7 +20,7 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { catchError, map, switchMap } from "rxjs/operators";
+import { catchError, map, switchMap, tap } from "rxjs/operators";
 import { Observable, of } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -173,19 +173,18 @@ export class ModelDetailComponent implements OnInit {
   ngOnInit(): void {
     this.route.params
       .pipe(
-        switchMap(params => {
+        tap(params => {
           // Route params are strings, and the segment is whatever the URL carried: reject
           // anything that is not a positive integer once, here, rather than at each use.
           const mid = Number(params["mid"]);
           this.mid = Number.isInteger(mid) && mid > 0 ? mid : undefined;
           if (this.mid === undefined) {
             this.notificationService.error("This is not a valid model id");
-            return this.route.data;
+            return;
           }
           this.retrieveModelInfo();
           this.retrieveModelVersionList();
           this.loadHubActivity();
-          return this.route.data;
         }),
         untilDestroyed(this)
       )

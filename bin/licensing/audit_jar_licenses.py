@@ -150,13 +150,12 @@ def main() -> int:
     groups = collect_groups([Path(d) for d in args.lib_dirs])
 
     rows = []
-    for (lic_h, not_h), members in groups.items():
+    for (lic_h, _), members in groups.items():
         sample_lic = members[0][1]
         sample_not = members[0][2]
         cprights = len(COPYRIGHT_RE.findall(sample_lic))
         rows.append({
             "lic_hash": lic_h,
-            "not_hash": not_h,
             "lic_size": len(sample_lic),
             "not_size": len(sample_not),
             "cprights": cprights,

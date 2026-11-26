@@ -33,6 +33,15 @@ from proto.org.apache.texera.amber.core import (
 from proto.org.apache.texera.amber.engine.architecture.sendsemantics import Partitioning
 
 
+def canonicalize_port_id(port_id: PortIdentity) -> PortIdentity:
+    """Default a PortIdentity's unset id/internal fields in place, then return it."""
+    if port_id.id is None:
+        port_id.id = 0
+    if port_id.internal is None:
+        port_id.internal = False
+    return port_id
+
+
 class Channel:
     def __init__(self):
         self.port_id: Optional[PortIdentity] = None
@@ -124,10 +133,7 @@ class InputManager:
         storage_uris: List[str],
         partitionings: List[Partitioning],
     ) -> None:
-        if port_id.id is None:
-            port_id.id = 0
-        if port_id.internal is None:
-            port_id.internal = False
+        canonicalize_port_id(port_id)
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
@@ -139,10 +145,7 @@ class InputManager:
         return self._channels[channel_id].port_id
 
     def get_port(self, port_id: PortIdentity) -> WorkerPort:
-        if port_id.id is None:
-            port_id.id = 0
-        if port_id.internal is None:
-            port_id.internal = False
+        canonicalize_port_id(port_id)
         try:
             return self._ports[port_id]
         except KeyError as error:
@@ -151,10 +154,7 @@ class InputManager:
     def register_input(
         self, channel_id: ChannelIdentity, port_id: PortIdentity
     ) -> None:
-        if port_id.id is None:
-            port_id.id = 0
-        if port_id.internal is None:
-            port_id.internal = False
+        canonicalize_port_id(port_id)
         channel = Channel()
         channel.set_port_id(port_id)
         self._channels[channel_id] = channel
