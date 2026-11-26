@@ -1455,12 +1455,6 @@ describe("SavedWorkflowSectionComponent", () => {
         // handleZipUploads unpacks the archive and imports each entry.
         expect(persist.createWorkflow).toHaveBeenCalledTimes(2);
       });
-
-      it("nameWorkflow resolves name conflicts by suffixing an increasing counter", () => {
-        const fakeZip = { files: { "wf.json": {}, "wf-1.json": {} } } as any;
-
-        expect((component as any).nameWorkflow("wf", fakeZip)).toBe("wf-2");
-      });
     });
 
     describe("selection and view type", () => {

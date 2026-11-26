@@ -828,8 +828,6 @@ services:
     depends_on:
       parca:
         condition: service_started
-    env_file:
-      - ../observability/parca/parca-agent.env
     # eBPF requires CAP_SYS_ADMIN-class privileges. macOS / Windows
     # developers cannot run this, they should drop the
     # observability-profiles profile from COMPOSE_PROFILES.
@@ -842,14 +840,15 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
     # parca-agent ships as a distroless image (no /bin/sh), so flags
-    # are passed directly. env_file values above are kept as the
-    # source of truth, edit both if you change a value.
+    # are passed directly and are the source of truth.
     command:
       - "--remote-store-address=parca:7070"
       - "--remote-store-insecure=true"
       - "--node=texera-dev"
       - "--metadata-external-labels=deployment=texera;cluster=local"
+      # Keep the 19 Hz policy explicit across upstream upgrades.
       - "--profiling-cpu-sampling-frequency=19"
+      # Switch to warn to reduce agent logs in production.
       - "--log-level=info"
     deploy:
       resources:

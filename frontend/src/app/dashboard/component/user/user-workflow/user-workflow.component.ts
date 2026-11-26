@@ -29,7 +29,7 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ExecutionMode, ExportedWorkflow, WorkflowContent } from "../../../../common/type/workflow";
+import { ExportedWorkflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
@@ -136,32 +136,7 @@ function languageOfExtension(extension: string | undefined): MigrationLanguage |
   return MIGRATION_LANGUAGES.find(language => MIGRATION_INPUTS[language].extension.toLowerCase() === extension);
 }
 
-/**
- * Saved-workflow-section component contains information and functionality
- * of the saved workflows section: the list of workflows the user owns or has access to
- *
- * This component:
- *  - displays the workflows the user has access to
- *  - allows easy searching for workflows by name or other parameters using Fuse.js
- *  - sorting options
- *  - creation of a new workflow
- *
- * Steps to add new search parameter:
- *  1. Add a newly formatted dropdown menu in the html and css files, and a backend call to retrieve any necessary data
- *  2. Create an array of objects to hold data for the search parameter and a boolean "checked" variable
- *  3. Write a callback function that triggers when new dropdown menu changes and updates a "filtered" array of the selected options
- *  4. Add call to searchWorkflows() in this function
- *  5. Add parameter to buildMasterFilterList()
- *  6. Update synchronousSearch() to search based on the new parameter (either through filter iteration or fuse)
- *    - If it uses Fuse.js, create OrPathQuery object for multiple of the same new parameter and push it to the AndPathQuery array
- *    - Do this in asyncSearch(if it requires a backend call)
- *  7. Add parameter as key to searchCriteria
- *  8. If it uses Fuse.js, update fuse keys and searchCriteriaPathMapping
- *  9. Add parameter to updateDropdownMenus() and setDropdownSelectionsToUnchecked()
- *
- *
- *
- */
+/** Displays, searches, and creates workflows the user can access. */
 @UntilDestroy()
 @Component({
   selector: "texera-saved-workflow-section",
@@ -343,7 +318,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           // Use the wid here for navigation
           this.router.navigate([USER_WORKSPACE, wid]).then(null);
         },
-        error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
+        error: () => this.notificationService.error("Workflow creation failed"),
       });
   }
 
@@ -850,9 +825,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       .downloadWorkflowsAsZip(workflowEntries)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => {
-          // this.searchResultsComponent.clearAllSelections();
-        },
         error: (err: unknown) => console.error("Error downloading workflows:", err),
       });
   }
@@ -919,21 +891,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           // TODO: fix this with notification component
           error: (err: unknown) => alert(err),
         });
-    }
-  }
-
-  /**
-   * Resolve name conflict
-   */
-  private nameWorkflow(name: string, zip: JSZip) {
-    let count = 0;
-    let copyName = name;
-    while (true) {
-      if (!zip.files[copyName + ".json"]) {
-        return copyName;
-      } else {
-        copyName = name + "-" + ++count;
-      }
     }
   }
 
