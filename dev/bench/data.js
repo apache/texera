@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795610245862,
+  "lastUpdate": 1795698070805,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -24128,6 +24128,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 1005.0041676600993,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kunwoo (Chris)",
+            "username": "kunwp1",
+            "email": "143021053+kunwp1@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "927379aa2809ab9e72a86b453d930b0409fdc364",
+          "message": "fix(frontend): keep inline scripts intact in HTML visualizations (#9716)\n\n### What changes were proposed in this PR?\n\nThe visualization frame re-serialized a result's HTML with\n`XMLSerializer`, which escapes `<`, `>` and `&` inside `<script>` and\n`<style>`. The iframe parses `srcdoc` as HTML, where that text is raw,\nso the escapes stayed: an inline script using any of these characters\nfailed with a syntax error and drew nothing, and style rules such as\n`div > span` stopped matching. This PR serializes the document as HTML\n(`documentElement.outerHTML`) instead, carrying the result's doctype\nover on its own since it sits outside `documentElement`.\n\n- Text outside scripts and styles stays escaped, so a literal `<b>` in a\nresult does not turn into markup.\n- The heights the frame sets (html 100%, body 95%, first div 100%) are\nunchanged.\n\n| Before | After |\n|---|---|\n|\n![before](https://raw.githubusercontent.com/kunwp1/texera/fcd8952d0d69e22a80c94c51118ec5d9e72120c3/before.png)\n|\n![after](https://raw.githubusercontent.com/kunwp1/texera/fcd8952d0d69e22a80c94c51118ec5d9e72120c3/after.png)\n|\n\nThe screenshots render the same result (an inline script that draws six\nbars, using `>`, `<` and `&&`) through the component in headless\nChromium: before, the script fails and the frame is blank; after, it\ndraws.\n\nLeft for follow-ups, outside this component:\n\n- `report-generation.service.ts` serializes result HTML with\n`XMLSerializer` the same way, so exported reports have the same problem.\n\n### Any related issues, documentation, discussions?\n\nCloses #9715.\n\n### How was this PR tested?\n\nNew unit tests in `visualization-frame-content.component.spec.ts` check\nthat `<`, `>` and `&` inside an inline script and `>` inside an inline\nstyle reach the `srcdoc` as written, that text outside scripts stays\nescaped, that the frame still sizes the page and its first div, and that\nthe result's doctype is kept (and none added when it has none). The\nscript and style tests were written first and failed before the change.\n\n```\ncd frontend\nng test --watch=false \\\n  --include=src/app/workspace/component/visualization-panel-content/visualization-frame-content.component.spec.ts\nyarn prettier-eslint --list-different <changed files>\nyarn eslint src/app/workspace/component/visualization-panel-content/\n```\n\nAll 12 tests pass; prettier and eslint are clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>\nCo-authored-by: Xinyuan Lin <xinyual3@uci.edu>",
+          "timestamp": "2026-11-26T08:26:51Z",
+          "url": "https://github.com/apache/texera/commit/927379aa2809ab9e72a86b453d930b0409fdc364"
+        },
+        "date": 1795698069962,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 687.226371521147,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1155.8364378649278,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1242.1708304653864,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 865.8213715244219,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1221.3316331866126,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1238.6105043854539,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 917.67733182192,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1178.0557444955227,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1241.3925764266662,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 752.0437652290319,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 962.872236929125,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 987.7985380473898,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 739.5980291885461,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 968.3614163363538,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 988.9190404259822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 765.9151332240212,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 956.8520058151427,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 981.3124240440319,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 456.3689006548286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 544.8479775636807,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 547.2405046352596,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 467.7451827821696,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 538.7551460437248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 544.3044916028545,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 448.3114422602035,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 516.6891605363734,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 511.8070167982558,
             "unit": "tuples/sec"
           }
         ]
