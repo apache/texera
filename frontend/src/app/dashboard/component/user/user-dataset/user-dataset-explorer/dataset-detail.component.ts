@@ -62,7 +62,7 @@ import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-re
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
 import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
-export const THROTTLE_TIME_MS = 1000;
+const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({

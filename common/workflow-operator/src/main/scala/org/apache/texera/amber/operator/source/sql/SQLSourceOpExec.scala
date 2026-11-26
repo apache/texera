@@ -242,7 +242,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
             curLowerBound.longValue <= upperBound.longValue
           case AttributeType.DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
-          case AttributeType.STRING | AttributeType.ANY | AttributeType.BOOLEAN | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
