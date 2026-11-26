@@ -29,13 +29,13 @@ import {
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
-import { switchMap, tap, throttleTime } from "rxjs/operators";
+import { switchMap, tap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
-import { ActionType, EntityType, HubService, LikedStatus } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { HttpErrorResponse } from "@angular/common/http";
 import { EMPTY, Observable, Subscription } from "rxjs";
@@ -61,8 +61,6 @@ import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
 import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
-
-const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({
@@ -168,44 +166,45 @@ export class DatasetDetailComponent implements OnInit {
     this.route.params
       .pipe(
         tap(params => {
-          this.did = params["did"];
+          // Route params are strings, and the segment is whatever the URL carried: reject
+          // anything that is not a positive integer once, here, rather than at each use.
+          const did = Number(params["did"]);
+          this.did = Number.isInteger(did) && did > 0 ? did : undefined;
+          if (this.did === undefined) {
+            this.notificationService.error("This is not a valid dataset id");
+            return;
+          }
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
           this.retrieveLatestVersionFile();
+          // The router reuses this page when the dataset id changes, so the hub state is
+          // loaded with each id rather than once.
+          this.loadHubActivity(this.did);
         }),
         untilDestroyed(this)
       )
       .subscribe();
+  }
 
-    if (!isDefined(this.did)) {
+  /** Opening the page counts as a view; the like state needs a signed-in viewer. */
+  private loadHubActivity(did: number): void {
+    this.hubService
+      .postView(did, this.currentUid ?? 0, EntityType.Dataset)
+      .pipe(untilDestroyed(this))
+      .subscribe(count => (this.viewCount = count));
+
+    this.hubService
+      .getCounts([EntityType.Dataset], [did], [ActionType.Like])
+      .pipe(untilDestroyed(this))
+      .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
+
+    if (this.currentUid === undefined) {
       return;
     }
-
     this.hubService
-      .getCounts([EntityType.Dataset], [this.did], [ActionType.Like])
+      .isLiked([did], [EntityType.Dataset])
       .pipe(untilDestroyed(this))
-      .subscribe(counts => {
-        this.likeCount = counts[0].counts.like ?? 0;
-      });
-
-    this.hubService
-      .postView(this.did, this.currentUid ? this.currentUid : 0, EntityType.Dataset)
-      .pipe(throttleTime(THROTTLE_TIME_MS))
-      .pipe(untilDestroyed(this))
-      .subscribe(count => {
-        this.viewCount = count;
-      });
-
-    if (!isDefined(this.currentUid)) {
-      return;
-    }
-
-    this.hubService
-      .isLiked([this.did], [EntityType.Dataset])
-      .pipe(untilDestroyed(this))
-      .subscribe((isLiked: LikedStatus[]) => {
-        this.isLiked = isLiked.length > 0 ? isLiked[0].isLiked : false;
-      });
+      .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
   }
 
   /** Commits the staged files; the panel owns the rest of the version flow. */

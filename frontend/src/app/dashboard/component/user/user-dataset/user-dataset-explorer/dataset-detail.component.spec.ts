@@ -22,7 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute, Router } from "@angular/router";
-import { concat, of, Subject, throwError } from "rxjs";
+import { concat, isObservable, Observable, of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
@@ -395,11 +395,12 @@ describe("DatasetDetailComponent behavior", () => {
     size,
   });
 
-  const createComponent = (params: Record<string, unknown> = { did: 5 }): void => {
+  type RouteParams = Record<string, unknown>;
+  const createComponent = (params: RouteParams | Observable<RouteParams> = { did: 5 }): void => {
     TestBed.configureTestingModule({
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
-        { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
+        { provide: ActivatedRoute, useValue: { params: isObservable(params) ? params : of(params), data: of({}) } },
         { provide: NzModalService, useValue: modalServiceStub },
         { provide: DatasetService, useValue: datasetServiceStub },
         { provide: NotificationService, useValue: notificationServiceStub },
@@ -494,6 +495,53 @@ describe("DatasetDetailComponent behavior", () => {
       expect(datasetServiceStub.getDataset).not.toHaveBeenCalled();
       expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
       expect(hubServiceStub.postView).not.toHaveBeenCalled();
+    });
+
+    it("reads the did off the route as a number", () => {
+      // The router hands every param over as a string.
+      createComponent({ did: "5" });
+      fixture.detectChanges();
+
+      expect(component.did).toBe(5);
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+      expect(hubServiceStub.postView).toHaveBeenCalledWith(5, expect.any(Number), EntityType.Dataset);
+    });
+
+    it("refuses a route segment that is not a dataset id", () => {
+      createComponent({ did: "abc" });
+      fixture.detectChanges();
+
+      expect(component.did).toBeUndefined();
+      expect(datasetServiceStub.getDataset).not.toHaveBeenCalled();
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+      expect(hubServiceStub.postView).not.toHaveBeenCalled();
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("This is not a valid dataset id");
+    });
+
+    it("reloads the like count, view count and liked state when the route moves to another dataset", () => {
+      // The router reuses this page for /dataset/5 -> /dataset/6: the component stays,
+      // and only its params emit again.
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      login();
+      fixture.detectChanges();
+
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 3 } }]));
+      hubServiceStub.postView.mockReturnValue(of(30));
+      hubServiceStub.isLiked.mockReturnValue(of([{ isLiked: true }]));
+      params.next({ did: "5" });
+      expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([3, 30, true]);
+
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 8 } }]));
+      hubServiceStub.postView.mockReturnValue(of(80));
+      hubServiceStub.isLiked.mockReturnValue(of([{ isLiked: false }]));
+      params.next({ did: "6" });
+
+      expect(component.did).toBe(6);
+      expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([8, 80, false]);
+      expect(hubServiceStub.getCounts).toHaveBeenLastCalledWith([EntityType.Dataset], [6], [ActionType.Like]);
+      expect(hubServiceStub.postView).toHaveBeenLastCalledWith(6, expect.any(Number), EntityType.Dataset);
+      expect(hubServiceStub.isLiked).toHaveBeenLastCalledWith([6], [EntityType.Dataset]);
     });
 
     it("reads a counts response with no like tally as no likes, and no liked record as not liked", () => {
