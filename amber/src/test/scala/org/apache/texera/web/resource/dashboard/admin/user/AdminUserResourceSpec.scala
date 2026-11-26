@@ -19,83 +19,38 @@
 
 package org.apache.texera.web.resource.dashboard.admin.user
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
-}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   User,
   Workflow,
-  WorkflowExecutions,
-  WorkflowOfUser,
-  WorkflowUserAccess,
-  WorkflowVersion
+  WorkflowExecutions
 }
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.web.resource.dashboard.UserDashboardFixtureSupport
 
-import java.sql.Timestamp
 import java.util.UUID
 import javax.ws.rs.{BadRequestException, WebApplicationException}
 import scala.jdk.CollectionConverters._
 
 class AdminUserResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true)
+    with UserDashboardFixtureSupport {
 
   private val primaryUid = 90000 + scala.util.Random.nextInt(5000)
   private val secondaryUid = primaryUid + 1
   private val testWid = 90000 + scala.util.Random.nextInt(5000)
 
-  private var userDao: UserDao = _
-  private var datasetDao: DatasetDao = _
-  private var workflowDao: WorkflowDao = _
-  private var workflowVersionDao: WorkflowVersionDao = _
-  private var workflowExecutionsDao: WorkflowExecutionsDao = _
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
-
   private val resource = new AdminUserResource
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-    datasetDao = new DatasetDao(getDSLContext.configuration())
-    workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = closeConnectionPool()
-
   // Wipe everything this spec seeds, children before parents, after each test.
-  private def cleanup(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.UID.in(primaryUid, secondaryUid))
       .execute()
-    getDSLContext.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(testWid)).execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(testWid))
-      .execute()
-    getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(WORKFLOW_OF_USER.WID.eq(testWid)).execute()
-    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    cleanupWorkflowRecords(Seq(testWid), includeUserAccess = true)
     getDSLContext
       .deleteFrom(DATASET)
       .where(DATASET.OWNER_UID.in(primaryUid, secondaryUid))
@@ -112,7 +67,7 @@ class AdminUserResourceSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(
-      s"admin_user_spec_${uid}_${UUID.randomUUID().toString.substring(0, 8)}@example.com"
+      s"admin_user_spec_${uid}_${uniqueSuffix}@example.com"
     )
     user.setRole(role)
     user
@@ -137,54 +92,21 @@ class AdminUserResourceSpec
       .set(AUTH_PROVIDER.PASSWORD, password)
       .execute()
 
-  private def seedWorkflow(): Workflow = {
-    val workflow = new Workflow
-    workflow.setWid(testWid)
-    workflow.setName("admin_user_spec_wf_" + UUID.randomUUID().toString.substring(0, 8))
-    workflow.setContent("{}")
-    workflow.setDescription("desc")
-    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    workflowDao.insert(workflow)
-    workflow
-  }
+  private def seedWorkflow(): Workflow =
+    insertWorkflow(testWid, "admin_user_spec_wf_" + uniqueSuffix, description = "desc")
 
-  private def seedDataset(uid: Int): Dataset = {
-    val dataset = new Dataset
-    dataset.setOwnerUid(uid)
-    dataset.setName("admin_user_spec_ds_" + UUID.randomUUID().toString.substring(0, 8))
-    dataset.setRepositoryName("repo-" + UUID.randomUUID().toString.substring(0, 8))
-    dataset.setIsPublic(false)
-    dataset.setIsDownloadable(true)
-    dataset.setDescription("")
-    dataset.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    datasetDao.insert(dataset)
-    dataset
-  }
+  private def seedDataset(uid: Int): Dataset = seedDataset(uid, "admin_user_spec_ds_")
 
   private def seedExecution(uid: Int): WorkflowExecutions = {
     seedWorkflow()
-    val version = new WorkflowVersion
-    version.setWid(testWid)
-    version.setContent("{}")
-    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflowVersionDao.insert(version)
-
-    val execution = new WorkflowExecutions
-    execution.setVid(version.getVid)
-    execution.setUid(uid)
-    execution.setStatus(0.toByte)
-    execution.setResult("")
-    execution.setLogLocation("")
-    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
-    execution.setBookmarked(false)
-    execution.setName("admin_user_spec_exec")
-    execution.setEnvironmentVersion("test-env-1.0")
-    workflowExecutionsDao.insert(execution)
-    execution
+    insertWorkflowExecution(
+      insertWorkflowVersion(testWid).getVid,
+      uid,
+      name = "admin_user_spec_exec",
+      envVersion = "test-env-1.0",
+      logLocation = Some("")
+    )
   }
-
-  override protected def afterEach(): Unit = cleanup()
 
   // ─── list ───────────────────────────────────────────────────────────────
 
@@ -410,10 +332,7 @@ class AdminUserResourceSpec
   it should "return the workflows the user created" in {
     userDao.insert(makeUser(primaryUid, "creator"))
     val workflow = seedWorkflow()
-    val ownership = new WorkflowOfUser
-    ownership.setUid(primaryUid)
-    ownership.setWid(testWid)
-    workflowOfUserDao.insert(ownership)
+    insertWorkflowOfUser(primaryUid, testWid)
 
     val created = resource.getCreatedWorkflow(primaryUid)
     created.map(_.workflowId) shouldBe List(Integer.valueOf(testWid))
@@ -430,11 +349,7 @@ class AdminUserResourceSpec
   it should "return the workflow ids the user can access" in {
     userDao.insert(makeUser(primaryUid, "viewer"))
     seedWorkflow()
-    val access = new WorkflowUserAccess
-    access.setUid(primaryUid)
-    access.setWid(testWid)
-    access.setPrivilege(PrivilegeEnum.READ)
-    workflowUserAccessDao.insert(access)
+    insertWorkflowUserAccess(primaryUid, testWid, PrivilegeEnum.READ)
 
     resource.getAccessedWorkflow(primaryUid).asScala should contain(Integer.valueOf(testWid))
   }
@@ -442,11 +357,7 @@ class AdminUserResourceSpec
   it should "include a workflow the user owns without an access row" in {
     userDao.insert(makeUser(primaryUid, "owner"))
     seedWorkflow()
-    getDSLContext
-      .insertInto(WORKFLOW_OF_USER)
-      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(primaryUid))
-      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
-      .execute()
+    insertWorkflowOfUser(primaryUid, testWid)
 
     resource.getAccessedWorkflow(primaryUid).asScala.toList shouldBe List(Integer.valueOf(testWid))
   }

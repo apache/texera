@@ -21,12 +21,18 @@ package org.apache.texera.web
 
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.{UserRoleEnum, WorkflowComputingUnitTypeEnum}
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao,
   WorkflowDao,
   WorkflowExecutionsDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao,
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
@@ -34,6 +40,8 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow,
   WorkflowComputingUnit,
   WorkflowExecutions,
+  WorkflowOfUser,
+  WorkflowUserAccess,
   WorkflowVersion
 }
 
@@ -82,6 +90,13 @@ trait ExecutionDatabaseTestSupport { this: MockTexeraDB =>
     new WorkflowDao(getDSLContext.configuration()).insert(workflow)
     workflow
   }
+
+  protected def insertWorkflowOfUser(uid: Int, wid: Int): Unit =
+    new WorkflowOfUserDao(getDSLContext.configuration()).insert(new WorkflowOfUser(uid, wid))
+
+  protected def insertWorkflowUserAccess(uid: Int, wid: Int, privilege: PrivilegeEnum): Unit =
+    new WorkflowUserAccessDao(getDSLContext.configuration())
+      .insert(new WorkflowUserAccess(uid, wid, privilege))
 
   protected def insertWorkflowVersion(
       wid: Int,

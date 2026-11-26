@@ -20,30 +20,16 @@
 package org.apache.texera.web.resource.dashboard.admin.execution
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_OF_USER
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowUserAccessDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  WorkflowExecutions,
-  WorkflowUserAccess,
-  WorkflowVersion
-}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions, WorkflowVersion}
 import org.apache.texera.web.ExecutionDatabaseTestSupport
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class AdminExecutionResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB
+    extends DatabaseFlatSpec(cleanupAfterEach = true)
     with ExecutionDatabaseTestSupport {
 
   // MockTexeraDB's embedded Postgres is a JVM singleton shared by all suites, which
@@ -55,22 +41,10 @@ class AdminExecutionResourceSpec
 
   private var testUser: User = _
   private var testVersion: WorkflowVersion = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
 
   private val resource = new AdminExecutionResource()
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def afterAll(): Unit = {
-    shutdownDB()
-  }
-
-  override protected def beforeEach(): Unit = {
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
-    cleanupTestData()
-
+  override protected def onBeforeEach(): Unit = {
     testUser = insertUser(testUid, "test_user", "admin_exec_test@example.com")
     insertWorkflow(
       testWid,
@@ -80,11 +54,7 @@ class AdminExecutionResourceSpec
     testVersion = insertWorkflowVersion(testWid)
   }
 
-  override protected def afterEach(): Unit = {
-    cleanupTestData()
-  }
-
-  private def cleanupTestData(): Unit =
+  override protected def cleanup(): Unit =
     cleanupWorkflowRecords(
       Seq(testWid, secondWid),
       uids = Seq(testUid),
@@ -109,14 +79,6 @@ class AdminExecutionResourceSpec
       startOffsetMillis = Some(startOffsetMillis),
       durationMillis = Some(durationMillis)
     )
-
-  private def grantAccess(uid: Int, privilege: PrivilegeEnum): Unit = {
-    val access = new WorkflowUserAccess
-    access.setUid(uid)
-    access.setWid(testWid)
-    access.setPrivilege(privilege)
-    workflowUserAccessDao.insert(access)
-  }
 
   // Seeds a full second workflow (workflow + version + one execution) owned by
   // testUser, whose latest execution ends `endOffsetMillis` before "now". Used to
@@ -190,7 +152,7 @@ class AdminExecutionResourceSpec
 
   "listWorkflows" should "return the seeded execution with the mapped status and access flag" in {
     seedExecution(status = 3.toByte, name = "completed-run")
-    grantAccess(testUser.getUid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(testUser.getUid, testWid, PrivilegeEnum.READ)
 
     val rows = list()
 
@@ -214,11 +176,7 @@ class AdminExecutionResourceSpec
 
   it should "report access = true for the owner without an access row" in {
     seedExecution()
-    getDSLContext
-      .insertInto(WORKFLOW_OF_USER)
-      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(testUid))
-      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
-      .execute()
+    insertWorkflowOfUser(testUid, testWid)
 
     list().head.access shouldBe true
   }

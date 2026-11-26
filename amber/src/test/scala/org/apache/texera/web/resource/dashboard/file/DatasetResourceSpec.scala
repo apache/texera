@@ -19,50 +19,37 @@
 
 package org.apache.texera.web.resource.dashboard.file
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.DatasetSearchQueryBuilder
-import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, DatasetDao, DatasetUserAccessDao}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import java.time.OffsetDateTime
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.DATASET_RESOURCE_TYPE
 
 class DatasetResourceSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true) {
 
   // An example creation time to test Account Creation Time attribute
   private val exampleCreationTime: OffsetDateTime =
     OffsetDateTime.parse("2025-01-01T00:00:00Z")
 
-  private val ownerUser: User = {
+  private def seededUser(uid: Int, name: String, role: UserRoleEnum, comment: String): User = {
     val user = new User
-    user.setUid(Integer.valueOf(1))
-    user.setName("owner_user")
-    user.setRole(UserRoleEnum.ADMIN)
-    user.setEmail("owner_user@mail.com")
-    user.setComment("test_comment")
+    user.setUid(uid)
+    user.setName(name)
+    user.setRole(role)
+    user.setEmail(s"$name@mail.com")
+    user.setComment(comment)
     user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
-  private val testUser: User = {
-    val user = new User
-    user.setUid(Integer.valueOf(2))
-    user.setName("test_user")
-    user.setEmail("test_user@mail.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user.setComment("test_comment2")
-    user.setAccountCreationTime(exampleCreationTime)
-    user
-  }
+  private val ownerUser = seededUser(1, "owner_user", UserRoleEnum.ADMIN, "test_comment")
+  private val testUser = seededUser(2, "test_user", UserRoleEnum.REGULAR, "test_comment2")
 
   private val testDatasetRecord: Dataset = {
     val dataset = new Dataset()
@@ -73,36 +60,16 @@ class DatasetResourceSpec
     dataset
   }
 
-  // get context lazily
-  private lazy val datasetDao: DatasetDao = {
-    new DatasetDao(getDSLContext.configuration())
-  }
+  private lazy val userDao = new UserDao(getDSLContext.configuration())
+  private lazy val datasetDao = new DatasetDao(getDSLContext.configuration())
+  private lazy val datasetUserAccessDao = new DatasetUserAccessDao(getDSLContext.configuration())
 
-  private lazy val datasetUserAccessDao: DatasetUserAccessDao = {
-    new DatasetUserAccessDao(getDSLContext.configuration())
-  }
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    // `FulltextSearchQueryUtils.usePgroonga` is deliberately left at its production default here:
-    // no test in this suite reaches the read, because both `constructQuery` calls below pass no
-    // keywords and `getFullTextSearchFilter` returns before that read on an empty keyword list.
-    // A keyword test added here would need the `to_tsvector` arm instead — `MockTexeraDB` strips
-    // the full-text index block out of the DDL, so the embedded Postgres has no pgroonga extension
-    // — and would have to set the flag and put it back: amber has no `Test / fork`, so a value
-    // left behind here follows every suite scheduled after this one in the same JVM.
-
-    // add test user directly
-    val userDao = new UserDao(getDSLContext.configuration())
+  override protected def onBeforeAll(): Unit = {
     userDao.insert(ownerUser)
     userDao.insert(testUser)
   }
 
-  override protected def beforeEach(): Unit = {
-    // Clean up environment before each test case
-  }
-
-  override protected def afterEach(): Unit = {
+  override protected def cleanup(): Unit = {
     // 1. Delete access rows before the dataset
     getDSLContext
       .deleteFrom(org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS)
@@ -114,12 +81,7 @@ class DatasetResourceSpec
     }
   }
 
-  override protected def afterAll(): Unit = {
-    shutdownDB()
-  }
-
   "User.accountCreationTime" should "be persisted and retrievable via UserDao" in {
-    val userDao = new UserDao(getDSLContext.configuration())
     val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
     val u2 = userDao.fetchOneByUid(Integer.valueOf(2))
 
@@ -131,7 +93,6 @@ class DatasetResourceSpec
   }
 
   it should "remain unchanged when updating unrelated fields" in {
-    val userDao = new UserDao(getDSLContext.configuration())
     val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
     val originalTime = u1.getAccountCreationTime
 
@@ -142,67 +103,34 @@ class DatasetResourceSpec
     assert(test_u1.getAccountCreationTime.isEqual(originalTime))
   }
 
-  "DatasetResource /owner view" should "get deduplicated datasets created by owner and shared publicly" in {
-    // Only metadatas of dataset and the user is maintained - no dataset is actually created in LakeFS
-    // Create dataset
-    val datasetDao = new DatasetDao(getDSLContext.configuration())
+  private def grant(uid: Integer, privilege: PrivilegeEnum): Unit =
+    datasetUserAccessDao.insert(new DatasetUserAccess(testDatasetRecord.getDid, uid, privilege))
+
+  // These cases query metadata directly. A LakeFS repository is needed only for hydration.
+  private def seedPublicDataset(): Unit = {
     testDatasetRecord.setOwnerUid(ownerUser.getUid)
     datasetDao.insert(testDatasetRecord)
+    grant(ownerUser.getUid, PrivilegeEnum.WRITE)
+  }
 
-    // Give write access to the owner user
-    datasetUserAccessDao.insert(
-      new DatasetUserAccess(
-        testDatasetRecord.getDid,
-        ownerUser.getUid,
-        PrivilegeEnum.WRITE
-      )
+  private def assertSingleDataset(uid: Integer): Unit = {
+    val query = DatasetSearchQueryBuilder.constructQuery(
+      uid,
+      SearchQueryParams(resourceType = DATASET_RESOURCE_TYPE),
+      includePublic = true
     )
-
-    // Build the query - bypasses DashboarResource
-    val query =
-      DatasetSearchQueryBuilder.constructQuery(
-        ownerUser.getUid,
-        SearchQueryParams(resourceType = DATASET_RESOURCE_TYPE),
-        includePublic = true
-      )
-    // Assert the length of returned dataset
     val datasetEntryList = getDSLContext.fetch(query)
     assert(datasetEntryList.size() == 1)
   }
 
+  "DatasetResource /owner view" should "get deduplicated datasets created by owner and shared publicly" in {
+    seedPublicDataset()
+    assertSingleDataset(ownerUser.getUid)
+  }
+
   "/search API" should "deduplicate datasets shared both publicly and explicitly with NON-WRITE permissions" in {
-    // Only metadatas of dataset and the user is maintained - no dataset is actually created in LakeFS
-    // Create dataset
-    val datasetDao = new DatasetDao(getDSLContext.configuration())
-    testDatasetRecord.setOwnerUid(ownerUser.getUid)
-    datasetDao.insert(testDatasetRecord)
-
-    // Give write access to the owner user
-    datasetUserAccessDao.insert(
-      new DatasetUserAccess(
-        ownerUser.getUid,
-        testDatasetRecord.getDid,
-        PrivilegeEnum.WRITE
-      )
-    )
-
-    datasetUserAccessDao.insert(
-      new DatasetUserAccess(
-        testDatasetRecord.getDid,
-        testUser.getUid,
-        PrivilegeEnum.READ
-      )
-    )
-
-    // Build the query
-    val query =
-      DatasetSearchQueryBuilder.constructQuery(
-        testUser.getUid,
-        SearchQueryParams(resourceType = DATASET_RESOURCE_TYPE),
-        includePublic = true
-      )
-    // Assert the length of returned dataset
-    val datasetEntryList = getDSLContext.fetch(query)
-    assert(datasetEntryList.size() == 1)
+    seedPublicDataset()
+    grant(testUser.getUid, PrivilegeEnum.READ)
+    assertSingleDataset(testUser.getUid)
   }
 }

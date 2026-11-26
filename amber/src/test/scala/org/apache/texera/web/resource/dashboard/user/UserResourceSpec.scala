@@ -19,14 +19,11 @@
 
 package org.apache.texera.web.resource.dashboard.user
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.Response
@@ -35,12 +32,7 @@ import javax.ws.rs.core.Response
   * Covers the joining-reason endpoints against embedded Postgres: whether a user still has to be
   * prompted, and that submitting a reason persists and flips that answer.
   */
-class UserResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class UserResourceSpec extends DatabaseFlatSpec(cleanupAfterEach = true, cleanupAfterAll = true) {
 
   private val testUid = 8000 + scala.util.Random.nextInt(1000)
   private val unknownUid = testUid + 1
@@ -48,23 +40,13 @@ class UserResourceSpec
   private var userDao: UserDao = _
   private var resource: UserResource = _
 
-  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
-
-  override protected def afterAll(): Unit = {
-    cleanup()
-    shutdownDB()
-  }
-
-  override protected def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
     resource = new UserResource()
-    cleanup()
     userDao.insert(seedUser())
   }
 
-  override protected def afterEach(): Unit = cleanup()
-
-  private def cleanup(): Unit =
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(USER).where(USER.UID.in(testUid, unknownUid)).execute()
 
   /** A freshly registered user: joining reason not yet supplied. */

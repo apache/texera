@@ -40,7 +40,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.auth.JwtAuth
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_PORT_EXECUTIONS
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User,
@@ -51,9 +51,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 import org.apache.texera.web.ExecutionDatabaseTestSupport
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.PrivateMethodTester
 
 import java.io.{
   ByteArrayInputStream,
@@ -99,12 +97,8 @@ import scala.collection.mutable.ArrayBuffer
   * bearer token that authenticates the exporting user to the file service.
   */
 class ResultExportServiceSpec
-    extends AnyFlatSpec
-    with Matchers
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true)
     with PrivateMethodTester
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB
     with ExecutionDatabaseTestSupport {
 
   private val service = new ResultExportService(WorkflowIdentity(1L), computingUnitId = 0)
@@ -395,8 +389,7 @@ class ResultExportServiceSpec
   private var testVersion: WorkflowVersion = _
   private var testComputingUnit: WorkflowComputingUnit = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit = {
 
     testUser = insertUser(testUserId, "export_user", "export@example.com")
     insertWorkflow(testWorkflowWid, "wf-" + UUID.randomUUID().toString.substring(0, 8))
@@ -406,10 +399,8 @@ class ResultExportServiceSpec
 
   // Executions are per-test state: several cases below distinguish "no
   // execution at all" from "an execution with no stored result URI".
-  override protected def afterEach(): Unit =
+  override protected def cleanup(): Unit =
     cleanupExecutionsForVersion(testVersion.getVid, includePortExecutions = true)
-
-  override protected def afterAll(): Unit = closeConnectionPool()
 
   // The service under test, bound to the seeded workflow and computing unit so
   // that getLatestExecutionId resolves against the rows this spec inserts.

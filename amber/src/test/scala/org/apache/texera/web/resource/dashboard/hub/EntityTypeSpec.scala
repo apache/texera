@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard.hub
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -47,6 +48,9 @@ class EntityTypeSpec extends AnyFlatSpec with Matchers {
     EntityType.fromString("Workflow") shouldBe EntityType.Workflow
     EntityType.fromString("DATASET") shouldBe EntityType.Dataset
     EntityType.fromString("Model") shouldBe EntityType.Model
+    EntityType.fromString("WORKFLOW") shouldBe EntityType.Workflow
+    EntityType.fromString("Dataset") shouldBe EntityType.Dataset
+    EntityType.fromString("MODEL") shouldBe EntityType.Model
   }
 
   it should "throw IllegalArgumentException for an unknown value" in {
@@ -56,6 +60,13 @@ class EntityTypeSpec extends AnyFlatSpec with Matchers {
     ex.getMessage should include("project")
   }
 
+  it should "throw IllegalArgumentException for an empty string, naming the empty input" in {
+    val ex = intercept[IllegalArgumentException] {
+      EntityType.fromString("")
+    }
+    ex.getMessage should include("''")
+  }
+
   // The @JsonValue / @JsonCreator pair drives Jackson serialisation. Cover
   // the round-trip so a future @JsonValue rename can't silently change the
   // wire format.
@@ -63,5 +74,10 @@ class EntityTypeSpec extends AnyFlatSpec with Matchers {
     val mapper = new ObjectMapper()
     mapper.writeValueAsString(EntityType.Workflow: EntityType) shouldBe "\"workflow\""
     mapper.readValue("\"dataset\"", classOf[EntityType]) shouldBe EntityType.Dataset
+
+    objectMapper.writeValueAsString(EntityType.Workflow: EntityType) shouldBe "\"workflow\""
+    objectMapper.writeValueAsString(EntityType.Dataset: EntityType) shouldBe "\"dataset\""
+    objectMapper.readValue("\"workflow\"", classOf[EntityType]) shouldBe EntityType.Workflow
+    objectMapper.readValue("\"dataset\"", classOf[EntityType]) shouldBe EntityType.Dataset
   }
 }

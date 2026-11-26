@@ -19,11 +19,13 @@
 
 package org.apache.texera.web.resource.dashboard
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
+import org.apache.texera.web.resource.dashboard.VersionedSearchQuerySupport.{
+  assertProjection,
+  params,
+  renderSearch
+}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.jdk.CollectionConverters._
 
@@ -38,50 +40,21 @@ import scala.jdk.CollectionConverters._
   * `FulltextSearchQueryUtils` builds before its pgroonga/tsvector branch — an assertion on either
   * arm would depend on which suites ran earlier in the JVM.
   */
-class ModelSearchQueryBuilderSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+class ModelSearchQueryBuilderSpec extends DatabaseFlatSpec(cleanupBeforeEach = false) {
 
   private val callerUid: Integer = Integer.valueOf(9201)
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def afterAll(): Unit = {
-    shutdownDB()
-  }
-
-  private def params(keywords: String*): SearchQueryParams =
-    SearchQueryParams(keywords = keywords.toList.asJava)
 
   private def sqlFor(
       uid: Integer,
       includePublic: Boolean,
       p: SearchQueryParams = params()
   ): String =
-    getDSLContext
-      .renderInlined(ModelSearchQueryBuilder.constructQuery(uid, p, includePublic))
-      .toLowerCase
-      .replace("\"", "")
+    renderSearch(getDSLContext, ModelSearchQueryBuilder, uid, p, includePublic)
 
   "the projection" should "carry every model column under the alias its schema slot names" in {
     val sql = sqlFor(callerUid, includePublic = true)
-
     sql should include("'model' as resourcetype")
-    sql should include("model.name as resourcename")
-    sql should include("model.description as resourcedescription")
-    sql should include("model.creation_time as resourcecreationtime")
-    sql should include("model.owner_uid as resourceownerid")
-    sql should include("model.repository_name as repository_name")
-    // Shared with the other versioned resources, hence the resource-neutral aliases.
-    sql should include("model.mid as versioned_resource_id")
-    sql should include("model.is_public as is_versioned_resource_public")
-    sql should include("model.is_downloadable as is_versioned_resource_downloadable")
-    sql should include("model_user_access.privilege as user_versioned_resource_access")
-    sql should include("model.cover_image as versioned_resource_cover_image")
+    assertProjection(sql, "model", "mid")
   }
 
   it should "carry framework and format, which no other resource projects" in {
@@ -92,7 +65,7 @@ class ModelSearchQueryBuilderSpec
   }
 
   it should "leave the workflow and dataset-only slots null" in {
-    // The union requires all builders to project the same 23 columns in the same order.
+    // The union requires all builders to project the same columns in the same order.
     val sql = sqlFor(callerUid, includePublic = true)
 
     sql should include("cast(null as int) as wid")

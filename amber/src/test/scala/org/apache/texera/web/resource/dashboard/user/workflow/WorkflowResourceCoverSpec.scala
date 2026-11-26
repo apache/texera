@@ -20,35 +20,19 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.CoverImageRequest
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.apache.texera.web.resource.dashboard.DashboardWorkflowFixtureSupport
 
-import java.sql.Timestamp
 import javax.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 
 class WorkflowResourceCoverSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupAfterEach = true)
+    with DashboardWorkflowFixtureSupport {
 
   private val ownerUid = 1000 + scala.util.Random.nextInt(1000)
   private val readerUid = 2000 + scala.util.Random.nextInt(1000)
@@ -62,74 +46,31 @@ class WorkflowResourceCoverSpec
   private var stranger: User = _
 
   private var userDao: UserDao = _
-  private var workflowDao: WorkflowDao = _
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
   private var resource: WorkflowResource = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
-    workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
     resource = new WorkflowResource()
 
-    owner = makeUser(ownerUid, "cover_owner")
-    reader = makeUser(readerUid, "cover_reader")
-    stranger = makeUser(strangerUid, "cover_stranger")
+    owner = fixtureUser(ownerUid, "cover_owner")
+    reader = fixtureUser(readerUid, "cover_reader")
+    stranger = fixtureUser(strangerUid, "cover_stranger")
 
-    val workflow = new Workflow
-    workflow.setWid(testWid)
-    workflow.setName("cover_test_workflow")
-    workflow.setContent("{}")
-    workflow.setDescription("desc")
-    workflow.setIsPublic(false)
-    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-
-    cleanupTestData()
+    val workflow = fixtureWorkflow(testWid, "cover_test_workflow", "desc", isPublic = false)
 
     userDao.insert(owner)
     userDao.insert(reader)
     userDao.insert(stranger)
     workflowDao.insert(workflow)
 
-    val ownership = new WorkflowOfUser
-    ownership.setUid(ownerUid)
-    ownership.setWid(testWid)
-    workflowOfUserDao.insert(ownership)
-
-    grantAccess(ownerUid, PrivilegeEnum.WRITE)
-    grantAccess(readerUid, PrivilegeEnum.READ)
-  }
-
-  override protected def afterEach(): Unit = cleanupTestData()
-
-  private def makeUser(uid: Int, name: String): User = {
-    val user = new User
-    user.setUid(uid)
-    user.setName(name)
-    user.setEmail(s"$name@test.com")
-    user
-  }
-
-  private def grantAccess(uid: Int, privilege: PrivilegeEnum): Unit = {
-    val access = new WorkflowUserAccess
-    access.setUid(uid)
-    access.setWid(testWid)
-    access.setPrivilege(privilege)
-    workflowUserAccessDao.insert(access)
+    insertWorkflowOfUser(ownerUid, testWid)
+    insertWorkflowUserAccess(ownerUid, testWid, PrivilegeEnum.WRITE)
+    insertWorkflowUserAccess(readerUid, testWid, PrivilegeEnum.READ)
   }
 
   private def session(user: User): SessionUser = new SessionUser(user)
 
-  private def cleanupTestData(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(WORKFLOW_COVER_IMAGE)
       .where(WORKFLOW_COVER_IMAGE.WID.eq(testWid))

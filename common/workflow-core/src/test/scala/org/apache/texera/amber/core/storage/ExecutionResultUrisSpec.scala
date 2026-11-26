@@ -27,7 +27,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
@@ -41,30 +41,19 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowExecutions,
   WorkflowVersion
 }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
 
-class ExecutionResultUrisSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class ExecutionResultUrisSpec extends DatabaseFlatSpec(cleanupAfterEach = true) {
 
   private val testWorkflowWid = 3000 + scala.util.Random.nextInt(1000)
   private val testUserId = 1000 + scala.util.Random.nextInt(1000)
 
   private var testVersion: WorkflowVersion = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def beforeEach(): Unit = {
-    cleanupTestData()
+  override protected def onBeforeEach(): Unit = {
 
     val testUser = new User
     testUser.setUid(testUserId)
@@ -87,16 +76,8 @@ class ExecutionResultUrisSpec
     new WorkflowVersionDao(getDSLContext.configuration()).insert(testVersion)
   }
 
-  override protected def afterEach(): Unit = {
-    cleanupTestData()
-  }
-
-  override protected def afterAll(): Unit = {
-    closeConnectionPool()
-  }
-
   // Child rows before parents: port results, executions, versions, the workflow, the user.
-  private def cleanupTestData(): Unit = {
+  override protected def cleanup(): Unit = {
     val vids = getDSLContext
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
