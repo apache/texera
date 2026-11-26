@@ -31,7 +31,7 @@ import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
 /**
  * Defines the SVG path for the delete button
  */
-export const deleteButtonPath =
+const deleteButtonPath =
   "M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41" +
   " 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2" +
   " 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z";
@@ -39,14 +39,14 @@ export const deleteButtonPath =
 /**
  * Defines the HTML SVG element for the delete button and customizes the look
  */
-export const deleteButtonSVG = `
+const deleteButtonSVG = `
   <svg class="delete-button" height="24" width="24">
     <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
     <path d="${deleteButtonPath}"/>
     <title>delete operator</title>
   </svg>`;
 
-export const addPortButtonPath = `
+const addPortButtonPath = `
 <path d="M215.037,36.846c-49.129-49.128-129.063-49.128-178.191,0c-49.127,49.127-49.127,129.063,0,178.19
 c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,165.909,264.164,85.973,215.037,36.846z
  M49.574,202.309c-42.109-42.109-42.109-110.626,0-152.735c21.055-21.054,48.711-31.582,76.367-31.582s55.313,10.527,76.367,31.582
@@ -55,14 +55,14 @@ c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,20
 v59.882c0,4.971,4.029,9,9,9s9-4.029,9-9v-59.882h59.882c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"/>
 `;
 
-export const removePortButtonPath = `
+const removePortButtonPath = `
 <path d="M215.037,36.846c-49.129-49.128-129.063-49.128-178.191,0c-49.127,49.127-49.127,129.063,0,178.19
 c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,165.909,264.164,85.973,215.037,36.846z
  M49.574,202.309c-42.109-42.109-42.109-110.626,0-152.735c21.055-21.054,48.711-31.582,76.367-31.582s55.313,10.527,76.367,31.582
 c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,202.309z"/>
 <path d="M194.823,116.941H57.059c-4.971,0-9,4.029-9,9s4.029,9,9,9h137.764c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"
 />`;
-export const addInputPortButtonSVG = `
+const addInputPortButtonSVG = `
   <svg class="add-input-port-button">
     <g transform="scale(0.075)">
       ${addPortButtonPath}
@@ -72,7 +72,7 @@ export const addInputPortButtonSVG = `
   </svg>
 `;
 
-export const removeInputPortButtonSVG = `
+const removeInputPortButtonSVG = `
   <svg class="remove-input-port-button">
     <g transform="scale(0.075)">
       ${removePortButtonPath}
@@ -82,7 +82,7 @@ export const removeInputPortButtonSVG = `
   </svg>
 `;
 
-export const addOutputPortButtonSVG = `
+const addOutputPortButtonSVG = `
   <svg class="add-output-port-button">
     <g transform="scale(0.075)">
       ${addPortButtonPath}
@@ -92,7 +92,7 @@ export const addOutputPortButtonSVG = `
   </svg>
 `;
 
-export const removeOutputPortButtonSVG = `
+const removeOutputPortButtonSVG = `
   <svg class="remove-output-port-button">
     <g transform="scale(0.075)">
       ${removePortButtonPath}
@@ -106,7 +106,7 @@ export const removeOutputPortButtonSVG = `
  * Defines the SVG for the chat button (message icon)
  * This button allows users to send feedback to agents about this operator
  */
-export const chatButtonSVG = `
+const chatButtonSVG = `
   <svg class="chat-button" height="20" width="20" viewBox="0 0 24 24">
     <rect x="0" y="0" width="24" height="24" fill="transparent" pointer-events="visible" />
     <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
@@ -117,12 +117,12 @@ export const chatButtonSVG = `
 /**
  * Defines the handle (the square at the end) of the source operator for a link
  */
-export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
+const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
 
 /**
  * Defines the handle (the arrow at the end) of the target operator for a link
  */
-export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
+const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
 export const operatorReuseCacheTextClass = "texera-operator-result-reuse-text";
 export const operatorReuseCacheIconClass = "texera-operator-result-reuse-icon";
@@ -783,17 +783,6 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-abbreviated-count": {
-        text: "",
-        fill: "green",
-        "font-size": "14px",
-        visibility: "visible",
-        "ref-x": 0.5,
-        "ref-y": -30,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
       ".texera-operator-port-metrics": {
         text: "",
         fill: "green",
@@ -801,28 +790,6 @@ export class JointUIService {
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": -70,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-processed-count": {
-        text: "",
-        fill: "green",
-        "font-size": "14px",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": -50,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-output-count": {
-        text: "",
-        fill: "green",
-        "font-size": "14px",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": -30,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",

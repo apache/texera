@@ -28,7 +28,6 @@ import { NzMenuModule } from "ng-zorro-antd/menu";
 
 import { HubComponent } from "./hub.component";
 import { commonTestProviders } from "../../common/testing/test-utils";
-import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { HOME, HUB_DATASET_RESULT, HUB_MODEL_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
 
@@ -55,14 +54,11 @@ function makeSidebarTabs(overrides: Partial<SidebarTabs> = {}): SidebarTabs {
 // Host wraps HubComponent in `<ul nz-menu>` so nz-menu-item directives resolve their DI tokens.
 @Component({
   template: `<ul nz-menu>
-    <texera-hub
-      [isLogin]="isLogin"
-      [sidebarTabs]="sidebarTabs"></texera-hub>
+    <texera-hub [sidebarTabs]="sidebarTabs"></texera-hub>
   </ul>`,
   imports: [HubComponent, NzMenuModule],
 })
 class TestHostComponent {
-  isLogin = false;
   sidebarTabs: SidebarTabs = makeSidebarTabs();
 }
 
@@ -70,14 +66,13 @@ describe("HubComponent", () => {
   let hostFixture: ComponentFixture<TestHostComponent>;
   let host: TestHostComponent;
 
-  function setup(isLogin: boolean, sidebarTabs: SidebarTabs): HubComponent {
+  function setup(sidebarTabs: SidebarTabs): HubComponent {
     TestBed.configureTestingModule({
       imports: [TestHostComponent, HttpClientTestingModule, NoopAnimationsModule, RouterTestingModule.withRoutes([])],
       providers: [...commonTestProviders],
     });
     hostFixture = TestBed.createComponent(TestHostComponent);
     host = hostFixture.componentInstance;
-    host.isLogin = isLogin;
     host.sidebarTabs = sidebarTabs;
     hostFixture.detectChanges();
     return hostFixture.debugElement.query(By.directive(HubComponent)).componentInstance as HubComponent;
@@ -101,39 +96,28 @@ describe("HubComponent", () => {
     return ([] as string[]).concat(link.routerLinkInput()).join("");
   }
 
-  it("creates with default isLogin = false and an empty sidebarTabs (no menu items render)", () => {
-    const component = setup(false, makeSidebarTabs());
+  it("creates with an empty sidebarTabs (no menu items render)", () => {
+    const component = setup(makeSidebarTabs());
     expect(component).toBeTruthy();
-    expect(component.isLogin).toBe(false);
     expect(renderedMenuLabels().length).toBe(0);
   });
 
-  it("passes the isLogin input through to the component", () => {
-    const component = setup(true, makeSidebarTabs());
-    expect(component.isLogin).toBe(true);
-  });
-
-  it("injects GuiConfigService and exposes it for template gating", () => {
-    const component = setup(false, makeSidebarTabs());
-    expect((component as unknown as { config: GuiConfigService }).config).toBe(TestBed.inject(GuiConfigService));
-  });
-
   it("renders only the Home item when home_enabled is the only flag set", () => {
-    setup(false, makeSidebarTabs({ home_enabled: true }));
+    setup(makeSidebarTabs({ home_enabled: true }));
     const labels = renderedMenuLabels();
     expect(labels.length).toBe(1);
     expect(labels[0]).toContain("Home");
   });
 
   it("renders only the Workflows item when workflow_enabled is the only flag set", () => {
-    setup(false, makeSidebarTabs({ workflow_enabled: true }));
+    setup(makeSidebarTabs({ workflow_enabled: true }));
     const labels = renderedMenuLabels();
     expect(labels.length).toBe(1);
     expect(labels[0]).toContain("Workflows");
   });
 
   it("renders only the Datasets item when dataset_enabled is the only flag set", () => {
-    setup(false, makeSidebarTabs({ dataset_enabled: true }));
+    setup(makeSidebarTabs({ dataset_enabled: true }));
     const labels = renderedMenuLabels();
     expect(labels.length).toBe(1);
     expect(labels[0]).toContain("Datasets");
@@ -141,17 +125,14 @@ describe("HubComponent", () => {
 
   it("renders only the Models item when model_enabled is the only flag set", () => {
     // The hub has its own flag: an instance can browse public models without offering its own.
-    setup(false, makeSidebarTabs({ model_enabled: true }));
+    setup(makeSidebarTabs({ model_enabled: true }));
     const labels = renderedMenuLabels();
     expect(labels.length).toBe(1);
     expect(labels[0]).toContain("Models");
   });
 
   it("renders all four menu items when home, workflow, dataset and model flags are enabled", () => {
-    setup(
-      false,
-      makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true, model_enabled: true })
-    );
+    setup(makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true, model_enabled: true }));
     const labels = renderedMenuLabels();
     expect(labels.length).toBe(4);
     expect(labels.some(l => l.includes("Home"))).toBe(true);
@@ -161,7 +142,7 @@ describe("HubComponent", () => {
   });
 
   it("excludes disabled tabs while rendering enabled ones", () => {
-    setup(false, makeSidebarTabs({ home_enabled: true, workflow_enabled: false, dataset_enabled: true }));
+    setup(makeSidebarTabs({ home_enabled: true, workflow_enabled: false, dataset_enabled: true }));
     const labels = renderedMenuLabels();
     expect(labels.length).toBe(2);
     expect(labels.some(l => l.includes("Home"))).toBe(true);
@@ -170,10 +151,7 @@ describe("HubComponent", () => {
   });
 
   it("binds each menu item's routerLink to the correct routing constant", () => {
-    setup(
-      false,
-      makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true, model_enabled: true })
-    );
+    setup(makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true, model_enabled: true }));
     expect(routerLinkFor("Home")).toBe(HOME);
     expect(routerLinkFor("Workflows")).toBe(HUB_WORKFLOW_RESULT);
     expect(routerLinkFor("Datasets")).toBe(HUB_DATASET_RESULT);

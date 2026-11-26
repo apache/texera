@@ -37,7 +37,6 @@ export enum ActionType {
   View = "view",
   Like = "like",
   Clone = "clone",
-  Unlike = "unlike",
 }
 
 export type LikedStatus = {

@@ -27,7 +27,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
 import { DatasetDetailComponent } from "./dataset-detail.component";
-import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
@@ -78,7 +78,6 @@ describe("DatasetDetailComponent rendered explorer", () => {
               })
             ),
             retrieveDatasetVersionFileTree: vi.fn(() => of({ fileNodes: [], size: 1024 })),
-            getDatasetDiff: vi.fn(() => of([])),
             createDatasetVersion: vi.fn(() => of({})),
             deleteDatasetFile: vi.fn(() => of({})),
           },
@@ -438,9 +437,6 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetName: vi.fn(() => of({})),
       deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
-      getDatasetDiff: vi.fn(() => of([])),
-      multipartUpload: vi.fn(() => of()),
-      finalizeMultipartUpload: vi.fn(() => of({})),
     };
     notificationServiceStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     modalServiceStub = { create: vi.fn() };
@@ -2083,7 +2079,6 @@ describe("DatasetDetailComponent rendered template", () => {
       // The real file renderer is rendered here, and it fetches whatever file is on screen.
       retrieveDatasetVersionSingleFile: vi.fn(() => of(new Blob(["a,b"], { type: "text/csv" }))),
       getDatasetCoverUrl: vi.fn(() => of({ url: "http://cover" })),
-      getDatasetDiff: vi.fn(() => of([])),
       createDatasetVersion: vi.fn(() => of(aVersion())),
       updateDatasetPublicity: vi.fn(() => of({})),
       updateDatasetDownloadable: vi.fn(() => of({})),
@@ -2093,10 +2088,6 @@ describe("DatasetDetailComponent rendered template", () => {
       updateDatasetName: vi.fn(() => of({})),
       deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
-      // Never completes, so an upload started from the template stays in flight
-      // and its row keeps rendering the "uploading" arm.
-      multipartUpload: vi.fn(() => new Subject<MultipartUploadProgress>().asObservable()),
-      finalizeMultipartUpload: vi.fn(() => of({})),
     };
     downloadService = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),

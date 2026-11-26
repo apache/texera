@@ -19,7 +19,6 @@
 
 import { Component, Input } from "@angular/core";
 import { HOME, HUB_DATASET_RESULT, HUB_MODEL_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
-import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { NgIf } from "@angular/common";
 import { NzMenuItemComponent } from "ng-zorro-antd/menu";
@@ -35,13 +34,10 @@ import { MODEL_ICON } from "../../common/icon/model-icon";
   imports: [NgIf, NzMenuItemComponent, ɵNzTransitionPatchDirective, NzTooltipDirective, RouterLink, NzIconDirective],
 })
 export class HubComponent {
-  @Input() isLogin: boolean = false;
   @Input() sidebarTabs: SidebarTabs = {} as SidebarTabs;
   protected readonly HOME = HOME;
   protected readonly HUB_WORKFLOW_RESULT = HUB_WORKFLOW_RESULT;
   protected readonly HUB_DATASET_RESULT = HUB_DATASET_RESULT;
   protected readonly HUB_MODEL_RESULT = HUB_MODEL_RESULT;
   protected readonly MODEL_ICON = MODEL_ICON;
-
-  constructor(protected config: GuiConfigService) {}
 }
