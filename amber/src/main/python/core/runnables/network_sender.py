@@ -131,7 +131,5 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             ControlInvocation or ReturnInvocation.
         """
         python_control_message = PythonControlMessage(tag=to, payload=control_payload)
-        int.from_bytes(
-            self._proxy_client.call_action("control", bytes(python_control_message)),
-            byteorder="little",
-        )  # returned credits
+        # The reply carries credits that are currently unused; discard it.
+        self._proxy_client.call_action("control", bytes(python_control_message))
