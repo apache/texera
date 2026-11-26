@@ -30,7 +30,7 @@ Both components are Apache-2.0 (see
 | File | Component | Image |
 |---|---|---|
 | `parca.yaml` | Parca server v0.28.0 | `ghcr.io/parca-dev/parca:v0.28.0` |
-| `parca-agent.env` | Parca eBPF agent v0.47.1 | `ghcr.io/parca-dev/parca-agent:v0.47.1` |
+| [Compose agent command](../../single-node/docker-compose.yml) | Parca eBPF agent v0.47.1 | `ghcr.io/parca-dev/parca-agent:v0.47.1` |
 
 ## Host requirements
 
@@ -60,7 +60,7 @@ notes below.
 The agent profiles **every process on the host**, not only Texera's.
 It is not scoped to Texera's containers; doing that would require
 configuring the agent against specific cgroups, which is not done
-here. The static labels in `parca-agent.env` (`deployment=texera`,
+here. The static labels in the Compose agent command (`deployment=texera`,
 `cluster=local`) only let a query filter which profiles are *shown*,
 not what is *collected*. Treat enabling the agent as profiling the
 whole machine.

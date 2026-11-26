@@ -33,8 +33,8 @@ class FakeQueue:
     loop is interrupted before the queue is ever exhausted.
     """
 
-    def __init__(self):
-        self.items: deque = deque()
+    def __init__(self, entries=()):
+        self.items: deque = deque(entries)
 
     def put(self, item) -> None:
         self.items.append(item)
@@ -63,18 +63,11 @@ class RecordingRunnable(StoppableQueueBlockingRunnable):
         self.events.append(("post_stop",))
 
 
-class RaisingRunnable(StoppableQueueBlockingRunnable):
+class RaisingRunnable(RecordingRunnable):
     """receive() raises an unexpected error to probe the finally: clause."""
-
-    def __init__(self, name: str, queue: FakeQueue):
-        super().__init__(name=name, queue=queue)
-        self.post_stop_called = 0
 
     def receive(self, next_entry) -> None:
         raise ValueError("boom")
-
-    def post_stop(self) -> None:
-        self.post_stop_called += 1
 
 
 class TestStop:
@@ -91,16 +84,14 @@ class TestStop:
 
 class TestInterruptibleGet:
     def test_returns_a_normal_entry_unchanged(self):
-        queue = FakeQueue()
         entry = QueueElement()
-        queue.put(entry)
+        queue = FakeQueue([entry])
         runnable = StoppableQueueBlockingRunnable(name="r", queue=queue)
 
         assert runnable.interruptible_get() is entry
 
     def test_raises_interrupt_on_the_stop_sentinel(self):
-        queue = FakeQueue()
-        queue.put(StoppableQueueBlockingRunnable.RUNNABLE_STOP)
+        queue = FakeQueue([StoppableQueueBlockingRunnable.RUNNABLE_STOP])
         runnable = StoppableQueueBlockingRunnable(name="r", queue=queue)
 
         with pytest.raises(StoppableQueueBlockingRunnable.InterruptRunnable):
@@ -109,9 +100,8 @@ class TestInterruptibleGet:
     def test_only_the_exact_sentinel_message_interrupts(self):
         # A control whose message differs from the marker is a normal entry
         # and must flow through, so unrelated controls do not stop the loop.
-        queue = FakeQueue()
         other = QueueControl(msg="something-else")
-        queue.put(other)
+        queue = FakeQueue([other])
         runnable = StoppableQueueBlockingRunnable(name="r", queue=queue)
 
         assert runnable.interruptible_get() is other
@@ -119,11 +109,8 @@ class TestInterruptibleGet:
 
 class TestRun:
     def test_processes_entries_until_interrupted_then_posts_stop(self):
-        queue = FakeQueue()
         first, second = QueueElement(), QueueElement()
-        queue.put(first)
-        queue.put(second)
-        queue.put(StoppableQueueBlockingRunnable.RUNNABLE_STOP)
+        queue = FakeQueue([first, second, StoppableQueueBlockingRunnable.RUNNABLE_STOP])
         runnable = RecordingRunnable(name="r", queue=queue)
 
         runnable.run()
@@ -136,8 +123,7 @@ class TestRun:
         assert runnable.events[3] == ("post_stop",)
 
     def test_post_stop_runs_even_when_receive_raises(self):
-        queue = FakeQueue()
-        queue.put(QueueElement())
+        queue = FakeQueue([QueueElement()])
         runnable = RaisingRunnable(name="r", queue=queue)
 
         # An unexpected error is not swallowed as an interruption; it
@@ -145,7 +131,7 @@ class TestRun:
         with pytest.raises(ValueError, match="boom"):
             runnable.run()
 
-        assert runnable.post_stop_called == 1
+        assert runnable.events.count(("post_stop",)) == 1
 
     def test_stop_then_run_terminates_immediately(self):
         # Enqueuing the sentinel via stop() must be enough to end a run with
@@ -172,10 +158,8 @@ class TestRun:
         # swallows an extra entry -- dropping every other message off the
         # wire -- leaves the queue just as empty. Pin both directions, plus
         # the absence of any state written on the runnable itself.
-        queue = FakeQueue()
         first, second = QueueElement(), QueueElement()
-        queue.put(first)
-        queue.put(second)
+        queue = FakeQueue([first, second])
         runnable = StoppableQueueBlockingRunnable(name="r", queue=queue)
         state_before = dict(vars(runnable))
 

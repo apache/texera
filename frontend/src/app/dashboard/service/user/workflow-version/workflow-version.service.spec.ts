@@ -22,7 +22,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { firstValueFrom } from "rxjs";
 import { take, toArray } from "rxjs/operators";
 
-import { WORKFLOW_VERSIONS_API_BASE_URL, WorkflowVersionService } from "./workflow-version.service";
+import { WorkflowVersionService } from "./workflow-version.service";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
@@ -201,14 +201,6 @@ describe("WorkflowVersionService", () => {
       expect(service.selectedVersionId.getValue()).toBeNull();
       expect(service.selectedDisplayedVersionId.getValue()).toBeNull();
     });
-  });
-
-  // ─── displayWorkflowVersions ──────────────────────────────────────────────
-
-  it("displayWorkflowVersions unhighlights whatever is currently highlighted", () => {
-    service.displayWorkflowVersions();
-    expect(highlightedSpy.getCurrentHighlights).toHaveBeenCalled();
-    expect(highlightedSpy.unhighlightElements).toHaveBeenCalledWith(["a", "b"]);
   });
 
   // ─── displayReadonlyWorkflow ──────────────────────────────────────────────
@@ -524,7 +516,7 @@ describe("WorkflowVersionService", () => {
     it("retrieveVersionsOfWorkflow GETs /version/{wid}", async () => {
       const entries: WorkflowVersionEntry[] = [{ vId: 1, creationTime: 0, content: "{}", importance: false }];
       const pending = firstValueFrom(service.retrieveVersionsOfWorkflow(42));
-      const req = http.expectOne(`${API}/${WORKFLOW_VERSIONS_API_BASE_URL}/42`);
+      const req = http.expectOne(`${API}/version/42`);
       expect(req.request.method).toBe("GET");
       req.flush(entries);
       expect(await pending).toEqual(entries);
@@ -532,7 +524,7 @@ describe("WorkflowVersionService", () => {
 
     it("retrieveWorkflowByVersion parses a string `content` into an object", async () => {
       const pending = firstValueFrom(service.retrieveWorkflowByVersion(42, 7));
-      const req = http.expectOne(`${API}/${WORKFLOW_VERSIONS_API_BASE_URL}/42/7`);
+      const req = http.expectOne(`${API}/version/42/7`);
       expect(req.request.method).toBe("GET");
       req.flush({
         ...buildWorkflow(),
@@ -551,7 +543,7 @@ describe("WorkflowVersionService", () => {
         next: () => (nextCalled = true),
         complete: () => (completed = true),
       });
-      http.expectOne(`${API}/${WORKFLOW_VERSIONS_API_BASE_URL}/42/7`).flush(null);
+      http.expectOne(`${API}/version/42/7`).flush(null);
       expect(nextCalled).toBe(false);
       expect(completed).toBe(true);
     });
@@ -559,7 +551,7 @@ describe("WorkflowVersionService", () => {
     it("cloneWorkflowVersion POSTs to /version/clone/{vid} with the displayed id", async () => {
       service.setDisplayParticularVersion(true, 11, 12);
       const pending = firstValueFrom(service.cloneWorkflowVersion());
-      const req = http.expectOne(`${API}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/11`);
+      const req = http.expectOne(`${API}/version/clone/11`);
       expect(req.request.method).toBe("POST");
       expect(req.request.body).toEqual({ displayedVersionId: 12 });
       req.flush(99);

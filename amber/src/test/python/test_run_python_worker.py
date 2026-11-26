@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import types
+from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 
@@ -32,13 +33,15 @@ from loguru import logger
 import texera_run_python_worker as entry
 
 
-def _encode(config) -> str:
+def _encode(config, *, ensure_ascii=True) -> str:
     """Encode a config the way PythonWorkflowWorker does: Base64-encoded JSON.
 
     The JVM side passes the startup config as Base64 so it survives command-line
     argv quoting on every platform (a raw JSON string loses its quotes on Windows).
     """
-    return base64.b64encode(json.dumps(config).encode("utf-8")).decode("ascii")
+    return base64.b64encode(
+        json.dumps(config, ensure_ascii=ensure_ascii).encode("utf-8")
+    ).decode("ascii")
 
 
 def _full_config() -> dict:
@@ -66,13 +69,15 @@ def _full_config() -> dict:
     }
 
 
+@contextmanager
 def _patched_collaborators():
-    """Patch the heavy collaborators so main() exercises only the config wiring."""
-    return (
-        mock.patch.object(entry, "StorageConfig"),
-        mock.patch.object(entry, "PythonWorker"),
-        mock.patch.object(entry, "init_loguru_logger"),
-    )
+    """Patch the worker, storage and logger for a single startup call."""
+    with (
+        mock.patch.object(entry, "StorageConfig") as storage_config,
+        mock.patch.object(entry, "PythonWorker") as python_worker,
+        mock.patch.object(entry, "init_loguru_logger") as init_logger,
+    ):
+        yield storage_config, python_worker, init_logger
 
 
 def test_full_config_keys_match_the_expected_set():
@@ -80,13 +85,8 @@ def test_full_config_keys_match_the_expected_set():
     assert set(_full_config()) == set(entry.EXPECTED_CONFIG_KEYS)
 
 
-def test_main_maps_named_config_to_storage_and_worker():
-    """Each named field reaches the correct StorageConfig.initialize argument and
-    worker parameter — guarding against the silent misalignment that positional
-    argv passing allowed."""
-    config = _full_config()
-    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
-    with storage_patch as storage_config, worker_patch as python_worker, _logger_patch:
+def _assert_startup_dispatch(config):
+    with _patched_collaborators() as (storage_config, python_worker, _):
         entry.main(_encode(config))
 
     storage_config.initialize.assert_called_once_with(
@@ -109,46 +109,28 @@ def test_main_maps_named_config_to_storage_and_worker():
     python_worker.assert_called_once_with(
         worker_id="worker-1", host="localhost", output_port=5005
     )
-    python_worker.return_value.run.assert_called_once()
+    return python_worker
+
+
+def test_main_maps_named_config_to_storage_and_worker():
+    """Each named field reaches the correct StorageConfig.initialize argument and
+    worker parameter — guarding against the silent misalignment that positional
+    argv passing allowed."""
+    worker = _assert_startup_dispatch(_full_config())
+    worker.return_value.run.assert_called_once()
 
 
 def test_main_mapping_is_independent_of_key_order():
     """Reordering the JSON keys must not change where values land (it is a dict)."""
     reordered = dict(reversed(list(_full_config().items())))
-    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
-    with storage_patch as storage_config, worker_patch as python_worker, _logger_patch:
-        entry.main(_encode(reordered))
-
-    storage_config.initialize.assert_called_once_with(
-        "postgres",
-        "host:5432/db",
-        "pg-user",
-        "pg-pass",
-        "",
-        "",
-        "result_ns",
-        "state_ns",
-        "/tmp/files",
-        "100",
-        "http://s3:9000",
-        "us-west-2",
-        "s3-user",
-        "s3-pass",
-        "s3://bucket/base",
-    )
-    python_worker.assert_called_once_with(
-        worker_id="worker-1", host="localhost", output_port=5005
-    )
+    _assert_startup_dispatch(reordered)
 
 
 def test_main_sets_r_home_when_r_path_present(monkeypatch):
     monkeypatch.delenv("R_HOME", raising=False)
     config = _full_config()
     config["rPath"] = "/opt/R"
-    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
-    with storage_patch, worker_patch, _logger_patch:
-        import os
-
+    with _patched_collaborators():
         entry.main(_encode(config))
         assert os.environ["R_HOME"] == "/opt/R"
 
@@ -392,22 +374,6 @@ def test_parse_names_the_missing_key_on_the_missing_side():
         entry.parse_startup_config(_encode(config))
 
 
-def _encode_raw_utf8(config) -> str:
-    """Encode a config the way Jackson actually does: with raw, unescaped UTF-8.
-
-    `_encode` cannot model the real producer here. `json.dumps` defaults to
-    `ensure_ascii=True`, which escapes every non-ASCII character, so any payload it
-    builds is pure ASCII. PythonWorkflowWorker on the JVM side does
-    `objectMapper.writeValueAsString(...)` then
-    `Base64.getEncoder.encodeToString(json.getBytes(StandardCharsets.UTF_8))`, and
-    Jackson emits non-ASCII characters literally. `ensure_ascii=False` is therefore
-    the entire point of this helper - do not "simplify" it back to `_encode`.
-    """
-    return base64.b64encode(
-        json.dumps(config, ensure_ascii=False).encode("utf-8")
-    ).decode("ascii")
-
-
 def test_parse_decodes_non_ascii_values_as_utf8():
     """Config values arrive as raw UTF-8 bytes, so they must be decoded as UTF-8.
 
@@ -420,7 +386,8 @@ def test_parse_decodes_non_ascii_values_as_utf8():
     config = _full_config()
     config["icebergFileStorageDirectoryPath"] = non_ascii_path
 
-    parsed = entry.parse_startup_config(_encode_raw_utf8(config))
+    # Jackson leaves non-ASCII characters unescaped before Base64 encoding.
+    parsed = entry.parse_startup_config(_encode(config, ensure_ascii=False))
 
     assert parsed["icebergFileStorageDirectoryPath"] == non_ascii_path
 
@@ -434,12 +401,7 @@ def test_main_forwards_the_configured_logger_level():
     assert _full_config()["loggerLevel"] != "WARNING"
     config = _full_config()
     config["loggerLevel"] = "WARNING"
-    storage_patch, worker_patch, _unused_logger_patch = _patched_collaborators()
-    with (
-        storage_patch,
-        worker_patch,
-        mock.patch.object(entry, "init_loguru_logger") as init_logger,
-    ):
+    with _patched_collaborators() as (_, _, init_logger):
         entry.main(_encode(config))
 
     init_logger.assert_called_once_with("WARNING")
@@ -458,8 +420,7 @@ def test_main_keeps_the_rest_catalog_uri_and_warehouse_name_in_order():
     config = _full_config()
     config["icebergRestCatalogUri"] = "http://rest-catalog:8181"
     config["icebergRestCatalogWarehouseName"] = "warehouse-name"
-    storage_patch, worker_patch, logger_patch = _patched_collaborators()
-    with storage_patch as storage_config, worker_patch, logger_patch:
+    with _patched_collaborators() as (storage_config, _, _):
         entry.main(_encode(config))
 
     positional = storage_config.initialize.call_args.args
@@ -479,8 +440,7 @@ def test_main_leaves_r_home_unset_when_r_path_is_blank(monkeypatch):
     monkeypatch.delenv("R_HOME", raising=False)
     config = _full_config()
     assert config["rPath"] == ""
-    storage_patch, worker_patch, logger_patch = _patched_collaborators()
-    with storage_patch, worker_patch, logger_patch:
+    with _patched_collaborators():
         entry.main(_encode(config))
 
     assert "R_HOME" not in os.environ

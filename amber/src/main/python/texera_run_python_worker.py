@@ -54,28 +54,26 @@ def init_loguru_logger(stream_log_level) -> None:
 # Keys the JVM side (PythonWorkflowWorker) sends in the startup-config JSON.
 # Declared here so any drift between the two sides fails loudly instead of being
 # silently misassigned, as could happen with the previous positional unpacking.
+_STORAGE_CONFIG_KEYS = (
+    "icebergCatalogType",
+    "icebergPostgresCatalogUriWithoutScheme",
+    "icebergPostgresCatalogUsername",
+    "icebergPostgresCatalogPassword",
+    "icebergRestCatalogUri",
+    "icebergRestCatalogWarehouseName",
+    "icebergTableNamespace",
+    "icebergTableStateNamespace",
+    "icebergFileStorageDirectoryPath",
+    "icebergTableCommitBatchSize",
+    "s3Endpoint",
+    "s3Region",
+    "s3AuthUsername",
+    "s3AuthPassword",
+    "s3LargeBinariesBaseUri",
+)
+
 EXPECTED_CONFIG_KEYS = frozenset(
-    {
-        "workerId",
-        "outputPort",
-        "loggerLevel",
-        "rPath",
-        "icebergCatalogType",
-        "icebergPostgresCatalogUriWithoutScheme",
-        "icebergPostgresCatalogUsername",
-        "icebergPostgresCatalogPassword",
-        "icebergRestCatalogUri",
-        "icebergRestCatalogWarehouseName",
-        "icebergTableNamespace",
-        "icebergTableStateNamespace",
-        "icebergFileStorageDirectoryPath",
-        "icebergTableCommitBatchSize",
-        "s3Endpoint",
-        "s3Region",
-        "s3AuthUsername",
-        "s3AuthPassword",
-        "s3LargeBinariesBaseUri",
-    }
+    ("workerId", "outputPort", "loggerLevel", "rPath", *_STORAGE_CONFIG_KEYS)
 )
 
 
@@ -120,23 +118,7 @@ def main(raw_config: str) -> None:
     config = parse_startup_config(raw_config)
 
     init_loguru_logger(config["loggerLevel"])
-    StorageConfig.initialize(
-        config["icebergCatalogType"],
-        config["icebergPostgresCatalogUriWithoutScheme"],
-        config["icebergPostgresCatalogUsername"],
-        config["icebergPostgresCatalogPassword"],
-        config["icebergRestCatalogUri"],
-        config["icebergRestCatalogWarehouseName"],
-        config["icebergTableNamespace"],
-        config["icebergTableStateNamespace"],
-        config["icebergFileStorageDirectoryPath"],
-        config["icebergTableCommitBatchSize"],
-        config["s3Endpoint"],
-        config["s3Region"],
-        config["s3AuthUsername"],
-        config["s3AuthPassword"],
-        config["s3LargeBinariesBaseUri"],
-    )
+    StorageConfig.initialize(*(config[key] for key in _STORAGE_CONFIG_KEYS))
 
     # Setting R_HOME environment variable for R-UDF usage
     r_path = config["rPath"]

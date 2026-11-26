@@ -72,6 +72,46 @@ function execution(eid: number, workflowId: number, result: number, runtime: num
 
 const sumValues = (data: Array<[string, number]>): number => data.reduce((acc, [, v]) => acc + v, 0);
 
+function emptyQuotaService<T>(): Mocked<T> {
+  return {
+    getCreatedDatasets: vi.fn().mockReturnValue(of([])),
+    getCreatedWorkflows: vi.fn().mockReturnValue(of([])),
+    getAccessWorkflows: vi.fn().mockReturnValue(of([])),
+    getExecutionQuota: vi.fn().mockReturnValue(of([])),
+    deleteExecutionCollection: vi.fn().mockReturnValue(of(undefined)),
+  } as unknown as Mocked<T>;
+}
+
+function createQuotaComponent(extraProviders: unknown[] = []): {
+  fixture: ComponentFixture<UserQuotaComponent>;
+  component: UserQuotaComponent;
+} {
+  TestBed.configureTestingModule({
+    providers: [...extraProviders, ...commonTestProviders],
+    imports: [UserQuotaComponent, HttpClientTestingModule],
+  });
+  const fixture = TestBed.createComponent(UserQuotaComponent);
+  return { fixture, component: fixture.componentInstance };
+}
+
+function expectHeaderAppearance(
+  fixture: ComponentFixture<UserQuotaComponent>,
+  component: UserQuotaComponent,
+  background: string,
+  color: string,
+  height: string
+): void {
+  expect(component.backgroundColor).toBe(background);
+  expect(component.textColor.toLowerCase()).toBe(color.toLowerCase());
+  expect(component.dynamicHeight).toBe(height);
+  const card = fixture.nativeElement.querySelector("nz-card") as HTMLElement;
+  expect(card.style.background).toBe(background);
+  const heading = fixture.nativeElement.querySelector("h2.page-title") as HTMLElement;
+  expect(heading.style.color.toLowerCase()).toBe(color.toLowerCase());
+  const scroller = fixture.nativeElement.querySelector("div") as HTMLElement;
+  expect(scroller.style.height).toBe(height);
+}
+
 // Fixtures for the Cache Size comparator. The three byte triples are picked so that ordering by
 // any single count — or by the sum with any one of the three terms dropped — yields a different
 // sequence than the full sum does, and so that no two of the six orderings share a tie.
@@ -85,25 +125,8 @@ describe("UserQuotaComponent", () => {
   let mockUserQuotaService: Mocked<UserQuotaService>;
 
   beforeEach(() => {
-    mockUserQuotaService = {
-      getCreatedDatasets: vi.fn(),
-      getCreatedWorkflows: vi.fn(),
-      getAccessWorkflows: vi.fn(),
-      getExecutionQuota: vi.fn(),
-      deleteExecutionCollection: vi.fn(),
-    } as unknown as Mocked<UserQuotaService>;
-    mockUserQuotaService.getCreatedDatasets.mockReturnValue(of([]));
-    mockUserQuotaService.getCreatedWorkflows.mockReturnValue(of([]));
-    mockUserQuotaService.getAccessWorkflows.mockReturnValue(of([]));
-    mockUserQuotaService.getExecutionQuota.mockReturnValue(of([]));
-
-    TestBed.configureTestingModule({
-      providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
-      imports: [UserQuotaComponent, HttpClientTestingModule],
-    });
-
-    fixture = TestBed.createComponent(UserQuotaComponent);
-    component = fixture.componentInstance;
+    mockUserQuotaService = emptyQuotaService<UserQuotaService>();
+    ({ fixture, component } = createQuotaComponent([{ provide: UserQuotaService, useValue: mockUserQuotaService }]));
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -124,16 +147,7 @@ describe("UserQuotaComponent", () => {
 
     expect(component.userId).toBe(-1); // the sentinel that means "whoever is logged in"
     expect(mockUserQuotaService.getExecutionQuota).toHaveBeenCalledWith(-1);
-    expect(component.backgroundColor).toBe("white");
-    expect(component.textColor).toBe("Black");
-    expect(component.dynamicHeight).toBe(""); // the modal's fixed height must not apply inline
-
-    const card = fixture.nativeElement.querySelector("nz-card") as HTMLElement;
-    expect(card.style.background).toBe("white");
-    const heading = fixture.nativeElement.querySelector("h2.page-title") as HTMLElement;
-    expect(heading.style.color.toLowerCase()).toBe("black");
-    const scroller = fixture.nativeElement.querySelector("div") as HTMLElement;
-    expect(scroller.style.height).toBe("");
+    expectHeaderAppearance(fixture, component, "white", "Black", "");
   });
 
   describe("aggregateByMonth", () => {
@@ -588,32 +602,14 @@ describe("UserQuotaComponent (opened from the admin user modal)", () => {
   let adminService: Mocked<AdminUserService>;
   let regularService: Mocked<UserQuotaService>;
 
-  function emptyQuotaService<T>(): Mocked<T> {
-    return {
-      getCreatedDatasets: vi.fn().mockReturnValue(of([])),
-      getCreatedWorkflows: vi.fn().mockReturnValue(of([])),
-      getAccessWorkflows: vi.fn().mockReturnValue(of([])),
-      getExecutionQuota: vi.fn().mockReturnValue(of([])),
-      deleteExecutionCollection: vi.fn().mockReturnValue(of(undefined)),
-    } as unknown as Mocked<T>;
-  }
-
   beforeEach(() => {
     adminService = emptyQuotaService<AdminUserService>();
     regularService = emptyQuotaService<UserQuotaService>();
-
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: AdminUserService, useValue: adminService },
-        { provide: UserQuotaService, useValue: regularService },
-        { provide: NZ_MODAL_DATA, useValue: { uid: MODAL_UID } },
-        ...commonTestProviders,
-      ],
-      imports: [UserQuotaComponent, HttpClientTestingModule],
-    });
-
-    fixture = TestBed.createComponent(UserQuotaComponent);
-    component = fixture.componentInstance;
+    ({ fixture, component } = createQuotaComponent([
+      { provide: AdminUserService, useValue: adminService },
+      { provide: UserQuotaService, useValue: regularService },
+      { provide: NZ_MODAL_DATA, useValue: { uid: MODAL_UID } },
+    ]));
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -631,15 +627,6 @@ describe("UserQuotaComponent (opened from the admin user modal)", () => {
     fixture.detectChanges();
 
     // The field initializers are "white"/"Black", so both of these differ from the inline mode.
-    expect(component.backgroundColor).toBe("lightcoral");
-    expect(component.textColor).toBe("white");
-    // The third difference: the modal keeps the fixed height the inline page clears.
-    expect(component.dynamicHeight).toBe("700px");
-    const card = fixture.nativeElement.querySelector("nz-card") as HTMLElement;
-    expect(card.style.background).toBe("lightcoral");
-    const heading = fixture.nativeElement.querySelector("h2.page-title") as HTMLElement;
-    expect(heading.style.color).toBe("white");
-    const scroller = fixture.nativeElement.querySelector("div") as HTMLElement;
-    expect(scroller.style.height).toBe("700px");
+    expectHeaderAppearance(fixture, component, "lightcoral", "white", "700px");
   });
 });

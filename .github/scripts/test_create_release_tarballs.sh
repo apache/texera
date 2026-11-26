@@ -47,9 +47,9 @@ mkdir -p "$repo/bin/single-node/examples" "$repo/bin/observability/parca" "$repo
   git config user.name "test"
   printf 'services:\n  postgres:\n    volumes:\n      - ../../sql:/docker-entrypoint-initdb.d\n' \
     > bin/single-node/docker-compose.yml
-  printf '  parca-agent:\n    env_file:\n      - ../observability/parca/parca-agent.env\n' \
+  printf '  parca:\n    volumes:\n      - ../observability/parca/parca.yaml:/parca.yaml:ro\n' \
     >> bin/single-node/docker-compose.yml
-  echo "PARCA=1" > bin/observability/parca/parca-agent.env
+  echo "scrape_configs: []" > bin/observability/parca/parca.yaml
   printf 'TEXERA_SERVICE_LOG_LEVEL=INFO\nIMAGE_TAG=latest\n' > bin/single-node/.env
   for f in nginx.conf litellm-config.yaml LICENSE DISCLAIMER README.md; do
     echo "$f" > "bin/single-node/$f"
@@ -120,14 +120,14 @@ else
   failed ".env not patched as expected: $env_file"
 fi
 if grep -q -- '- ./sql:/docker-entrypoint-initdb.d' "$b/docker-compose.yml" \
-  && grep -q -- '- ./observability/parca/parca-agent.env' "$b/docker-compose.yml" \
+  && grep -q -- '- ./observability/parca/parca.yaml:/parca.yaml:ro' "$b/docker-compose.yml" \
   && ! grep -q '\.\./' "$b/docker-compose.yml"; then
   pass "docker-compose.yml mounts ./sql and ./observability"
 else
   failed "docker-compose.yml sql or observability paths not rewritten"
 fi
 if [[ -f "$b/sql/updates/01-ünïcode.sql" && -x "$b/examples/load-examples.sh" && -f "$b/NOTICE" && -f "$b/licenses/LICENSE-BSD-3-Clause.txt" \
-  && -f "$b/observability/parca/parca-agent.env" && ! -e "$b/README.md.tmp" ]] \
+  && -f "$b/observability/parca/parca.yaml" && ! -e "$b/README.md.tmp" ]] \
   && [[ "$(cat "$b/README.md")" == "README.md" ]]; then
   pass "bundle carries sql/, examples/ (still executable), observability/, NOTICE, licenses/ and the single-node README"
 else

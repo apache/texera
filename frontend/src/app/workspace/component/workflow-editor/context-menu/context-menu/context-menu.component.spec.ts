@@ -29,13 +29,11 @@ import { WorkflowResultService } from "src/app/workspace/service/workflow-result
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { BehaviorSubject, of } from "rxjs";
-import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { WorkflowCompilingService } from "src/app/workspace/service/compile-workflow/workflow-compiling.service";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../../common/testing/test-utils"; // Import NzModalModule and NzModalService
 import type { Mocked } from "vitest";
 import { JointGraphWrapper } from "src/app/workspace/service/workflow-graph/model/joint-graph-wrapper";
@@ -145,14 +143,7 @@ describe("ContextMenuComponent", () => {
         NzModalService, // Provide NzModalService
         ...commonTestProviders,
       ],
-      imports: [
-        ContextMenuComponent,
-        HttpClientTestingModule,
-        ReactiveFormsModule,
-        BrowserAnimationsModule,
-        NzDropDownModule,
-        NzModalModule, // Import NzModalModule
-      ],
+      imports: [ContextMenuComponent, HttpClientTestingModule, BrowserAnimationsModule],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService) as unknown as Mocked<WorkflowActionService>;
@@ -859,14 +850,7 @@ describe("ContextMenuComponent onDelete with real WorkflowActionService", () => 
         NzModalService,
         ...commonTestProviders,
       ],
-      imports: [
-        ContextMenuComponent,
-        HttpClientTestingModule,
-        ReactiveFormsModule,
-        BrowserAnimationsModule,
-        NzDropDownModule,
-        NzModalModule,
-      ],
+      imports: [ContextMenuComponent, HttpClientTestingModule, BrowserAnimationsModule],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService);

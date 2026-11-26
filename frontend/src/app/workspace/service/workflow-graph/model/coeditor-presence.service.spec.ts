@@ -277,7 +277,7 @@ describe("CoeditorPresenceService", () => {
       expect(setCurrentEditingSpy).toHaveBeenCalledWith(coeditorA, operatorId);
 
       updateRemoteCoeditor(1001, makeState(coeditorA));
-      expect(removeCurrentEditingSpy).toHaveBeenCalledWith(coeditorA, operatorId, fakeIntervalId);
+      expect(removeCurrentEditingSpy).toHaveBeenCalledWith(operatorId, fakeIntervalId);
     });
 
     it("highlights and unhighlights the edited operator while shadowing", () => {
@@ -342,7 +342,7 @@ describe("CoeditorPresenceService", () => {
 
       expect(removePropertyChangedSpy).not.toHaveBeenCalled();
       tick(2000);
-      expect(removePropertyChangedSpy).toHaveBeenCalledWith(coeditorA, "op-a");
+      expect(removePropertyChangedSpy).toHaveBeenCalledWith("op-a");
     }));
   });
 

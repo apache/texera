@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from contextlib import closing
+from types import SimpleNamespace
+
 import pytest
 from pandas import DataFrame
-from pyarrow import ArrowNotImplementedError, Table
+from pyarrow import ArrowNotImplementedError, Table, py_buffer
 from queue import Queue
 
 import core.proxy.proxy_client as proxy_client_module
@@ -37,61 +40,27 @@ class TestProxyClient:
         server.graceful_shutdown()
 
     @pytest.fixture
-    def server_with_dp(self, data_queue):
-        server = ProxyServer(port=5005)
+    def server_with_dp(self, server, data_queue):
         server.register_data_handler(
             lambda _, table: list(
                 map(data_queue.put, (t[1] for t in table.to_pandas().iterrows()))
             )
         )
-        yield server
-        server.graceful_shutdown()
-
-    class MockFlightMetadataReader:
-        """
-        MockFlightMetadataReader is a mocked FlightMetadataReader class to ultimately
-        mock a credit value to be returned from Scala server to Python client
-        """
-
-        class MockBuffer:
-            def to_pybytes(self):
-                dummy_credit = 31
-                return dummy_credit.to_bytes(8, "little")
-
-        def read(self):
-            return self.MockBuffer()
+        return server
 
     @pytest.fixture
-    def client(self):
-        mock_client = ProxyClient()
+    def client(self, monkeypatch):
+        with closing(ProxyClient()) as client:
+            do_put = client.do_put
 
-        def mock_do_put(
-            self,
-            FlightDescriptor_descriptor,
-            Schema_schema,
-            FlightCallOptions_options=None,
-        ):
-            """
-            Mocking FlightClient.do_put that is called in ProxyClient to return
-            a MockFlightMetadataReader instead of a FlightMetadataReader
+            def do_put_with_credit(descriptor, schema, options=None):
+                writer, _ = do_put(descriptor, schema, options)
+                return writer, SimpleNamespace(
+                    read=lambda: py_buffer((31).to_bytes(8, "little"))
+                )
 
-            :param self: an instance of FlightClient (would be ProxyClient in this case)
-            :param FlightDescriptor_descriptor: descriptor
-            :param Schema_schema: schema
-            :param FlightCallOptions_options: options, None by default
-            :return: writer : FlightStreamWriter, reader : MockFlightMetadataReader
-            """
-            writer, _ = super(ProxyClient, self).do_put(
-                FlightDescriptor_descriptor, Schema_schema, FlightCallOptions_options
-            )
-            reader = TestProxyClient.MockFlightMetadataReader()
-            return writer, reader
-
-        mock_client.do_put = mock_do_put.__get__(
-            mock_client, ProxyClient
-        )  # override do_put with mock_do_put
-
-        return mock_client
+            monkeypatch.setattr(client, "do_put", do_put_with_credit)
+            yield client
 
     @pytest.fixture
     def data_table(self):
@@ -163,14 +132,11 @@ class TestProxyClient:
         received = []
         server.register("handshake", lambda payload: received.append(payload) or "ok")
 
-        client = ProxyClient(handshake_port=6789)
-        try:
+        with closing(ProxyClient(handshake_port=6789)):
             # The payload must be the handshake port rendered as UTF-8 digits,
             # not the client's timeout or the data port it dialled. (The action
             # *name* is pinned separately, by the test below -- see why there.)
             assert received == [b"6789"]
-        finally:
-            client.close()
 
     def test_the_handshake_call_names_the_handshake_action(self, monkeypatch):
         # The end-to-end test above cannot pin the action *name*. Substituting
@@ -188,11 +154,8 @@ class TestProxyClient:
             lambda self, name, payload=b"", options=None: seen.append((name, payload)),
         )
 
-        client = ProxyClient(handshake_port=6789)
-        try:
+        with closing(ProxyClient(handshake_port=6789)):
             assert seen == [("handshake", b"6789")]
-        finally:
-            client.close()
 
     def test_no_handshake_is_sent_when_no_handshake_port_is_given(self, server):
         # Companion negative case: without it, unconditionally calling
@@ -200,14 +163,11 @@ class TestProxyClient:
         received = []
         server.register("handshake", lambda payload: received.append(payload) or "ok")
 
-        client = ProxyClient()
-        try:
+        with closing(ProxyClient()) as client:
             assert received == []
             # ... and the client is still usable, i.e. skipping the handshake
             # is a real branch rather than a failed connect.
             assert client.call_action("heartbeat") == b"ack"
-        finally:
-            client.close()
 
     @staticmethod
     def _record_call_options(monkeypatch):
@@ -240,11 +200,8 @@ class TestProxyClient:
 
         # A non-default timeout, so the assertion pins the value *flowing from
         # the constructor* rather than a hard-coded 1000.
-        client = ProxyClient(timeout=1234)
-        try:
+        with closing(ProxyClient(timeout=1234)) as client:
             assert client.call_action("heartbeat") == b"ack"
-        finally:
-            client.close()
 
         assert captured == [{"timeout": 1234}]
 
@@ -253,11 +210,8 @@ class TestProxyClient:
         # `call_action` must not manufacture its own and discard it.
         captured, real = self._record_call_options(monkeypatch)
 
-        client = ProxyClient(timeout=1234)
-        try:
+        with closing(ProxyClient(timeout=1234)) as client:
             options = real(timeout=99)
             assert client.call_action("heartbeat", options=options) == b"ack"
-        finally:
-            client.close()
 
         assert captured == []

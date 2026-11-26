@@ -90,9 +90,7 @@ export class ListItemComponent implements OnChanges {
   public canShare: boolean = false;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
-  @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
-  editingDescription = false;
   renderedDescription = "";
 
   likeCount: number = 0;
@@ -328,8 +326,6 @@ export class ListItemComponent implements OnChanges {
   private setEditingState(propertyName: "name" | "description", state: boolean): void {
     if (propertyName === "name") {
       this.editingName = state;
-    } else if (propertyName === "description") {
-      this.editingDescription = state;
     }
   }
 

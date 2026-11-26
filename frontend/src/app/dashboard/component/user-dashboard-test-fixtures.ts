@@ -24,7 +24,8 @@ import { DashboardEntry } from "../type/dashboard-entry";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
-const januaryFirst1970 = 28800000; // 1970-01-01 in PST
+//januaryFirst1970 is 1970-01-01 in PST; oneDay is the number of milliseconds in a day
+const januaryFirst1970 = 28800000;
 export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent => ({
   operators: operatorTypes.map(t => ({
     operatorType: t,
@@ -41,162 +42,109 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
   settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
 });
 
-export const testWorkflow1: Workflow = {
-  wid: 1,
-  name: "workflow 1",
+const workflowFixture = (
+  wid: number,
+  name: string,
+  operatorTypes: string[],
+  creationTime: number,
+  lastModifiedTime: number
+): Workflow => ({
+  wid,
+  name,
   description: "dummy description",
-  content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
-  creationTime: januaryFirst1970,
-  lastModifiedTime: januaryFirst1970 + 2,
+  content: testWorkflowContent(operatorTypes),
+  creationTime,
+  lastModifiedTime,
   isPublished: 0,
   readonly: false,
-};
+});
 
-export const testWorkflow2: Workflow = {
-  wid: 2,
-  name: "workflow 2",
-  description: "dummy description",
-  content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
-  creationTime: januaryFirst1970 + (oneDay + 3),
-  lastModifiedTime: januaryFirst1970 + (oneDay + 3),
-  isPublished: 0,
-  readonly: false,
-};
+const entryFixture = (workflow: Workflow, ownerName: string, ownerId: number): DashboardEntry =>
+  new DashboardEntry({
+    workflow,
+    isOwner: true,
+    ownerName,
+    accessLevel: "Write",
+    ownerId,
+    coverImage: null,
+  });
 
-export const testWorkflow3: Workflow = {
-  wid: 3,
-  name: "workflow 3",
-  description: "dummy description",
-  content: testWorkflowContent(["Aggregation", "NlpSentiment"]),
-  creationTime: januaryFirst1970 + oneDay,
-  lastModifiedTime: januaryFirst1970 + (oneDay + 4),
-  isPublished: 0,
-  readonly: false,
-};
+export const testWorkflow1: Workflow = workflowFixture(
+  1,
+  "workflow 1",
+  ["Aggregation", "NlpSentiment", "SimpleSink"],
+  januaryFirst1970,
+  januaryFirst1970 + 2
+);
 
-export const testWorkflow4: Workflow = {
-  wid: 4,
-  name: "workflow 4",
-  description: "dummy description",
-  content: testWorkflowContent([]),
-  creationTime: januaryFirst1970 + (oneDay + 3) * 2,
-  lastModifiedTime: januaryFirst1970 + oneDay * 2 + 6,
-  isPublished: 0,
-  readonly: false,
-};
+export const testWorkflow2: Workflow = workflowFixture(
+  2,
+  "workflow 2",
+  ["Aggregation", "NlpSentiment", "SimpleSink"],
+  januaryFirst1970 + (oneDay + 3),
+  januaryFirst1970 + (oneDay + 3)
+);
 
-export const testWorkflow5: Workflow = {
-  wid: 5,
-  name: "workflow 5",
-  description: "dummy description",
-  content: testWorkflowContent([]),
-  creationTime: januaryFirst1970 + oneDay * 2,
-  lastModifiedTime: januaryFirst1970 + oneDay * 2 + 8,
-  isPublished: 0,
-  readonly: false,
-};
+export const testWorkflow3: Workflow = workflowFixture(
+  3,
+  "workflow 3",
+  ["Aggregation", "NlpSentiment"],
+  januaryFirst1970 + oneDay,
+  januaryFirst1970 + (oneDay + 4)
+);
 
-export const testDownloadWorkflow1: Workflow = {
-  wid: 6,
-  name: "workflow",
-  description: "dummy description",
-  content: testWorkflowContent([]),
-  creationTime: januaryFirst1970, //januaryFirst1970 is 1970-01-01 in PST
-  lastModifiedTime: januaryFirst1970 + 2,
-  isPublished: 0,
-  readonly: false,
-};
+export const testWorkflow4: Workflow = workflowFixture(
+  4,
+  "workflow 4",
+  [],
+  januaryFirst1970 + (oneDay + 3) * 2,
+  januaryFirst1970 + oneDay * 2 + 6
+);
 
-export const testDownloadWorkflow2: Workflow = {
-  wid: 7,
-  name: "workflow",
-  description: "dummy description",
-  content: testWorkflowContent([]),
-  creationTime: januaryFirst1970 + (oneDay + 3), // oneDay is the number of milliseconds in a day
-  lastModifiedTime: januaryFirst1970 + (oneDay + 3),
-  isPublished: 0,
-  readonly: false,
-};
+export const testWorkflow5: Workflow = workflowFixture(
+  5,
+  "workflow 5",
+  [],
+  januaryFirst1970 + oneDay * 2,
+  januaryFirst1970 + oneDay * 2 + 8
+);
 
-export const testDownloadWorkflow3: Workflow = {
-  wid: 8,
-  name: "workflow",
-  description: "dummy description",
-  content: testWorkflowContent([]),
-  creationTime: januaryFirst1970 + oneDay,
-  lastModifiedTime: januaryFirst1970 + (oneDay + 4),
-  isPublished: 0,
-  readonly: false,
-};
+export const testDownloadWorkflow1: Workflow = workflowFixture(
+  6,
+  "workflow",
+  [],
+  januaryFirst1970,
+  januaryFirst1970 + 2
+);
+
+export const testDownloadWorkflow2: Workflow = workflowFixture(
+  7,
+  "workflow",
+  [],
+  januaryFirst1970 + (oneDay + 3),
+  januaryFirst1970 + (oneDay + 3)
+);
+
+export const testDownloadWorkflow3: Workflow = workflowFixture(
+  8,
+  "workflow",
+  [],
+  januaryFirst1970 + oneDay,
+  januaryFirst1970 + (oneDay + 4)
+);
 
 export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
-  new DashboardEntry({
-    workflow: testDownloadWorkflow1,
-    isOwner: true,
-    ownerName: "Texera",
-    accessLevel: "Write",
-    ownerId: 1,
-    coverImage: null,
-  }),
-  new DashboardEntry({
-    workflow: testDownloadWorkflow2,
-    isOwner: true,
-    ownerName: "Texera",
-    accessLevel: "Write",
-    ownerId: 1,
-    coverImage: null,
-  }),
-  new DashboardEntry({
-    workflow: testDownloadWorkflow3,
-    isOwner: true,
-    ownerName: "Angular",
-    accessLevel: "Write",
-    ownerId: 2,
-    coverImage: null,
-  }),
+  entryFixture(testDownloadWorkflow1, "Texera", 1),
+  entryFixture(testDownloadWorkflow2, "Texera", 1),
+  entryFixture(testDownloadWorkflow3, "Angular", 2),
 ];
 
 export const testWorkflowEntries: DashboardEntry[] = [
-  new DashboardEntry({
-    workflow: testWorkflow1,
-    isOwner: true,
-    ownerName: "Texera",
-    accessLevel: "Write",
-    ownerId: 1,
-    coverImage: null,
-  }),
-  new DashboardEntry({
-    workflow: testWorkflow2,
-    isOwner: true,
-    ownerName: "Texera",
-    accessLevel: "Write",
-    ownerId: 1,
-    coverImage: null,
-  }),
-  new DashboardEntry({
-    workflow: testWorkflow3,
-    isOwner: true,
-    ownerName: "Angular",
-    accessLevel: "Write",
-    ownerId: 2,
-    coverImage: null,
-  }),
-  new DashboardEntry({
-    workflow: testWorkflow4,
-    isOwner: true,
-    ownerName: "Angular",
-    accessLevel: "Write",
-    ownerId: 2,
-    coverImage: null,
-  }),
-  new DashboardEntry({
-    workflow: testWorkflow5,
-    isOwner: true,
-    ownerName: "UCI",
-    accessLevel: "Write",
-    ownerId: 3,
-    coverImage: null,
-  }),
+  entryFixture(testWorkflow1, "Texera", 1),
+  entryFixture(testWorkflow2, "Texera", 1),
+  entryFixture(testWorkflow3, "Angular", 2),
+  entryFixture(testWorkflow4, "Angular", 2),
+  entryFixture(testWorkflow5, "UCI", 3),
 ];
 
 export const mockUserInfo = {
