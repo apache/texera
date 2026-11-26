@@ -22,84 +22,31 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.service.MockLakeFS
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.ByteArrayOutputStream
 import java.util.zip.ZipInputStream
 
 // Covers the model download surface: presigned single-file URLs (which
 // ModelFileDocument also depends on) and the version zip.
-class ModelDownloadResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockTexeraDB
-    with MockLakeFS
-    with BeforeAndAfterAll
-    with ResourceTestHelpers {
+class ModelDownloadResourceSpec extends ModelResourceTestSupport("model_download_owner") {
 
-  private def mkUser(name: String): User = {
-    val user = new User
-    user.setName(name)
-    user.setEmail(s"$name@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
-  }
-
-  private val ownerUser: User = mkUser("model_download_owner")
   private val strangerUser: User = mkUser("model_download_stranger")
+  override protected def extraUsers: Seq[User] = Seq(strangerUser)
 
-  lazy val modelResource = new ModelResource()
-  lazy val sessionUser = new SessionUser(ownerUser)
   lazy val strangerSession = new SessionUser(strangerUser)
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-    val userDao = new UserDao(getDSLContext.configuration())
-    userDao.insert(ownerUser)
-    userDao.insert(strangerUser)
-  }
-
-  override protected def afterAll(): Unit = {
-    try shutdownDB()
-    finally super.afterAll()
-  }
 
   // ---------- helpers ----------
   private def newModel(
       isPublic: Boolean = false,
       isDownloadable: Boolean = true
   ): ModelResource.DashboardModel =
-    modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = uniqueName("dl-model"),
-        modelDescription = "for download tests",
-        isModelPublic = isPublic,
-        isModelDownloadable = isDownloadable,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
+    createModelFixture(
+      uniqueName("dl-model"),
+      "for download tests",
+      isPublic = isPublic,
+      isDownloadable = isDownloadable
     )
-
-  private def upload(mid: Integer, path: String, bytes: Array[Byte]): Unit =
-    modelResource
-      .uploadOneFileToModel(
-        mid,
-        urlEnc(path),
-        "upload",
-        new ByteArrayInputStream(bytes),
-        mkHeaders(bytes.length.toLong),
-        sessionUser
-      )
-      .getStatus shouldEqual 200
 
   /** Creates a model holding one committed file, returning it with its commit hash. */
   private def modelWithCommittedFile(
