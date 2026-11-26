@@ -18,10 +18,11 @@
  */
 
 import { HTTP_INTERCEPTORS, HttpClient } from "@angular/common/http";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { Router } from "@angular/router";
 import { LOGIN } from "../../app-routing.constant";
+import { setupHttpServiceTest } from "../testing/http-service-test-utils";
 import { NotificationService } from "./notification/notification.service";
 import { UserService } from "./user/user.service";
 import { UnauthorizedHttpInterceptor } from "./unauthorized-http-interceptor.service";
@@ -38,26 +39,31 @@ describe("UnauthorizedHttpInterceptor", () => {
     notificationSpy = { error: vi.fn() };
     userServiceSpy = { logout: vi.fn(), isLogin: vi.fn().mockReturnValue(true) };
 
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        { provide: HTTP_INTERCEPTORS, useClass: UnauthorizedHttpInterceptor, multi: true },
-        { provide: Router, useValue: routerSpy },
-        { provide: NotificationService, useValue: notificationSpy },
-        { provide: UserService, useValue: userServiceSpy },
-      ],
-    });
-
-    http = TestBed.inject(HttpClient);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service: http, httpMock } = setupHttpServiceTest(HttpClient, [
+      { provide: HTTP_INTERCEPTORS, useClass: UnauthorizedHttpInterceptor, multi: true },
+      { provide: Router, useValue: routerSpy },
+      { provide: NotificationService, useValue: notificationSpy },
+      { provide: UserService, useValue: userServiceSpy },
+    ]));
   });
 
   afterEach(() => {
     httpMock.verify();
   });
 
+  function getWithStatus(url: string, status: number, statusText: string, headers?: Record<string, string>): void {
+    http.get(url, headers ? { headers } : undefined).subscribe({ error: () => {} });
+    httpMock.expectOne(url).flush(null, { status, statusText });
+  }
+
   function authedGet(url: string) {
     return http.get(url, { headers: { Authorization: "Bearer stale-token" } });
+  }
+
+  function expectNoLogoutSideEffects(): void {
+    expect(userServiceSpy.logout).not.toHaveBeenCalled();
+    expect(notificationSpy.error).not.toHaveBeenCalled();
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
   }
 
   it("logs out, notifies, and redirects to LOGIN on 401 for an authenticated request", () => {
@@ -65,8 +71,7 @@ describe("UnauthorizedHttpInterceptor", () => {
     // A 401 from an anonymous request is the server saying "you need to log in",
     // not "your session is invalid" — clearing the session there would wipe a
     // freshly-stored token (e.g. mid-login race).
-    authedGet("/api/secret").subscribe({ error: () => {} });
-    httpMock.expectOne("/api/secret").flush(null, { status: 401, statusText: "Unauthorized" });
+    getWithStatus("/api/secret", 401, "Unauthorized", { Authorization: "Bearer stale-token" });
 
     expect(userServiceSpy.logout).toHaveBeenCalledTimes(1);
     expect(notificationSpy.error).toHaveBeenCalledTimes(1);
@@ -80,27 +85,18 @@ describe("UnauthorizedHttpInterceptor", () => {
     // Reproduces the #5026 / #4903-revert scenario: a public endpoint (or one
     // whose token JwtModule skipped because it was expired) returning 401
     // must NOT trigger a logout — the user may not even be logged in yet.
-    http.get("/api/public").subscribe({ error: () => {} });
-    httpMock.expectOne("/api/public").flush(null, { status: 401, statusText: "Unauthorized" });
-
-    expect(userServiceSpy.logout).not.toHaveBeenCalled();
-    expect(notificationSpy.error).not.toHaveBeenCalled();
-    expect(routerSpy.navigate).not.toHaveBeenCalled();
+    getWithStatus("/api/public", 401, "Unauthorized");
+    expectNoLogoutSideEffects();
   });
 
   it("does not log out on non-401 errors even when Authorization was sent", () => {
-    authedGet("/api/oops").subscribe({ error: () => {} });
-    httpMock.expectOne("/api/oops").flush(null, { status: 500, statusText: "Server Error" });
-
-    expect(userServiceSpy.logout).not.toHaveBeenCalled();
-    expect(notificationSpy.error).not.toHaveBeenCalled();
-    expect(routerSpy.navigate).not.toHaveBeenCalled();
+    getWithStatus("/api/oops", 500, "Server Error", { Authorization: "Bearer stale-token" });
+    expectNoLogoutSideEffects();
   });
 
   it("omits returnUrl when the current route is the root", () => {
     routerSpy.url = "/";
-    authedGet("/api/secret").subscribe({ error: () => {} });
-    httpMock.expectOne("/api/secret").flush(null, { status: 401, statusText: "Unauthorized" });
+    getWithStatus("/api/secret", 401, "Unauthorized", { Authorization: "Bearer stale-token" });
 
     expect(routerSpy.navigate).toHaveBeenCalledWith([LOGIN], { queryParams: { returnUrl: null } });
   });
@@ -120,20 +116,15 @@ describe("UnauthorizedHttpInterceptor", () => {
 
     authPaths.forEach(path => {
       it(`does not log out on 401 from ${path}`, () => {
-        authedGet(path).subscribe({ error: () => {} });
-        httpMock.expectOne(path).flush(null, { status: 401, statusText: "Unauthorized" });
-
-        expect(userServiceSpy.logout).not.toHaveBeenCalled();
-        expect(notificationSpy.error).not.toHaveBeenCalled();
-        expect(routerSpy.navigate).not.toHaveBeenCalled();
+        getWithStatus(path, 401, "Unauthorized", { Authorization: "Bearer stale-token" });
+        expectNoLogoutSideEffects();
       });
     });
 
     it("still logs out on 401 from a URL that merely contains 'login' in a non-auth segment", () => {
       // Guards against an over-broad regex like /login/ that would skip e.g.
       // /api/dashboard/recent-logins.
-      authedGet("/api/dashboard/recent-logins").subscribe({ error: () => {} });
-      httpMock.expectOne("/api/dashboard/recent-logins").flush(null, { status: 401, statusText: "Unauthorized" });
+      getWithStatus("/api/dashboard/recent-logins", 401, "Unauthorized", { Authorization: "Bearer stale-token" });
 
       expect(userServiceSpy.logout).toHaveBeenCalledTimes(1);
     });

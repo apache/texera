@@ -24,6 +24,7 @@ import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { ExecutionMode } from "../../common/type/workflow";
+import { makeDashboardComputingUnit } from "../../common/testing/computing-unit-test-fixtures";
 
 // Each factory returns a fresh fixture that satisfies exactly one type predicate,
 // so DashboardEntry's ordered if/else dispatch routes it to the intended branch.
@@ -99,34 +100,26 @@ function makeModel(): DashboardModel {
 }
 
 function makeComputingUnit(): DashboardWorkflowComputingUnit {
-  return {
+  return makeDashboardComputingUnit({
     computingUnit: {
       cuid: 505,
       uid: 50,
       name: "My Computing Unit",
       creationTime: 1700000005000,
-      terminateTime: undefined,
       type: "kubernetes",
       uri: "urn:texera:cu:505",
       resource: {
         cpuLimit: "2",
         memoryLimit: "4Gi",
-        gpuLimit: "0",
         jvmMemorySize: "2G",
         shmSize: "64Mi",
         nodeAddresses: ["10.0.0.1"],
       },
     },
-    status: "Running",
-    metrics: {
-      cpuUsage: "0.5",
-      memoryUsage: "1Gi",
-    },
-    isOwner: true,
-    accessPrivilege: "WRITE",
-    ownerAvatar: "avatar",
+    metrics: { cpuUsage: "0.5", memoryUsage: "1Gi" },
     ownerName: "Bob",
-  };
+    ownerAvatar: "avatar",
+  });
 }
 
 describe("DashboardEntry", () => {

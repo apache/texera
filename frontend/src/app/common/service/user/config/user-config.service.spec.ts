@@ -20,6 +20,7 @@
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { AppSettings } from "src/app/common/app-setting";
+import { flushHttpRequest, setupHttpServiceTest } from "../../../testing/http-service-test-utils";
 import { UserConfigService, UserConfig } from "./user-config.service";
 import { UserService } from "../user.service";
 import { StubUserService, MOCK_USER } from "../stub-user.service";
@@ -34,14 +35,10 @@ describe("UserConfigService", () => {
   const endpoint = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}`;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [{ provide: UserService, useClass: StubUserService }, UserConfigService],
-    });
-
+    ({ service, httpMock } = setupHttpServiceTest(UserConfigService, [
+      { provide: UserService, useClass: StubUserService },
+    ]));
     stubUserService = TestBed.inject(UserService) as unknown as StubUserService;
-    service = TestBed.inject(UserConfigService);
-    httpMock = TestBed.inject(HttpTestingController);
 
     // The constructor calls fetchAll() because StubUserService starts logged in.
     // Flush the request with an empty dictionary so each test starts from a clean slate.
@@ -126,12 +123,8 @@ describe("UserConfigService", () => {
   describe("set", () => {
     it("issues a PUT with the value as the body and updates the local dict", () => {
       service.set("alpha", "one");
+      flushHttpRequest(httpMock, `${endpoint}/alpha`, "PUT", null, { body: "one" });
 
-      const req = httpMock.expectOne(`${endpoint}/alpha`);
-      expect(req.request.method).toEqual("PUT");
-      expect(req.request.body).toEqual("one");
-
-      req.flush(null);
       service.delete("alpha");
       httpMock.expectOne(`${endpoint}/alpha`).flush(null);
 
@@ -144,10 +137,7 @@ describe("UserConfigService", () => {
       httpMock.expectOne(`${endpoint}/alpha`).flush(null);
 
       service.set("alpha", "one");
-      const req = httpMock.expectOne(`${endpoint}/alpha`);
-      expect(req.request.method).toEqual("PUT");
-      expect(req.request.body).toEqual("one");
-      req.flush(null);
+      flushHttpRequest(httpMock, `${endpoint}/alpha`, "PUT", null, { body: "one" });
 
       service.delete("alpha");
       httpMock.expectOne(`${endpoint}/alpha`).flush(null);
@@ -171,10 +161,7 @@ describe("UserConfigService", () => {
 
     it("issues a DELETE to the per-key endpoint and removes the entry from the local dict", () => {
       service.delete("alpha");
-
-      const req = httpMock.expectOne(`${endpoint}/alpha`);
-      expect(req.request.method).toEqual("DELETE");
-      req.flush(null);
+      flushHttpRequest(httpMock, `${endpoint}/alpha`, "DELETE", null);
 
       service.delete("alpha");
       httpMock.expectNone(`${endpoint}/alpha`);
@@ -219,10 +206,7 @@ describe("UserConfigService", () => {
   describe("user-change reactions", () => {
     it("re-fetches the dictionary when a logged-in user is emitted on userChanged", () => {
       stubUserService.userChangeSubject.next(MOCK_USER);
-
-      const req = httpMock.expectOne(endpoint);
-      expect(req.request.method).toEqual("GET");
-      req.flush({ rehydrated: "yes" });
+      flushHttpRequest(httpMock, endpoint, "GET", { rehydrated: "yes" });
 
       service.delete("rehydrated");
       httpMock.expectOne(`${endpoint}/rehydrated`).flush(null);
@@ -269,10 +253,7 @@ describe("UserConfigService (constructed while logged out)", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [
-        { provide: UserService, useValue: { isLogin: () => false, userChanged: () => new Subject<User>() } },
-        UserConfigService,
-      ],
+      providers: [{ provide: UserService, useValue: { isLogin: () => false, userChanged: () => new Subject<User>() } }],
     });
     httpMock = TestBed.inject(HttpTestingController);
   });

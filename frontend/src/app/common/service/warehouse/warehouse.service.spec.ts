@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../testing/http-service-test-utils";
 import { AppSettings } from "../../app-setting";
 import { WAREHOUSE_BASE_URL, WAREHOUSE_STATUS_URL, WarehouseService } from "./warehouse.service";
 import { DashboardWarehouse, WarehouseStatus } from "../../type/warehouse";
@@ -38,12 +38,7 @@ describe("WarehouseService", () => {
   };
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [WarehouseService],
-    });
-    service = TestBed.inject(WarehouseService);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service, httpMock } = setupHttpServiceTest(WarehouseService));
   });
 
   afterEach(() => {
@@ -54,9 +49,10 @@ describe("WarehouseService", () => {
     let received: WarehouseStatus | undefined;
     service.getStatus().subscribe(status => (received = status));
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_STATUS_URL}`);
-    expect(req.request.method).toBe("GET");
-    req.flush({ enabled: true, warehouses: [warehouse] });
+    flushHttpRequest(httpMock, `${AppSettings.getApiEndpoint()}/${WAREHOUSE_STATUS_URL}`, "GET", {
+      enabled: true,
+      warehouses: [warehouse],
+    });
 
     expect(received).toEqual({ enabled: true, warehouses: [warehouse] });
   });
@@ -65,10 +61,9 @@ describe("WarehouseService", () => {
     let received: DashboardWarehouse | undefined;
     service.createWarehouse("mybucket").subscribe(created => (received = created));
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}`);
-    expect(req.request.method).toBe("POST");
-    expect(req.request.body).toEqual({ name: "mybucket" });
-    req.flush(warehouse);
+    flushHttpRequest(httpMock, `${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}`, "POST", warehouse, {
+      body: { name: "mybucket" },
+    });
 
     expect(received).toEqual(warehouse);
   });
@@ -77,9 +72,7 @@ describe("WarehouseService", () => {
     let completed = false;
     service.deleteWarehouse(7).subscribe({ complete: () => (completed = true) });
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}/7`);
-    expect(req.request.method).toBe("DELETE");
-    req.flush(null);
+    flushHttpRequest(httpMock, `${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}/7`, "DELETE", null);
 
     expect(completed).toBe(true);
   });

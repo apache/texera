@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { TestBed } from "@angular/core/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../../../common/testing/http-service-test-utils";
 import { AdminExecutionService, WORKFLOW_BASE_URL } from "./admin-execution.service";
 
 describe("AdminExecutionService", () => {
@@ -26,12 +26,7 @@ describe("AdminExecutionService", () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AdminExecutionService],
-    });
-    service = TestBed.inject(AdminExecutionService);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service, httpMock } = setupHttpServiceTest(AdminExecutionService));
   });
 
   afterEach(() => {
@@ -49,20 +44,18 @@ describe("AdminExecutionService", () => {
 
       service.getExecutionList(10, 2, "name", "asc", ["running", "failed"]).subscribe(r => (result = r));
 
-      const req = httpMock.expectOne(r => r.url === `${WORKFLOW_BASE_URL}/executionList/10/2/name/asc`);
-      expect(req.request.method).toEqual("GET");
-      expect(req.request.params.get("filter")).toEqual("running,failed");
-
-      req.flush(payload);
+      flushHttpRequest(httpMock, r => r.url === `${WORKFLOW_BASE_URL}/executionList/10/2/name/asc`, "GET", payload, {
+        params: { filter: "running,failed" },
+      });
       expect(result).toEqual(payload);
     });
 
     it("sends an empty filter param when no filters are supplied", () => {
       service.getExecutionList(5, 0, "id", "desc", []).subscribe();
 
-      const req = httpMock.expectOne(r => r.url === `${WORKFLOW_BASE_URL}/executionList/5/0/id/desc`);
-      expect(req.request.params.get("filter")).toEqual("");
-      req.flush([]);
+      flushHttpRequest(httpMock, r => r.url === `${WORKFLOW_BASE_URL}/executionList/5/0/id/desc`, "GET", [], {
+        params: { filter: "" },
+      });
     });
   });
 
@@ -72,10 +65,7 @@ describe("AdminExecutionService", () => {
 
       service.getTotalWorkflows().subscribe(c => (count = c));
 
-      const req = httpMock.expectOne(`${WORKFLOW_BASE_URL}/totalWorkflow`);
-      expect(req.request.method).toEqual("GET");
-      req.flush(123);
-
+      flushHttpRequest(httpMock, `${WORKFLOW_BASE_URL}/totalWorkflow`, "GET", 123);
       expect(count).toEqual(123);
     });
   });

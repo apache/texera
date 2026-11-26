@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { setupHttpServiceTest } from "../../testing/http-service-test-utils";
 import { firstValueFrom } from "rxjs";
 import { vi } from "vitest";
 
@@ -61,12 +61,7 @@ describe("AppleAuthService", () => {
     appleId = {
       auth: { init: vi.fn(), signIn: vi.fn().mockResolvedValue({ authorization: { id_token: "apple-id-token" } }) },
     };
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AppleAuthService],
-    });
-    service = TestBed.inject(AppleAuthService);
-    httpTestingController = TestBed.inject(HttpTestingController);
+    ({ service, httpMock: httpTestingController } = setupHttpServiceTest(AppleAuthService));
   });
 
   afterEach(() => {

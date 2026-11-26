@@ -37,10 +37,29 @@ describe("ComputingUnitStatusService", () => {
   let service: ComputingUnitStatusService;
   let websocketService: WorkflowWebsocketService;
 
-  const mockUnit = (cuid: number) => ({ computingUnit: { cuid } }) as unknown as DashboardWorkflowComputingUnit;
+  const mockUnit = (cuid: number, status?: string) =>
+    (status
+      ? { computingUnit: { cuid }, status }
+      : { computingUnit: { cuid } }) as unknown as DashboardWorkflowComputingUnit;
   // What HttpClient delivers for a failed request; a dropped connection is the same type with status 0.
   const httpFailure = () =>
     throwError(() => new HttpErrorResponse({ status: 500, statusText: "Internal Server Error" }));
+  const spyOpenWs = () => vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+  const seedUnits = (units: DashboardWorkflowComputingUnit[], selected?: DashboardWorkflowComputingUnit): void => {
+    (service as any).allComputingUnitsSubject.next(units);
+    if (selected !== undefined) {
+      (service as any).selectedUnitSubject.next(selected);
+    }
+  };
+  const withFakePolling = (run: () => void): void => {
+    vi.useFakeTimers();
+    try {
+      run();
+    } finally {
+      (service as any).stopPollingSelectedUnit();
+      vi.useRealTimers();
+    }
+  };
 
   beforeEach(() => {
     const managingStub = {
@@ -52,9 +71,6 @@ describe("ComputingUnitStatusService", () => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
-        ComputingUnitStatusService,
-        WorkflowWebsocketService,
-        WorkflowStatusService,
         { provide: WorkflowComputingUnitManagingService, useValue: managingStub },
         { provide: UserService, useClass: StubUserService },
         { provide: AuthService, useClass: StubAuthService },
@@ -175,76 +191,33 @@ describe("ComputingUnitStatusService", () => {
     expect(service.getSelectedComputingUnitValue()).toBe(unit);
   });
 
-  it("getStatus() maps a null selection to NoComputingUnit", () => {
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.NoComputingUnit);
-  });
-
-  it("getStatus() maps a Running unit to ComputingUnitState.Running", () => {
-    (service as any).selectedUnitSubject.next({
-      computingUnit: { cuid: 1 },
-      status: "Running",
-    } as unknown as DashboardWorkflowComputingUnit);
-
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.Running);
-  });
-
-  it("getStatus() maps a Pending unit to ComputingUnitState.Pending", () => {
-    (service as any).selectedUnitSubject.next({
-      computingUnit: { cuid: 1 },
-      status: "Pending",
-    } as unknown as DashboardWorkflowComputingUnit);
-
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.Pending);
-  });
-
-  it("getStatus() maps a Failed unit to ComputingUnitState.Failed", () => {
-    (service as any).selectedUnitSubject.next({
-      computingUnit: { cuid: 1 },
-      status: "Failed",
-    } as unknown as DashboardWorkflowComputingUnit);
-
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.Failed);
-  });
-
-  it("getStatus() maps an Unknown unit to ComputingUnitState.Unknown", () => {
-    (service as any).selectedUnitSubject.next({
-      computingUnit: { cuid: 1 },
-      status: "Unknown",
-    } as unknown as DashboardWorkflowComputingUnit);
-
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.Unknown);
-  });
-
-  it("getStatus() maps a Terminating unit to ComputingUnitState.Terminating", () => {
-    (service as any).selectedUnitSubject.next({
-      computingUnit: { cuid: 1 },
-      status: "Terminating",
-    } as unknown as DashboardWorkflowComputingUnit);
-
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.Terminating);
-  });
-
-  it("getStatus() keeps an unrecognized future status on the Pending fallback", () => {
-    (service as any).selectedUnitSubject.next({
-      computingUnit: { cuid: 1 },
-      status: "FutureStatus",
-    } as unknown as DashboardWorkflowComputingUnit);
-
-    let status: ComputingUnitState | undefined;
-    service.getStatus().subscribe(s => (status = s));
-    expect(status).toBe(ComputingUnitState.Pending);
+  (
+    [
+      [undefined, ComputingUnitState.NoComputingUnit, "getStatus() maps a null selection to NoComputingUnit"],
+      ["Running", ComputingUnitState.Running, "getStatus() maps a Running unit to ComputingUnitState.Running"],
+      ["Pending", ComputingUnitState.Pending, "getStatus() maps a Pending unit to ComputingUnitState.Pending"],
+      ["Failed", ComputingUnitState.Failed, "getStatus() maps a Failed unit to ComputingUnitState.Failed"],
+      ["Unknown", ComputingUnitState.Unknown, "getStatus() maps an Unknown unit to ComputingUnitState.Unknown"],
+      [
+        "Terminating",
+        ComputingUnitState.Terminating,
+        "getStatus() maps a Terminating unit to ComputingUnitState.Terminating",
+      ],
+      [
+        "FutureStatus",
+        ComputingUnitState.Pending,
+        "getStatus() keeps an unrecognized future status on the Pending fallback",
+      ],
+    ] as const
+  ).forEach(([unitStatus, expected, title]) => {
+    it(title, () => {
+      if (unitStatus !== undefined) {
+        (service as any).selectedUnitSubject.next(mockUnit(1, unitStatus));
+      }
+      let status: ComputingUnitState | undefined;
+      service.getStatus().subscribe(s => (status = s));
+      expect(status).toBe(expected);
+    });
   });
 
   it("refreshComputingUnitList() re-fetches the list and pushes it to subscribers", () => {
@@ -322,25 +295,25 @@ describe("ComputingUnitStatusService", () => {
   it("updateUnitInList replaces the matching unit and leaves the others untouched", () => {
     const unitA = mockUnit(1);
     const unitB = mockUnit(2);
-    (service as any).allComputingUnitsSubject.next([unitA, unitB]);
+    seedUnits([unitA, unitB]);
 
-    const updatedA = { computingUnit: { cuid: 1 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+    const updatedA = mockUnit(1, "Running");
     (service as any).updateUnitInList(updatedA);
 
     expect((service as any).allComputingUnitsSubject.value).toEqual([updatedA, unitB]);
   });
 
   it("setComputingUnitsState refreshes the selected unit when it is still present in the new list", () => {
-    (service as any).selectedUnitSubject.next(mockUnit(7));
+    seedUnits([], mockUnit(7));
 
-    const updated = { computingUnit: { cuid: 7 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+    const updated = mockUnit(7, "Running");
     (service as any).setComputingUnitsState([updated]);
 
     expect(service.getSelectedComputingUnitValue()).toBe(updated);
   });
 
   it("setComputingUnitsState clears the selection and stops polling when the selected unit disappears", () => {
-    (service as any).selectedUnitSubject.next(mockUnit(7));
+    seedUnits([], mockUnit(7));
     const stopSpy = vi.spyOn(service as any, "stopPollingSelectedUnit");
 
     (service as any).setComputingUnitsState([mockUnit(8)]);
@@ -350,12 +323,11 @@ describe("ComputingUnitStatusService", () => {
   });
 
   it("startPollingSelectedUnit polls the unit on each interval tick and merges the result", () => {
-    vi.useFakeTimers();
-    try {
+    withFakePolling(() => {
       const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const polled = mockUnit(3, "Running");
       const getSpy = vi.spyOn(managing, "getComputingUnit").mockReturnValue(of(polled));
-      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
+      seedUnits([mockUnit(3)]);
 
       (service as any).startPollingSelectedUnit(3);
       // interval() fires only after the first period elapses
@@ -365,17 +337,11 @@ describe("ComputingUnitStatusService", () => {
 
       expect(getSpy).toHaveBeenCalledWith(3);
       expect((service as any).allComputingUnitsSubject.value).toEqual([polled]);
-    } finally {
-      // Stop the interval poll here so the test is self-contained rather than
-      // relying on afterEach's ngOnDestroy to tear it down.
-      (service as any).stopPollingSelectedUnit();
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("stopPollingSelectedUnit halts further polling", () => {
-    vi.useFakeTimers();
-    try {
+    withFakePolling(() => {
       const managing = TestBed.inject(WorkflowComputingUnitManagingService);
       const getSpy = vi.spyOn(managing, "getComputingUnit").mockReturnValue(of(mockUnit(3)));
 
@@ -385,24 +351,20 @@ describe("ComputingUnitStatusService", () => {
       vi.advanceTimersByTime(10000);
 
       expect(getSpy).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("keeps polling the selected unit through a failed fetch and leaves the selection intact", () => {
-    vi.useFakeTimers();
-    try {
+    withFakePolling(() => {
       const managing = TestBed.inject(WorkflowComputingUnitManagingService);
       const original = mockUnit(3);
-      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const polled = mockUnit(3, "Running");
       const getSpy = vi
         .spyOn(managing, "getComputingUnit")
         .mockReturnValueOnce(httpFailure())
         .mockReturnValue(of(polled));
       const stopSpy = vi.spyOn(service as any, "stopPollingSelectedUnit");
-      (service as any).allComputingUnitsSubject.next([original]);
-      (service as any).selectedUnitSubject.next(original);
+      seedUnits([original], original);
 
       (service as any).startPollingSelectedUnit(3);
       vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
@@ -417,50 +379,45 @@ describe("ComputingUnitStatusService", () => {
       // Every later tick still fetches, and the next good result replaces the selection.
       expect(getSpy).toHaveBeenCalledTimes(5);
       expect(service.getSelectedComputingUnitValue()).toBe(polled);
-    } finally {
-      (service as any).stopPollingSelectedUnit();
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("logs a non-HTTP poll failure and keeps polling, but stays silent for an HTTP failure", () => {
-    vi.useFakeTimers();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
-      const bug = new TypeError("cannot read resource");
-      const getSpy = vi
-        .spyOn(managing, "getComputingUnit")
-        .mockReturnValueOnce(throwError(() => bug))
-        .mockReturnValueOnce(httpFailure())
-        .mockReturnValue(of(polled));
-      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
-      (service as any).selectedUnitSubject.next(mockUnit(3));
+      withFakePolling(() => {
+        const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+        const polled = mockUnit(3, "Running");
+        const bug = new TypeError("cannot read resource");
+        const getSpy = vi
+          .spyOn(managing, "getComputingUnit")
+          .mockReturnValueOnce(throwError(() => bug))
+          .mockReturnValueOnce(httpFailure())
+          .mockReturnValue(of(polled));
+        seedUnits([mockUnit(3)], mockUnit(3));
 
-      (service as any).startPollingSelectedUnit(3);
-      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
-      // A failure outside HTTP is a bug and must stay visible.
-      expect(errorSpy).toHaveBeenCalledTimes(1);
-      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("status poll"), bug);
+        (service as any).startPollingSelectedUnit(3);
+        vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+        // A failure outside HTTP is a bug and must stay visible.
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("status poll"), bug);
 
-      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
-      // An HTTP failure is not logged.
-      expect(errorSpy).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+        // An HTTP failure is not logged.
+        expect(errorSpy).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
-      expect(getSpy).toHaveBeenCalledTimes(3);
-      expect(service.getSelectedComputingUnitValue()).toBe(polled);
+        vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+        expect(getSpy).toHaveBeenCalledTimes(3);
+        expect(service.getSelectedComputingUnitValue()).toBe(polled);
+      });
     } finally {
-      (service as any).stopPollingSelectedUnit();
       errorSpy.mockRestore();
-      vi.useRealTimers();
     }
   });
 
   describe("selectComputingUnit() cache-miss and guard branches", () => {
     it("refreshes then selects a unit that is not yet in the cache", () => {
-      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+      const openSpy = spyOpenWs();
       const managing = TestBed.inject(WorkflowComputingUnitManagingService);
       const unit9 = mockUnit(9);
       // The cache starts empty, so cuid 9 is a miss: selection must trigger a
@@ -476,8 +433,8 @@ describe("ComputingUnitStatusService", () => {
     });
 
     it("does not reopen the websocket when the identical unit is re-selected", () => {
-      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
-      (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
+      const openSpy = spyOpenWs();
+      seedUnits([mockUnit(7)]);
 
       service.selectComputingUnit(5, 7);
       // Same wid + cuid → shouldReconnect is false → the guarded block is skipped.
@@ -487,8 +444,8 @@ describe("ComputingUnitStatusService", () => {
     });
 
     it("does nothing when the workflow id is undefined", () => {
-      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
-      (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
+      const openSpy = spyOpenWs();
+      seedUnits([mockUnit(7)]);
 
       // The unit is cached and shouldReconnect is true, so only the isDefined(wid)
       // guard can stop the selection: no socket is opened and nothing is selected.
@@ -501,8 +458,8 @@ describe("ComputingUnitStatusService", () => {
     });
 
     it("reconnects when the same unit is opened under a different workflow (wid change alone)", () => {
-      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
-      (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
+      const openSpy = spyOpenWs();
+      seedUnits([mockUnit(7)]);
 
       service.selectComputingUnit(5, 7);
       expect(openSpy).toHaveBeenCalledTimes(1);
@@ -530,18 +487,23 @@ describe("ComputingUnitStatusService", () => {
   });
 
   describe("terminateComputingUnit()", () => {
-    it("closes the socket and clears status when terminating the connected selection", () => {
+    function runTerminate(connected: boolean, selectedCuid: number, response = of({} as Response)) {
       const managing = TestBed.inject(WorkflowComputingUnitManagingService);
       const workflowStatusService = TestBed.inject(WorkflowStatusService);
       const closeSpy = vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
       const clearSpy = vi.spyOn(workflowStatusService, "clearStatus").mockImplementation(() => {});
-      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(true);
-      const termSpy = vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(of({} as Response));
+      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(connected);
+      const termSpy = vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(response);
       const refreshSpy = vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
-      (service as any).selectedUnitSubject.next(mockUnit(7));
+      seedUnits([], mockUnit(selectedCuid));
 
       let result: boolean | undefined;
       service.terminateComputingUnit(7).subscribe(r => (result = r));
+      return { closeSpy, clearSpy, termSpy, refreshSpy, result };
+    }
+
+    it("closes the socket and clears status when terminating the connected selection", () => {
+      const { closeSpy, clearSpy, termSpy, refreshSpy, result } = runTerminate(true, 7);
 
       expect(closeSpy).toHaveBeenCalled();
       expect(clearSpy).toHaveBeenCalled();
@@ -552,46 +514,27 @@ describe("ComputingUnitStatusService", () => {
     });
 
     it("leaves the socket untouched when terminating a non-selected unit", () => {
-      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-      const closeSpy = vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
       // isConnected is true, but isSelected short-circuits the guard to false.
-      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(true);
-      vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(of({} as Response));
-      vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
-      (service as any).selectedUnitSubject.next(mockUnit(8));
-
-      let result: boolean | undefined;
-      service.terminateComputingUnit(7).subscribe(r => (result = r));
+      const { closeSpy, result } = runTerminate(true, 8);
 
       expect(closeSpy).not.toHaveBeenCalled();
       expect(result).toBe(true);
     });
 
     it("skips socket teardown when the selected unit is not connected", () => {
-      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-      const closeSpy = vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
       // isSelected is true, but the socket is down → the guarded teardown is skipped.
-      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(false);
-      vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(of({} as Response));
-      vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
-      (service as any).selectedUnitSubject.next(mockUnit(7));
-
-      let result: boolean | undefined;
-      service.terminateComputingUnit(7).subscribe(r => (result = r));
+      const { closeSpy, result } = runTerminate(false, 7);
 
       expect(closeSpy).not.toHaveBeenCalled();
       expect(result).toBe(true);
     });
 
     it("resolves to false when the termination request errors", () => {
-      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(false);
-      vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(throwError(() => new Error("boom")));
-      const refreshSpy = vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
-      (service as any).selectedUnitSubject.next(mockUnit(7));
-
-      let result: boolean | undefined;
-      service.terminateComputingUnit(7).subscribe(r => (result = r));
+      const { refreshSpy, result } = runTerminate(
+        false,
+        7,
+        throwError(() => new Error("boom"))
+      );
 
       // The error is swallowed by catchError, which emits false; no refresh runs.
       expect(result).toBe(false);

@@ -27,64 +27,59 @@ import { WorkflowComputingUnitManagingService } from "../../../../common/service
 import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import {
   DashboardWorkflowComputingUnit,
-  WorkflowComputingUnit,
   WorkflowComputingUnitResourceLimit,
 } from "../../../../common/type/workflow-computing-unit";
 import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
 import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import {
+  ComputingUnitFixtureOverrides,
+  NAN_COMPUTING_UNIT_RESOURCE,
+  makeDashboardComputingUnit,
+  makeLocalComputingUnit,
+} from "../../../../common/testing/computing-unit-test-fixtures";
 
-function makeUnit(over: Partial<DashboardWorkflowComputingUnit> = {}): DashboardWorkflowComputingUnit {
-  return {
+function makeUnit(over: ComputingUnitFixtureOverrides = {}): DashboardWorkflowComputingUnit {
+  return makeDashboardComputingUnit({
+    metrics: { cpuUsage: "NaN", memoryUsage: "NaN" },
+    isOwner: false,
+    ownerName: "alice",
+    ...over,
     computingUnit: {
-      cuid: 1,
       uid: 100,
       name: "cu",
       creationTime: 1_700_000_000_000,
-      terminateTime: undefined,
       type: "kubernetes",
       uri: "uri",
+      ...(over.computingUnit ?? {}),
       resource: {
         cpuLimit: "2",
         memoryLimit: "4Gi",
-        gpuLimit: "0",
         jvmMemorySize: "2G",
         shmSize: "64Mi",
-        nodeAddresses: [],
+        ...(over.computingUnit?.resource ?? {}),
       },
     },
-    status: "Running",
-    metrics: { cpuUsage: "NaN", memoryUsage: "NaN" },
-    isOwner: false,
-    accessPrivilege: "WRITE",
-    ownerAvatar: "",
-    ownerName: "alice",
-    ...over,
-  };
+  });
 }
 
 // Overrides fields of the nested `computingUnit`, so a test need not respread it.
-function withCu(over: Partial<WorkflowComputingUnit>): Partial<DashboardWorkflowComputingUnit> {
-  return { computingUnit: { ...makeUnit().computingUnit, ...over } };
+function withCu(over: ComputingUnitFixtureOverrides["computingUnit"]): ComputingUnitFixtureOverrides {
+  return { computingUnit: over };
 }
 
-// The all-placeholder resource a local unit carries.
-const NAN_RESOURCE: WorkflowComputingUnitResourceLimit = {
-  cpuLimit: "NaN",
-  memoryLimit: "NaN",
-  gpuLimit: "NaN",
-  jvmMemorySize: "NaN",
-  shmSize: "NaN",
-  nodeAddresses: [],
-};
-
-function withResource(over: Partial<WorkflowComputingUnitResourceLimit>): Partial<DashboardWorkflowComputingUnit> {
-  return withCu({ resource: { ...makeUnit().computingUnit.resource, ...over } });
+function withResource(over: Partial<WorkflowComputingUnitResourceLimit>): ComputingUnitFixtureOverrides {
+  return withCu({ resource: over });
 }
 
 function localUnit(cuid = 1): DashboardWorkflowComputingUnit {
-  return makeUnit(withCu({ cuid, type: "local", resource: NAN_RESOURCE }));
+  return makeLocalComputingUnit(cuid, {
+    metrics: { cpuUsage: "NaN", memoryUsage: "NaN" },
+    isOwner: false,
+    ownerName: "alice",
+    computingUnit: { uid: 100, name: "cu", creationTime: 1_700_000_000_000, uri: "uri" },
+  });
 }
 
 describe("AdminComputingUnitComponent", () => {
@@ -473,7 +468,7 @@ describe("AdminComputingUnitComponent", () => {
     });
 
     it("falls back to a dash when a non-local unit reports no usable spec", () => {
-      const blank = makeUnit(withCu({ resource: { ...NAN_RESOURCE, memoryLimit: "" } }));
+      const blank = makeUnit(withCu({ resource: { ...NAN_COMPUTING_UNIT_RESOURCE, memoryLimit: "" } }));
       expect(component.resourceSummary(blank)).toBe("—");
     });
 
