@@ -22,7 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute, Router } from "@angular/router";
-import { concat, of, Subject, throwError } from "rxjs";
+import { concat, isObservable, Observable, of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
@@ -395,11 +395,12 @@ describe("DatasetDetailComponent behavior", () => {
     size,
   });
 
-  const createComponent = (params: Record<string, unknown> = { did: 5 }): void => {
+  type RouteParams = Record<string, unknown>;
+  const createComponent = (params: RouteParams | Observable<RouteParams> = { did: 5 }): void => {
     TestBed.configureTestingModule({
       imports: [DatasetDetailComponent, ...commonTestImports],
       providers: [
-        { provide: ActivatedRoute, useValue: { params: of(params), data: of({}) } },
+        { provide: ActivatedRoute, useValue: { params: isObservable(params) ? params : of(params), data: of({}) } },
         { provide: NzModalService, useValue: modalServiceStub },
         { provide: DatasetService, useValue: datasetServiceStub },
         { provide: NotificationService, useValue: notificationServiceStub },
@@ -496,6 +497,81 @@ describe("DatasetDetailComponent behavior", () => {
       expect(hubServiceStub.postView).not.toHaveBeenCalled();
     });
 
+    it("reads the did off the route as a number", () => {
+      // The router hands every param over as a string.
+      createComponent({ did: "5" });
+      fixture.detectChanges();
+
+      expect(component.did).toBe(5);
+      expect(hubServiceStub.getCounts).toHaveBeenCalledWith([EntityType.Dataset], [5], [ActionType.Like]);
+      expect(hubServiceStub.postView).toHaveBeenCalledWith(5, expect.any(Number), EntityType.Dataset);
+    });
+
+    it("refuses a route segment that is not a dataset id", () => {
+      createComponent({ did: "abc" });
+      fixture.detectChanges();
+
+      expect(component.did).toBeUndefined();
+      expect(datasetServiceStub.getDataset).not.toHaveBeenCalled();
+      expect(hubServiceStub.getCounts).not.toHaveBeenCalled();
+      expect(hubServiceStub.postView).not.toHaveBeenCalled();
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("This is not a valid dataset id");
+    });
+
+    it("reloads the like count, view count and liked state when the route moves to another dataset", () => {
+      // The router reuses this page for /dataset/5 -> /dataset/6: the component stays,
+      // and only its params emit again.
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      login();
+      fixture.detectChanges();
+
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 3 } }]));
+      hubServiceStub.postView.mockReturnValue(of(30));
+      hubServiceStub.isLiked.mockReturnValue(of([{ isLiked: true }]));
+      params.next({ did: "5" });
+      expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([3, 30, true]);
+
+      hubServiceStub.getCounts.mockReturnValue(of([{ counts: { like: 8 } }]));
+      hubServiceStub.postView.mockReturnValue(of(80));
+      hubServiceStub.isLiked.mockReturnValue(of([{ isLiked: false }]));
+      params.next({ did: "6" });
+
+      expect(component.did).toBe(6);
+      expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([8, 80, false]);
+      expect(hubServiceStub.getCounts).toHaveBeenLastCalledWith([EntityType.Dataset], [6], [ActionType.Like]);
+      expect(hubServiceStub.postView).toHaveBeenLastCalledWith(6, expect.any(Number), EntityType.Dataset);
+      expect(hubServiceStub.isLiked).toHaveBeenLastCalledWith([6], [EntityType.Dataset]);
+    });
+
+    it("keeps the new dataset's like count, view count and liked state when the old dataset's replies land late", () => {
+      // The route moves on to 6 while 5's hub calls are still in flight, and 5's replies
+      // arrive after 6's.
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      login();
+      fixture.detectChanges();
+
+      const lateViewCount = new Subject<number>();
+      const lateCounts = new Subject<unknown[]>();
+      const lateStatuses = new Subject<unknown[]>();
+      hubServiceStub.postView.mockReturnValueOnce(lateViewCount);
+      hubServiceStub.getCounts.mockReturnValueOnce(lateCounts);
+      hubServiceStub.isLiked.mockReturnValueOnce(lateStatuses);
+      params.next({ did: "5" });
+
+      hubServiceStub.postView.mockReturnValueOnce(of(80));
+      hubServiceStub.getCounts.mockReturnValueOnce(of([{ counts: { like: 8 } }]));
+      hubServiceStub.isLiked.mockReturnValueOnce(of([{ isLiked: false }]));
+      params.next({ did: "6" });
+
+      lateViewCount.next(30);
+      lateCounts.next([{ counts: { like: 3 } }]);
+      lateStatuses.next([{ isLiked: true }]);
+
+      expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([8, 80, false]);
+    });
+
     it("reads a counts response with no like tally as no likes, and no liked record as not liked", () => {
       // Both are legitimate wire shapes: `counts` is a partial map keyed by action
       // type, and `isLiked` simply omits entities the user has no record against.
@@ -580,6 +656,54 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(component.coverImageUrl).toBeNull();
       expect(datasetServiceStub.getDatasetCoverUrl).not.toHaveBeenCalled();
+    });
+
+    it("keeps the new dataset's details when the old dataset's reply lands late", () => {
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      fixture.detectChanges();
+
+      const lateDataset = new Subject<DashboardDataset>();
+      datasetServiceStub.getDataset.mockReturnValueOnce(lateDataset);
+      params.next({ did: "5" });
+      datasetServiceStub.getDataset.mockReturnValueOnce(
+        of(makeDashboardDataset({ dataset: makeDataset({ did: 6, name: "six" }) }))
+      );
+      params.next({ did: "6" });
+
+      lateDataset.next(makeDashboardDataset({ dataset: makeDataset({ name: "five" }) }));
+
+      expect(component.datasetName).toBe("six");
+    });
+
+    /** Opens 5 with its cover url still in flight, then moves on to 6, whose cover resolves at once. */
+    const leaveDatasetWithCoverInFlight = (): Subject<{ url: string }> => {
+      const params = new Subject<RouteParams>();
+      createComponent(params);
+      fixture.detectChanges();
+      const withCover = (did: number) =>
+        of(makeDashboardDataset({ dataset: makeDataset({ did, coverImage: "c.png" }) }));
+
+      const lateCoverUrl = new Subject<{ url: string }>();
+      datasetServiceStub.getDataset.mockReturnValueOnce(withCover(5));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValueOnce(lateCoverUrl);
+      params.next({ did: "5" });
+      datasetServiceStub.getDataset.mockReturnValueOnce(withCover(6));
+      datasetServiceStub.getDatasetCoverUrl.mockReturnValueOnce(of({ url: "http://cover/6" }));
+      params.next({ did: "6" });
+      return lateCoverUrl;
+    };
+
+    it("keeps the new dataset's cover when the old dataset's cover url lands late", () => {
+      leaveDatasetWithCoverInFlight().next({ url: "http://cover/5" });
+
+      expect(component.coverImageUrl).toBe("http://cover/6");
+    });
+
+    it("keeps the new dataset's cover when the old dataset's cover url fails late", () => {
+      leaveDatasetWithCoverInFlight().error(new Error("boom"));
+
+      expect(component.coverImageUrl).toBe("http://cover/6");
     });
 
     /**

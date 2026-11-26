@@ -275,6 +275,78 @@ describe("ModelDetailComponent", () => {
     expect(component.coverImageUrl).toBeNull();
   });
 
+  /** Serves the route params from a subject, so a test can move the page to another model in place. */
+  const createWithRoute = (): Subject<Record<string, string>> => {
+    const params = new Subject<Record<string, string>>();
+    TestBed.overrideProvider(ActivatedRoute, { useValue: { params, data: of({}) } });
+    create();
+    return params;
+  };
+
+  it("keeps the new model's view count, like count and liked state when the old model's replies land late", () => {
+    const params = createWithRoute();
+
+    const lateViewCount = new Subject<number>();
+    const lateCounts = new Subject<unknown[]>();
+    const lateStatuses = new Subject<unknown[]>();
+    hubService["postView"].mockReturnValueOnce(lateViewCount);
+    hubService["getCounts"].mockReturnValueOnce(lateCounts);
+    hubService["isLiked"].mockReturnValueOnce(lateStatuses);
+    params.next({ mid: "5" });
+
+    hubService["postView"].mockReturnValueOnce(of(80));
+    hubService["getCounts"].mockReturnValueOnce(of([{ counts: { like: 8 } }]));
+    hubService["isLiked"].mockReturnValueOnce(of([{ isLiked: false }]));
+    params.next({ mid: "6" });
+
+    lateViewCount.next(50);
+    lateCounts.next([{ counts: { like: 5 } }]);
+    lateStatuses.next([{ isLiked: true }]);
+
+    expect([component.likeCount, component.viewCount, component.isLiked]).toEqual([8, 80, false]);
+  });
+
+  it("keeps the new model's details when the old model's reply lands late", () => {
+    const params = createWithRoute();
+
+    const lateModel = new Subject<unknown>();
+    modelService["getModel"].mockReturnValueOnce(lateModel);
+    params.next({ mid: "5" });
+    modelService["getModel"].mockReturnValueOnce(of(dashboardModel({ model: { mid: 6, name: "six" } })));
+    params.next({ mid: "6" });
+
+    lateModel.next(dashboardModel({ model: { name: "five" } }));
+
+    expect(component.modelName).toBe("six");
+  });
+
+  /** Opens 5 with its cover url still in flight, then moves on to 6, whose cover resolves at once. */
+  const leaveModelWithCoverInFlight = (): Subject<{ url: string }> => {
+    const params = createWithRoute();
+    const withCover = (mid: number) => of(dashboardModel({ model: { mid, coverImage: "v1/cover.png" } }));
+
+    const lateCoverUrl = new Subject<{ url: string }>();
+    modelService["getModel"].mockReturnValueOnce(withCover(5));
+    modelService["getModelCoverUrl"].mockReturnValueOnce(lateCoverUrl);
+    params.next({ mid: "5" });
+    modelService["getModel"].mockReturnValueOnce(withCover(6));
+    modelService["getModelCoverUrl"].mockReturnValueOnce(of({ url: "http://cover/6" }));
+    params.next({ mid: "6" });
+    return lateCoverUrl;
+  };
+
+  it("keeps the new model's cover when the old model's cover url lands late", () => {
+    leaveModelWithCoverInFlight().next({ url: "http://cover/5" });
+
+    expect(component.coverImageUrl).toBe("http://cover/6");
+  });
+
+  it("keeps the new model's cover when the old model's cover url fails late", () => {
+    leaveModelWithCoverInFlight().error(new Error("boom"));
+
+    expect(component.coverImageUrl).toBe("http://cover/6");
+  });
+
   // ─── versions and the file tree ─────────────────────────────────────────────
 
   it("selects the newest version and opens its first file", () => {
