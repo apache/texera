@@ -203,7 +203,7 @@ object DocumentFactory {
             storageKey
           )
           .getOrElse(
-            throw new DocumentNotFoundException("No storage is found for the given URI")
+            throw new DocumentNotFoundException(s"No storage is found for the given URI: $uri")
           )
 
         val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())

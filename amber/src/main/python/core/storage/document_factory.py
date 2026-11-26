@@ -151,7 +151,7 @@ class DocumentFactory:
             )
 
             if table is None:
-                raise ValueError("No storage is found for the given URI")
+                raise ValueError(f"No storage is found for the given URI: {uri}")
 
             amber_schema = Schema(table.schema().as_arrow())
 
