@@ -21,19 +21,16 @@ package org.apache.texera.web.resource.dashboard.admin.execution
 
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.DatabaseFlatSpec
-import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_OF_USER
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions, WorkflowVersion}
 import org.apache.texera.web.ExecutionDatabaseTestSupport
-import org.apache.texera.web.resource.dashboard.DashboardWorkflowFixtureSupport
 
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class AdminExecutionResourceSpec
-    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true)
-    with ExecutionDatabaseTestSupport
-    with DashboardWorkflowFixtureSupport {
+    extends DatabaseFlatSpec(cleanupAfterEach = true)
+    with ExecutionDatabaseTestSupport {
 
   // MockTexeraDB's embedded Postgres is a JVM singleton shared by all suites, which
   // run sequentially. Random ids keep this suite's rows from colliding with data other
@@ -48,8 +45,6 @@ class AdminExecutionResourceSpec
   private val resource = new AdminExecutionResource()
 
   override protected def onBeforeEach(): Unit = {
-    cleanup()
-
     testUser = insertUser(testUid, "test_user", "admin_exec_test@example.com")
     insertWorkflow(
       testWid,
@@ -157,7 +152,7 @@ class AdminExecutionResourceSpec
 
   "listWorkflows" should "return the seeded execution with the mapped status and access flag" in {
     seedExecution(status = 3.toByte, name = "completed-run")
-    seedAccess(testUser.getUid, testWid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(testUser.getUid, testWid, PrivilegeEnum.READ)
 
     val rows = list()
 
@@ -181,11 +176,7 @@ class AdminExecutionResourceSpec
 
   it should "report access = true for the owner without an access row" in {
     seedExecution()
-    getDSLContext
-      .insertInto(WORKFLOW_OF_USER)
-      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(testUid))
-      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
-      .execute()
+    insertWorkflowOfUser(testUid, testWid)
 
     list().head.access shouldBe true
   }

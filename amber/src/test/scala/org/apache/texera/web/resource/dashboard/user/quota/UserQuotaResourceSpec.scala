@@ -58,16 +58,11 @@ class UserQuotaResourceSpec
     testUser.setEmail("quota@example.com")
     userDao.insert(testUser)
 
-    testWorkflow = seedWorkflow(testWid, "quota_workflow_")
-    testVersion = seedVersion(testWid)
+    testWorkflow = insertWorkflow(testWid, "quota_workflow_" + uniqueSuffix, description = "desc")
+    testVersion = insertWorkflowVersion(testWid)
   }
 
   private def cleanupTestData(): Unit = {
-    val vidSubquery = getDSLContext
-      .select(WORKFLOW_VERSION.VID)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(testWid))
-
     getDSLContext
       .deleteFrom(OPERATOR_PORT_EXECUTIONS)
       .where(
@@ -90,25 +85,28 @@ class UserQuotaResourceSpec
         )
       )
       .execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.VID.in(vidSubquery))
-      .execute()
-    deleteWorkflow(testWid, WORKFLOW_USER_ACCESS.UID.eq(testUid), WORKFLOW_OF_USER.UID.eq(testUid))
+    cleanupWorkflowRecords(Seq(testWid), includeUserAccess = true)
     getDSLContext.deleteFrom(DATASET).where(DATASET.OWNER_UID.eq(testUid)).execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.eq(testUid)).execute()
   }
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
-  private def insertOwnership(): Unit = seedOwnership(testUid, testWid)
+  private def insertOwnership(): Unit = insertWorkflowOfUser(testUid, testWid)
 
-  private def insertAccess(): Unit = seedAccess(testUid, testWid, PrivilegeEnum.READ)
+  private def insertAccess(): Unit = insertWorkflowUserAccess(testUid, testWid, PrivilegeEnum.READ)
 
-  private def insertWriteAccess(): Unit = seedAccess(testUid, testWid, PrivilegeEnum.WRITE)
+  private def insertWriteAccess(): Unit =
+    insertWorkflowUserAccess(testUid, testWid, PrivilegeEnum.WRITE)
 
   private def insertExecution(): WorkflowExecutions =
-    seedExecution(testVersion.getVid, testUid, "exec-" + uniqueSuffix)
+    insertWorkflowExecution(
+      testVersion.getVid,
+      testUid,
+      name = "exec-" + uniqueSuffix,
+      envVersion = "test-env-1.0",
+      logLocation = Some("")
+    )
 
   private def insertDataset(): Dataset = seedDataset(testUid, "quota_ds_")
 

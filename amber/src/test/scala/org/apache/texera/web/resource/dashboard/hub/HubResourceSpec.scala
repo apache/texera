@@ -146,8 +146,8 @@ class HubResourceSpec
   }
 
   private def seedWorkflowOwner(wfId: Int, owner: Int): Unit = {
-    seedOwnership(owner, wfId)
-    seedAccess(owner, wfId, PrivilegeEnum.WRITE)
+    insertWorkflowOfUser(owner, wfId)
+    insertWorkflowUserAccess(owner, wfId, PrivilegeEnum.WRITE)
   }
 
   private def seedDataset(
@@ -586,7 +586,7 @@ class HubResourceSpec
 
   it should "ignore a grant, which is what the per-kind owners endpoints answer instead" in {
     // The bug itself: a grant without anything published must not make you an owner here.
-    seedAccess(likerUid, wid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(likerUid, wid, PrivilegeEnum.READ)
 
     hub.getPublicOwners(Wf).asScala should not contain "hub_liker@test.com"
   }
@@ -937,8 +937,8 @@ class HubResourceSpec
     seedWorkflow(810901, "wf_access", withOwnerRows = false)
     seedDataset(820901, "ds_access")
     // Disjoint grantee sets so reading the wrong access table cannot pass.
-    seedAccess(ownerUid, 810901, PrivilegeEnum.WRITE)
-    seedAccess(likerUid, 810901, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(ownerUid, 810901, PrivilegeEnum.WRITE)
+    insertWorkflowUserAccess(likerUid, 810901, PrivilegeEnum.READ)
     datasetGrants.insert(820901, thirdUid, PrivilegeEnum.READ)
 
     accessByEntity(types(Wf, Ds), ids(810901, 820901)) shouldBe Map(
@@ -972,7 +972,7 @@ class HubResourceSpec
 
   it should "emit a single response when the same entity id is requested twice" in {
     seedWorkflow(810903, "wf_dup_request", withOwnerRows = false)
-    seedAccess(ownerUid, 810903, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(ownerUid, 810903, PrivilegeEnum.READ)
 
     val responses = hub.userAccess(types(Wf, Wf), ids(810903, 810903)).asScala
 
@@ -1056,7 +1056,7 @@ class HubResourceSpec
   // mapWorkflowEntries is what keeps that one false.
   it should "clear isOwner for a workflow with no ownership row, for an authenticated and an anonymous caller" in {
     val id = seedWorkflow(811005, "wf_unowned", withOwnerRows = false)
-    seedAccess(ownerUid, id, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(ownerUid, id, PrivilegeEnum.READ)
 
     val entry = fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head
     entry.ownerId shouldBe null
@@ -1066,8 +1066,8 @@ class HubResourceSpec
 
   it should "return one entry per workflow, carrying only the viewer's access level" in {
     val id = seedWorkflow(811008, "wf_shared_twice")
-    seedAccess(likerUid, id, PrivilegeEnum.READ)
-    seedAccess(thirdUid, id, PrivilegeEnum.WRITE)
+    insertWorkflowUserAccess(likerUid, id, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(thirdUid, id, PrivilegeEnum.WRITE)
 
     def levelsSeenBy(uid: Integer) =
       fetchDashboardWorkflowsByWids(Seq(id), uid).map(_.accessLevel)

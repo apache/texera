@@ -56,9 +56,6 @@ class WorkflowAccessResourceSpec extends WorkflowAccessDatabaseSpec(withTargetUs
     targetUser = newUser(targetUserUid, "target_user", "target@test.com")
     val testWorkflow = newWorkflow()
 
-    // Clean up before each test
-    cleanup()
-
     // Insert test data
     userDao.insert(owner)
     userDao.insert(userWithWrite)

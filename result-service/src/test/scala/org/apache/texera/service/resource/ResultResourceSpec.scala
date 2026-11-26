@@ -187,10 +187,7 @@ class ResultResourceSpec extends DatabaseFlatSpec() {
     vid = version.getVid
   }
 
-  override protected def afterAll(): Unit = {
-    resources.after()
-    super.afterAll()
-  }
+  override protected def onAfterAll(): Unit = resources.after()
 
   override protected def cleanup(): Unit = {
     getDSLContext.deleteFrom(OPERATOR_PORT_EXECUTIONS).execute()

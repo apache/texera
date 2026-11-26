@@ -56,9 +56,7 @@ import scala.collection.mutable.ArrayBuffer
 // throws where TryLockRequest copes. Case (2) predates this spec and is pinned
 // by "AcquireLockRequest should rethrow when the holder slot holds the null
 // sentinel" as current behaviour, not as desired behaviour.
-class CollaborationResourceSpec
-    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true)
-    with MockFactory {
+class CollaborationResourceSpec extends DatabaseFlatSpec(cleanupAfterEach = true) with MockFactory {
 
   private var resource: CollaborationResource = _
 
@@ -81,7 +79,6 @@ class CollaborationResourceSpec
     sessionIdUIdMap.clear()
     wIdSessionIdsMap.clear()
     wIdLockHolderSessionIdMap.clear()
-    cleanup()
     resource = new CollaborationResource()
   }
 

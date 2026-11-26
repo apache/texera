@@ -20,19 +20,16 @@
 package org.apache.texera.web.resource.dashboard
 
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos._
 import org.apache.texera.dao.jooq.generated.tables.pojos._
-import org.jooq.{Condition, DSLContext}
+import org.apache.texera.web.ExecutionDatabaseTestSupport
+import org.jooq.DSLContext
 
 import java.sql.Timestamp
 import java.util.UUID
 
-private[dashboard] trait DashboardWorkflowFixtureSupport { self: MockTexeraDB =>
-  private lazy val workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-  private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
-
+private[dashboard] trait DashboardWorkflowFixtureSupport extends ExecutionDatabaseTestSupport {
+  self: MockTexeraDB =>
   protected lazy val workflowDao = new WorkflowDao(getDSLContext.configuration())
 
   protected def uniqueSuffix: String = UUID.randomUUID().toString.substring(0, 8)
@@ -62,46 +59,12 @@ private[dashboard] trait DashboardWorkflowFixtureSupport { self: MockTexeraDB =>
     workflow.setLastModifiedTime(now)
     workflow
   }
-
-  protected def seedOwnership(uid: Int, wid: Int): Unit = {
-    val ownership = new WorkflowOfUser
-    ownership.setUid(uid)
-    ownership.setWid(wid)
-    workflowOfUserDao.insert(ownership)
-  }
-
-  protected def seedAccess(uid: Int, wid: Int, privilege: PrivilegeEnum): Unit = {
-    val access = new WorkflowUserAccess
-    access.setUid(uid)
-    access.setWid(wid)
-    access.setPrivilege(privilege)
-    workflowUserAccessDao.insert(access)
-  }
 }
 
 private[dashboard] trait UserDashboardFixtureSupport extends DashboardWorkflowFixtureSupport {
   self: MockTexeraDB =>
   protected lazy val userDao = new UserDao(getDSLContext.configuration())
-  protected lazy val workflowExecutionsDao = new WorkflowExecutionsDao(
-    getDSLContext.configuration()
-  )
-  private lazy val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
   private lazy val datasetDao = new DatasetDao(getDSLContext.configuration())
-
-  protected def seedWorkflow(wid: Int, namePrefix: String): Workflow = {
-    val workflow = fixtureWorkflow(wid, namePrefix + uniqueSuffix, "desc", isPublic = null)
-    workflowDao.insert(workflow)
-    workflow
-  }
-
-  protected def seedVersion(wid: Int): WorkflowVersion = {
-    val version = new WorkflowVersion
-    version.setWid(wid)
-    version.setContent("{}")
-    version.setCreationTime(now)
-    workflowVersionDao.insert(version)
-    version
-  }
 
   protected def seedDataset(uid: Int, namePrefix: String): Dataset = {
     val dataset = new Dataset
@@ -114,32 +77,6 @@ private[dashboard] trait UserDashboardFixtureSupport extends DashboardWorkflowFi
     dataset.setCreationTime(now)
     datasetDao.insert(dataset)
     dataset
-  }
-
-  protected def seedExecution(vid: Integer, uid: Int, name: String): WorkflowExecutions = {
-    val execution = new WorkflowExecutions
-    execution.setVid(vid)
-    execution.setUid(uid)
-    execution.setStatus(0.toByte)
-    execution.setResult("")
-    execution.setLogLocation("")
-    execution.setStartingTime(now)
-    execution.setBookmarked(false)
-    execution.setName(name)
-    execution.setEnvironmentVersion("test-env-1.0")
-    workflowExecutionsDao.insert(execution)
-    execution
-  }
-
-  protected def deleteWorkflow(
-      wid: Int,
-      accessFilter: Condition,
-      ownershipFilter: Condition
-  ): Unit = {
-    getDSLContext.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(wid)).execute()
-    getDSLContext.deleteFrom(WORKFLOW_USER_ACCESS).where(accessFilter).execute()
-    getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(ownershipFilter).execute()
-    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(wid)).execute()
   }
 }
 

@@ -32,7 +32,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 import java.sql.Timestamp
 
 abstract class WorkflowAccessDatabaseSpec(withTargetUser: Boolean)
-    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true) {
+    extends DatabaseFlatSpec(cleanupAfterEach = true) {
 
   protected val ownerUid = 1000 + scala.util.Random.nextInt(1000)
   protected val userWithWriteUid = 2000 + scala.util.Random.nextInt(1000)

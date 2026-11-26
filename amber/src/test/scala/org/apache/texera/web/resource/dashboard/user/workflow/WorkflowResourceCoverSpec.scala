@@ -63,9 +63,9 @@ class WorkflowResourceCoverSpec
     userDao.insert(stranger)
     workflowDao.insert(workflow)
 
-    seedOwnership(ownerUid, testWid)
-    seedAccess(ownerUid, testWid, PrivilegeEnum.WRITE)
-    seedAccess(readerUid, testWid, PrivilegeEnum.READ)
+    insertWorkflowOfUser(ownerUid, testWid)
+    insertWorkflowUserAccess(ownerUid, testWid, PrivilegeEnum.WRITE)
+    insertWorkflowUserAccess(readerUid, testWid, PrivilegeEnum.READ)
   }
 
   private def session(user: User): SessionUser = new SessionUser(user)

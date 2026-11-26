@@ -50,7 +50,7 @@ class AdminUserResourceSpec
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.UID.in(primaryUid, secondaryUid))
       .execute()
-    deleteWorkflow(testWid, WORKFLOW_USER_ACCESS.WID.eq(testWid), WORKFLOW_OF_USER.WID.eq(testWid))
+    cleanupWorkflowRecords(Seq(testWid), includeUserAccess = true)
     getDSLContext
       .deleteFrom(DATASET)
       .where(DATASET.OWNER_UID.in(primaryUid, secondaryUid))
@@ -92,13 +92,20 @@ class AdminUserResourceSpec
       .set(AUTH_PROVIDER.PASSWORD, password)
       .execute()
 
-  private def seedWorkflow(): Workflow = seedWorkflow(testWid, "admin_user_spec_wf_")
+  private def seedWorkflow(): Workflow =
+    insertWorkflow(testWid, "admin_user_spec_wf_" + uniqueSuffix, description = "desc")
 
   private def seedDataset(uid: Int): Dataset = seedDataset(uid, "admin_user_spec_ds_")
 
   private def seedExecution(uid: Int): WorkflowExecutions = {
     seedWorkflow()
-    seedExecution(seedVersion(testWid).getVid, uid, "admin_user_spec_exec")
+    insertWorkflowExecution(
+      insertWorkflowVersion(testWid).getVid,
+      uid,
+      name = "admin_user_spec_exec",
+      envVersion = "test-env-1.0",
+      logLocation = Some("")
+    )
   }
 
   // ─── list ───────────────────────────────────────────────────────────────
@@ -325,7 +332,7 @@ class AdminUserResourceSpec
   it should "return the workflows the user created" in {
     userDao.insert(makeUser(primaryUid, "creator"))
     val workflow = seedWorkflow()
-    seedOwnership(primaryUid, testWid)
+    insertWorkflowOfUser(primaryUid, testWid)
 
     val created = resource.getCreatedWorkflow(primaryUid)
     created.map(_.workflowId) shouldBe List(Integer.valueOf(testWid))
@@ -342,7 +349,7 @@ class AdminUserResourceSpec
   it should "return the workflow ids the user can access" in {
     userDao.insert(makeUser(primaryUid, "viewer"))
     seedWorkflow()
-    seedAccess(primaryUid, testWid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(primaryUid, testWid, PrivilegeEnum.READ)
 
     resource.getAccessedWorkflow(primaryUid).asScala should contain(Integer.valueOf(testWid))
   }
@@ -350,11 +357,7 @@ class AdminUserResourceSpec
   it should "include a workflow the user owns without an access row" in {
     userDao.insert(makeUser(primaryUid, "owner"))
     seedWorkflow()
-    getDSLContext
-      .insertInto(WORKFLOW_OF_USER)
-      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(primaryUid))
-      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
-      .execute()
+    insertWorkflowOfUser(primaryUid, testWid)
 
     resource.getAccessedWorkflow(primaryUid).asScala.toList shouldBe List(Integer.valueOf(testWid))
   }

@@ -34,8 +34,6 @@ class WorkflowAccessSpec extends WorkflowAccessDatabaseSpec(withTargetUser = fal
     val workflowDao = new WorkflowDao(getDSLContext.configuration())
     super.beforeEach()
 
-    cleanup()
-
     // The workflow's owner, a WRITE grantee and a READ grantee.
     val (owner, writer, reader) = newAccessUsers()
     List(owner, writer, reader).foreach(userDao.insert(_))
