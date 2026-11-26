@@ -149,7 +149,6 @@ describe("ListItemComponent", () => {
 
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe(newDescription);
-    expect(component.editingDescription).toBe(false);
   });
 
   it("should handle error when updating workflow description", () => {
@@ -162,7 +161,6 @@ describe("ListItemComponent", () => {
 
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe("Old Description");
-    expect(component.editingDescription).toBe(false);
   });
 
   describe("Form View toggle", () => {

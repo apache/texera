@@ -80,14 +80,9 @@ export class VersionsListComponent implements OnInit {
     if (this.versionsList == undefined) {
       return;
     }
-    if (!$event) {
-      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
-        this.versionsList[index].expand = false;
-      }
-    } else {
-      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
-        this.versionsList[index].expand = true;
-      }
+    const expand = !!$event;
+    while (++index < this.versionsList.length && !this.versionsList[index].importance) {
+      this.versionsList[index].expand = expand;
     }
   }
 

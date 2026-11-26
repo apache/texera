@@ -24,7 +24,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
 import { isEqual } from "lodash";
-import { OperatorLink, OperatorPredicate, Point } from "../../../../workspace/types/workflow-common.interface";
+import { OperatorPredicate } from "../../../../workspace/types/workflow-common.interface";
 import { WorkflowVersionEntry } from "../../../type/workflow-version-entry";
 import { AppSettings } from "../../../../common/app-setting";
 import { filter, map } from "rxjs/operators";
@@ -32,20 +32,10 @@ import { WorkflowUtilService } from "../../../../workspace/service/workflow-grap
 
 import { HttpClient } from "@angular/common/http";
 
-export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
+const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
-type WorkflowContentKeys = keyof WorkflowContent;
-type Element = OperatorLink | OperatorPredicate | Point;
 type DifferentOpIDsList = {
   [key in "modified" | "added" | "deleted"]: string[];
-};
-
-// only element types specified in this list are consider when calculating the difference between workflows
-const ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC: Partial<WorkflowContentKeys>[] = ["operators"];
-// it maps a name of the element type to its ID field name used in WorkflowContent
-const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
-  operators: "operatorID",
-  commentBoxes: "commentBoxID",
 };
 
 @Injectable({
@@ -66,11 +56,6 @@ export class WorkflowVersionService {
     private http: HttpClient
   ) {}
 
-  public displayWorkflowVersions(): void {
-    // unhighlight all the current highlighted operators and links
-    const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
-    this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
-  }
   public setDisplayParticularVersion(flag: boolean, versionId?: number, displayedVersionId?: number): void {
     if (flag) {
       if (versionId != undefined) {
@@ -126,15 +111,19 @@ export class WorkflowVersionService {
     differentOpIDsList.modified.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"));
     differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"));
 
+    this.updateDeletedLinkBrackets(differentOpIDsList, "255,0,0,0.5");
+  }
+
+  private updateDeletedLinkBrackets(differentOpIDsList: DifferentOpIDsList, color: string) {
     if (differentOpIDsList.deleted.length > 0) {
       const tempWorkflow = this.workflowActionService.getTempWorkflow();
       if (tempWorkflow != undefined) {
         for (const link of tempWorkflow.content.links) {
           if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined) {
-            this.highlightOpBracket(link.target.operatorID, "255,0,0,0.5", "left-");
+            this.highlightOpBracket(link.target.operatorID, color, "left-");
           }
           if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined) {
-            this.highlightOpBracket(link.source.operatorID, "255,0,0,0.5", "right-");
+            this.highlightOpBracket(link.source.operatorID, color, "right-");
           }
         }
       }
@@ -157,60 +146,35 @@ export class WorkflowVersionService {
       .attr("path." + position + "boundary/stroke", "rgba(" + color + ")");
   }
 
-  // TODO: the logic of the function will be refined later
   public getWorkflowsDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
-    let eleType;
     this.operatorPropertyDiff = {};
     const difference: DifferentOpIDsList = { added: [], modified: [], deleted: [] };
-    // get a list of element types that are changed between versions
-    const eleTypeWithDiffList: WorkflowContentKeys[] = [];
-    for (eleType of ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC) {
-      if (!isEqual(workflowContent1[eleType], workflowContent2[eleType])) {
-        eleTypeWithDiffList.push(eleType);
+    if (isEqual(workflowContent1.operators, workflowContent2.operators)) {
+      return difference;
+    }
+
+    const operatorsById = (workflow: WorkflowContent): Record<string, OperatorPredicate> => {
+      const operators: Record<string, OperatorPredicate> = {};
+      for (const operator of workflow.operators) {
+        operators[operator.operatorID] = operator;
+      }
+      return operators;
+    };
+
+    const firstById = operatorsById(workflowContent1);
+    const secondById = operatorsById(workflowContent2);
+    for (const id of Object.keys(secondById)) {
+      if (!Object.hasOwn(firstById, id)) {
+        difference.added.push(id);
+      } else if (!isEqual(firstById[id], secondById[id])) {
+        difference.modified.push(id);
+        this.operatorPropertyDiff[id] = this.getOperatorsDifference(firstById[id], secondById[id]);
       }
     }
 
-    for (eleType of eleTypeWithDiffList) {
-      if (ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC.includes(eleType)) {
-        let eleID;
-        // return an object with key: ID of the element, value: detailed content of the element
-        let getEleIDMap = function (workflowContent: WorkflowContent, eleType: WorkflowContentKeys) {
-          const elements = workflowContent[eleType] as Element[];
-          const eleIDtoContentMap: { [key: string]: Element } = {};
-          for (const element of elements) {
-            eleIDtoContentMap[element[ID_FILED_FOR_ELEMENTS_CONFIG[eleType] as keyof Element]] = element;
-          }
-          return eleIDtoContentMap;
-        };
-
-        const eleIDtoContentMap1 = getEleIDMap(workflowContent1, eleType);
-        const eleIDtoContentMap2 = getEleIDMap(workflowContent2, eleType);
-
-        for (eleID of Object.keys(eleIDtoContentMap2)) {
-          if (!Object.keys(eleIDtoContentMap1).includes(eleID)) {
-            // there is an addition if the element ID exist in historical but not current workflow version
-            difference.added.push(eleID);
-          } else {
-            // there might be a modification if the element ID exist in both historical and current workflow versions
-            if (!isEqual(eleIDtoContentMap1[eleID], eleIDtoContentMap2[eleID])) {
-              // if the contents in two workflow versions are different for the same element ID
-              difference.modified.push(eleID);
-              if (eleType == "operators") {
-                this.operatorPropertyDiff[eleID] = this.getOperatorsDifference(
-                  eleIDtoContentMap1[eleID] as OperatorPredicate,
-                  eleIDtoContentMap2[eleID] as OperatorPredicate
-                );
-              }
-            }
-          }
-        }
-
-        for (eleID of Object.keys(eleIDtoContentMap1)) {
-          if (!Object.keys(eleIDtoContentMap2).includes(eleID)) {
-            // there is a deletion if the element ID exist in current but not historical workflow version
-            difference.deleted.push(eleID);
-          }
-        }
+    for (const id of Object.keys(firstById)) {
+      if (!Object.hasOwn(secondById, id)) {
+        difference.deleted.push(id);
       }
     }
     return difference;
@@ -293,19 +257,7 @@ export class WorkflowVersionService {
       this.highlightOpBoundary(id, "0,0,0,0");
     }
 
-    if (differentOpIDsList.deleted.length > 0) {
-      const tempWorkflow = this.workflowActionService.getTempWorkflow();
-      if (tempWorkflow != undefined) {
-        for (const link of tempWorkflow.content.links) {
-          if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined) {
-            this.highlightOpBracket(link.target.operatorID, "0,0,0,0", "left-");
-          }
-          if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined) {
-            this.highlightOpBracket(link.source.operatorID, "0,0,0,0", "right-");
-          }
-        }
-      }
-    }
+    this.updateDeletedLinkBrackets(differentOpIDsList, "0,0,0,0");
     this.operatorPropertyDiff = {};
   }
 

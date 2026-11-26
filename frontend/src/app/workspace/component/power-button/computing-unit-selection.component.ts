@@ -36,7 +36,6 @@ import { WorkflowExecutionsService } from "../../../dashboard/service/user/workf
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import {
@@ -1260,7 +1259,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: pkgs => {
-          env.userPackages = env.userPackages = this.parsePackageRows(pkgs);
+          env.userPackages = this.parsePackageRows(pkgs);
           this.cdr.detectChanges();
         },
         error: (e: unknown) => console.error("Failed to refresh user packages", e),
@@ -1313,8 +1312,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     const userPackageNames = new Set(env.userPackages.map(pkg => pkg.name.trim().toLowerCase()));
 
-    const skippedMessages: string[] = [];
-
     const packageArray =
       env.newPackages
         ?.filter(pkg => pkg.name?.trim())
@@ -1334,13 +1331,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
           return true;
         })
         .map(pkg => `${pkg.name.trim()}${pkg.versionOp}${(pkg.version ?? "").trim()}`) ?? [];
-
-    if (skippedMessages.length > 0) {
-      this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}` + skippedMessages.join("\n") + "\n";
-
-      this.updatePrettyPipOutput(index);
-      this.scrollToBottomOfPipModal(index);
-    }
 
     if (packageArray.length === 0) {
       this.pves[index].newPackages = [];
