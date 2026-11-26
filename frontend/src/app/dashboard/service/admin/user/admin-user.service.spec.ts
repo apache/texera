@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { TestBed } from "@angular/core/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../../../common/testing/http-service-test-utils";
 import {
   AdminUserService,
   USER_LIST_URL,
@@ -38,12 +38,7 @@ describe("AdminUserService", () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AdminUserService],
-    });
-    service = TestBed.inject(AdminUserService);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service, httpMock } = setupHttpServiceTest(AdminUserService));
   });
 
   afterEach(() => {
@@ -59,35 +54,22 @@ describe("AdminUserService", () => {
     let result: readonly any[] | undefined;
     service.getUserList().subscribe(r => (result = r));
 
-    const req = httpMock.expectOne(USER_LIST_URL);
-    expect(req.request.method).toEqual("GET");
-    req.flush(users);
-
+    flushHttpRequest(httpMock, USER_LIST_URL, "GET", users);
     expect(result).toEqual(users);
   });
 
   it("updateUser() PUTs the full user record", () => {
     service.updateUser(1, "Alice", "alice@x.com", Role.ADMIN, "vip").subscribe();
 
-    const req = httpMock.expectOne(USER_UPDATE_URL);
-    expect(req.request.method).toEqual("PUT");
-    expect(req.request.body).toEqual({
-      uid: 1,
-      name: "Alice",
-      email: "alice@x.com",
-      role: Role.ADMIN,
-      comment: "vip",
+    flushHttpRequest(httpMock, USER_UPDATE_URL, "PUT", null, {
+      body: { uid: 1, name: "Alice", email: "alice@x.com", role: Role.ADMIN, comment: "vip" },
     });
-    req.flush(null);
   });
 
   it("addUser() POSTs an empty body to the trailing-slash add endpoint", () => {
     service.addUser().subscribe();
 
-    const req = httpMock.expectOne(`${USER_ADD_URL}/`);
-    expect(req.request.method).toEqual("POST");
-    expect(req.request.body).toEqual({});
-    req.flush({});
+    flushHttpRequest(httpMock, `${USER_ADD_URL}/`, "POST", {}, { body: {} });
   });
 
   const userResourceQueryCases: { name: string; call: (uid: number) => Observable<unknown>; url: string }[] = [
@@ -101,19 +83,14 @@ describe("AdminUserService", () => {
     it(`${name}() sends the uid as a user_id query param`, () => {
       call(3).subscribe();
 
-      const req = httpMock.expectOne(r => r.url === url);
-      expect(req.request.method).toEqual("GET");
-      expect(req.request.params.get("user_id")).toEqual("3");
-      req.flush([]);
+      flushHttpRequest(httpMock, r => r.url === url, "GET", [], { params: { user_id: "3" } });
     });
   });
 
   it("deleteExecutionCollection() DELETEs the per-execution endpoint", () => {
     service.deleteExecutionCollection(77).subscribe();
 
-    const req = httpMock.expectOne(`${USER_DELETE_EXECUTION_COLLECTION}/77`);
-    expect(req.request.method).toEqual("DELETE");
-    req.flush(null);
+    flushHttpRequest(httpMock, `${USER_DELETE_EXECUTION_COLLECTION}/77`, "DELETE", null);
   });
 
   describe("error propagation", () => {

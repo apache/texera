@@ -19,7 +19,7 @@
 
 import { HttpErrorResponse } from "@angular/common/http";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { of, Subject, throwError } from "rxjs";
+import { Observable, of, Subject, throwError } from "rxjs";
 import { AdminClusterCapacityComponent } from "./admin-cluster-capacity.component";
 import { WorkflowComputingUnitManagingService } from "../../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { ClusterCapacity, ResourceCapacity } from "../../../../../common/type/workflow-computing-unit";
@@ -72,6 +72,16 @@ describe("AdminClusterCapacityComponent", () => {
   });
 
   const render = () => fixture.detectChanges();
+  const renderWith = (src: Observable<ClusterCapacity>) => {
+    vi.mocked(service.getClusterCapacity).mockReturnValue(src);
+    render();
+  };
+  const renderCapacity = (over: Partial<ClusterCapacity> = {}) => renderWith(of(capacity(over)));
+  const renderSequence = (...sources: Observable<ClusterCapacity>[]) => {
+    const spy = vi.mocked(service.getClusterCapacity);
+    sources.forEach(src => spy.mockReturnValueOnce(src));
+    render();
+  };
   const advance = (ms: number) => {
     vi.advanceTimersByTime(ms);
     fixture.detectChanges();
@@ -85,6 +95,9 @@ describe("AdminClusterCapacityComponent", () => {
     return row!;
   };
   const text = (resource: string, cell: string) => rowFor(resource).querySelector(`.${cell}`)?.textContent?.trim();
+  const expectCells = (resource: string, expected: Record<string, string | undefined>) => {
+    for (const [cell, value] of Object.entries(expected)) expect(text(resource, cell)).toBe(value);
+  };
   const figures = (resource: string) => ["allocated", "available", "total"].map(cell => text(resource, cell));
   const fillWidth = (resource: string) =>
     rowFor(resource).querySelector<HTMLElement>(".meter-fill")?.style.width ?? "no meter";
@@ -105,66 +118,34 @@ describe("AdminClusterCapacityComponent", () => {
     });
 
     it("says 1 core in the singular and groups the thousands", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(
-        of(capacity({ cpu: { total: 2_048_000, allocated: 250, available: 1000 } }))
-      );
-
-      render();
-
-      expect(text("CPU", "available")).toBe("1 core");
-      expect(text("CPU", "total")).toBe("2,048 cores");
+      renderCapacity({ cpu: { total: 2_048_000, allocated: 250, available: 1000 } });
+      expectCells("CPU", { available: "1 core", total: "2,048 cores" });
     });
 
     // 999m is just under a core, the figure that would round to a plural "1".
     it("shows cores to the millicore, without rounding", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(
-        of(capacity({ cpu: { total: 3920, allocated: 125, available: 999 } }))
-      );
-
-      render();
-
-      expect(text("CPU", "allocated")).toBe("0.125 cores");
-      expect(text("CPU", "available")).toBe("0.999 cores");
-      expect(text("CPU", "total")).toBe("3.92 cores");
+      renderCapacity({ cpu: { total: 3920, allocated: 125, available: 999 } });
+      expectCells("CPU", { allocated: "0.125 cores", available: "0.999 cores", total: "3.92 cores" });
     });
 
     it("picks the memory unit by size and drops a trailing .0", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(
-        of(capacity({ memory: { total: 2 * TiB, allocated: 512 * MiB, available: 1.5 * GiB } }))
-      );
-
-      render();
-
-      expect(text("Memory", "allocated")).toBe("512 MiB");
-      expect(text("Memory", "available")).toBe("1.5 GiB");
-      expect(text("Memory", "total")).toBe("2 TiB");
+      renderCapacity({ memory: { total: 2 * TiB, allocated: 512 * MiB, available: 1.5 * GiB } });
+      expectCells("Memory", { allocated: "512 MiB", available: "1.5 GiB", total: "2 TiB" });
     });
 
     it("moves up a unit when rounding reaches it, so it never shows 1,024 of the smaller one", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(of(capacity({ memory: used(GiB - 1, 1023.99 * MiB) })));
-
-      render();
-
-      expect(text("Memory", "allocated")).toBe("1 GiB");
-      expect(text("Memory", "total")).toBe("1 GiB");
+      renderCapacity({ memory: used(GiB - 1, 1023.99 * MiB) });
+      expectCells("Memory", { allocated: "1 GiB", total: "1 GiB" });
     });
 
     it("shows zero bytes as 0 B", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(of(capacity({ memory: used(64 * GiB, 0) })));
-
-      render();
-
-      expect(text("Memory", "allocated")).toBe("0 B");
-      expect(text("Memory", "percent-used")).toBe("0%");
+      renderCapacity({ memory: used(64 * GiB, 0) });
+      expectCells("Memory", { allocated: "0 B", "percent-used": "0%" });
     });
 
     // 15.99 of 16 cores must not read full, and 29 / 100 * 100 is 28.999… in floating point.
     it("rounds the share down, so 100% shows only when nothing is left", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(
-        of(capacity({ cpu: used(16000, 15990), memory: used(64 * GiB, 64 * GiB), gpu: used(100, 29) }))
-      );
-
-      render();
+      renderCapacity({ cpu: used(16000, 15990), memory: used(64 * GiB, 64 * GiB), gpu: used(100, 29) });
 
       expect(text("CPU", "percent-used")).toBe("99%");
       expect(text("Memory", "percent-used")).toBe("100%");
@@ -172,21 +153,14 @@ describe("AdminClusterCapacityComponent", () => {
     });
 
     it("shows a share over 100% when pods request more than the nodes offer, with the bar capped at full", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(of(capacity({ cpu: used(1000, 1500) })));
+      renderCapacity({ cpu: used(1000, 1500) });
 
-      render();
-
-      expect(text("CPU", "percent-used")).toBe("150%");
+      expectCells("CPU", { "percent-used": "150%", available: "0 cores" });
       expect(fillWidth("CPU")).toBe("100%");
-      expect(text("CPU", "available")).toBe("0 cores");
     });
 
     it("flags a resource from 80% as running low and from 95% as nearly full, with an icon and a label", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(
-        of(capacity({ cpu: used(100, 79), memory: used(100, 80), gpu: used(20, 19) }))
-      );
-
-      render();
+      renderCapacity({ cpu: used(100, 79), memory: used(100, 80), gpu: used(20, 19) });
 
       const status = (resource: string) => rowFor(resource).querySelector(".status-icon")?.getAttribute("aria-label");
       expect(rowFor("CPU").className).not.toMatch(/capacity-(warning|critical)/);
@@ -198,14 +172,10 @@ describe("AdminClusterCapacityComponent", () => {
     });
 
     it("says the cluster has none of a resource instead of dividing by zero", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(of(capacity({ gpu: used(0, 0) })));
+      renderCapacity({ gpu: used(0, 0) });
 
-      render();
-
-      expect(text("GPU", "usage")).toBe("None in the cluster");
-      expect(text("GPU", "percent-used")).toBeUndefined();
+      expectCells("GPU", { usage: "None in the cluster", "percent-used": undefined, total: "0" });
       expect(fillWidth("GPU")).toBe("no meter");
-      expect(text("GPU", "total")).toBe("0");
     });
 
     it("shows a resource the response leaves out or garbles as not reported, and still shows the rest", () => {
@@ -213,9 +183,7 @@ describe("AdminClusterCapacityComponent", () => {
         cpu: { total: "lots", allocated: 1, available: 1 },
         memory: capacity().memory,
       } as unknown as ClusterCapacity;
-      vi.mocked(service.getClusterCapacity).mockReturnValue(of(garbled));
-
-      render();
+      renderWith(of(garbled));
 
       for (const resource of ["CPU", "GPU"]) {
         expect(text(resource, "usage")).toBe("Not reported");
@@ -226,16 +194,10 @@ describe("AdminClusterCapacityComponent", () => {
 
     // A browser drops a negative width, so the bar would show full.
     it("shows a resource with a negative figure as not reported", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(
-        of(
-          capacity({
-            cpu: { total: 1000, allocated: -50, available: 1050 },
-            gpu: { total: -1, allocated: 0, available: 0 },
-          })
-        )
-      );
-
-      render();
+      renderCapacity({
+        cpu: { total: 1000, allocated: -50, available: 1050 },
+        gpu: { total: -1, allocated: 0, available: 0 },
+      });
 
       expect(text("CPU", "usage")).toBe("Not reported");
       expect(text("GPU", "usage")).toBe("Not reported");
@@ -245,9 +207,7 @@ describe("AdminClusterCapacityComponent", () => {
   describe("loading and polling", () => {
     it("renders nothing until the first answer", () => {
       const first = new Subject<ClusterCapacity>();
-      vi.mocked(service.getClusterCapacity).mockReturnValue(first);
-
-      render();
+      renderWith(first);
       expect(panel()).toBeNull();
 
       first.next(capacity());
@@ -257,9 +217,7 @@ describe("AdminClusterCapacityComponent", () => {
     });
 
     it("stays hidden and stops polling when computing units do not run on Kubernetes", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(failWith(404, "not on Kubernetes"));
-
-      render();
+      renderWith(failWith(404, "not on Kubernetes"));
       advance(120_000);
 
       expect(panel()).toBeNull();
@@ -267,9 +225,7 @@ describe("AdminClusterCapacityComponent", () => {
     });
 
     it("shows the cluster's message when the first load fails, e.g. a missing read grant", () => {
-      vi.mocked(service.getClusterCapacity).mockReturnValue(failWith(500, "nodes is forbidden"));
-
-      render();
+      renderWith(failWith(500, "nodes is forbidden"));
 
       expect(panel()).not.toBeNull();
       expect(alertText()).toContain("Could not load cluster capacity: nodes is forbidden");
@@ -278,12 +234,7 @@ describe("AdminClusterCapacityComponent", () => {
 
     // An empty message is falsy, and would leave the alert ending on a bare colon.
     it("still reports a failure whose message is empty, and says no details were given", () => {
-      vi.mocked(service.getClusterCapacity)
-        .mockReturnValueOnce(failWith(500, ""))
-        .mockReturnValueOnce(of(capacity()))
-        .mockReturnValueOnce(failWith(500, ""));
-
-      render();
+      renderSequence(failWith(500, ""), of(capacity()), failWith(500, ""));
       expect(alertText()).toContain("Could not load cluster capacity: the server gave no details");
 
       advance(30_000);
@@ -301,12 +252,7 @@ describe("AdminClusterCapacityComponent", () => {
     });
 
     it("keeps the last capacity and warns when a refresh fails, then clears the warning once one succeeds", () => {
-      vi.mocked(service.getClusterCapacity)
-        .mockReturnValueOnce(of(capacity()))
-        .mockReturnValueOnce(failWith(500, "boom"))
-        .mockReturnValueOnce(of(capacity({ cpu: used(16000, 8000) })));
-
-      render();
+      renderSequence(of(capacity()), failWith(500, "boom"), of(capacity({ cpu: used(16000, 8000) })));
       advance(30_000);
 
       expect(text("CPU", "percent-used")).toBe("25%");
@@ -333,9 +279,8 @@ describe("AdminClusterCapacityComponent", () => {
 
     it("ignores a refresh click while a fetch is still in flight", () => {
       const inFlight = new Subject<ClusterCapacity>();
-      vi.mocked(service.getClusterCapacity).mockReturnValueOnce(of(capacity())).mockReturnValueOnce(inFlight);
+      renderSequence(of(capacity()), inFlight);
 
-      render();
       const button = fixture.nativeElement.querySelector(".refresh-button");
       button.click();
       button.click();

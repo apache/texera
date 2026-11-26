@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../testing/http-service-test-utils";
 import { GmailService } from "./gmail.service";
 import { NotificationService } from "../notification/notification.service";
 
@@ -29,12 +29,9 @@ describe("GmailService", () => {
 
   beforeEach(() => {
     notificationSpy = { success: vi.fn(), error: vi.fn() };
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [GmailService, { provide: NotificationService, useValue: notificationSpy }],
-    });
-    service = TestBed.inject(GmailService);
-    httpTestingController = TestBed.inject(HttpTestingController);
+    ({ service, httpMock: httpTestingController } = setupHttpServiceTest(GmailService, [
+      { provide: NotificationService, useValue: notificationSpy },
+    ]));
   });
 
   afterEach(() => {
@@ -45,8 +42,7 @@ describe("GmailService", () => {
   it("should show a success toast when the backend accepts the send request", () => {
     service.sendEmail("subj", "body", "to@example.com");
 
-    const req = httpTestingController.expectOne(r => r.url.endsWith("/gmail/send") && r.method === "PUT");
-    req.flush(null);
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/send"), "PUT", null);
 
     expect(notificationSpy.success).toHaveBeenCalledWith("Email sent successfully");
     expect(notificationSpy.error).not.toHaveBeenCalled();
@@ -55,25 +51,26 @@ describe("GmailService", () => {
   it("sends the correct PUT body for sendEmail with an explicit receiver", () => {
     service.sendEmail("subj", "body", "to@example.com");
 
-    const req = httpTestingController.expectOne(r => r.url.endsWith("/gmail/send") && r.method === "PUT");
-    expect(req.request.body).toEqual({ receiver: "to@example.com", subject: "subj", content: "body" });
-    req.flush(null);
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/send"), "PUT", null, {
+      body: { receiver: "to@example.com", subject: "subj", content: "body" },
+    });
   });
 
   it("defaults the receiver to an empty string when it is omitted", () => {
     service.sendEmail("subj", "body");
 
-    const req = httpTestingController.expectOne(r => r.url.endsWith("/gmail/send") && r.method === "PUT");
-    expect(req.request.body).toEqual({ receiver: "", subject: "subj", content: "body" });
-    req.flush(null);
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/send"), "PUT", null, {
+      body: { receiver: "", subject: "subj", content: "body" },
+    });
   });
 
   it("shows an error toast and logs to the console on a failed send", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     service.sendEmail("subj", "body", "to@example.com");
 
-    const req = httpTestingController.expectOne(r => r.url.endsWith("/gmail/send") && r.method === "PUT");
-    req.flush("boom", { status: 502, statusText: "Bad Gateway" });
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/send"), "PUT", "boom", {
+      error: { status: 502, statusText: "Bad Gateway" },
+    });
 
     expect(notificationSpy.error).toHaveBeenCalledWith("Failed to send email. Please try again or contact admin.");
     expect(notificationSpy.success).not.toHaveBeenCalled();
@@ -84,10 +81,9 @@ describe("GmailService", () => {
     let emitted: string | undefined;
     service.getSenderEmail().subscribe(value => (emitted = value as string));
 
-    const req = httpTestingController.expectOne(
-      r => r.url.endsWith("/gmail/sender/email") && r.method === "GET" && r.responseType === "text"
-    );
-    req.flush("sender@example.com");
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/sender/email"), "GET", "sender@example.com", {
+      responseType: "text",
+    });
 
     expect(emitted).toBe("sender@example.com");
     expect(notificationSpy.success).not.toHaveBeenCalled();
@@ -97,19 +93,15 @@ describe("GmailService", () => {
   it("sends the correct POST body for notifyUnauthorizedLogin", () => {
     service.notifyUnauthorizedLogin("u@example.com", "ACME", "for research");
 
-    const req = httpTestingController.expectOne(
-      r => r.url.endsWith("/gmail/notify-unauthorized") && r.method === "POST"
-    );
-    expect(req.request.body).toEqual({ receiver: "u@example.com", affiliation: "ACME", reason: "for research" });
-    req.flush(null);
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/notify-unauthorized"), "POST", null, {
+      body: { receiver: "u@example.com", affiliation: "ACME", reason: "for research" },
+    });
   });
 
   it("shows a success toast when the unauthorized-login notification is accepted", () => {
     service.notifyUnauthorizedLogin("u@example.com", "ACME", "for research");
 
-    httpTestingController
-      .expectOne(r => r.url.endsWith("/gmail/notify-unauthorized") && r.method === "POST")
-      .flush(null);
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/notify-unauthorized"), "POST", null);
 
     expect(notificationSpy.success).toHaveBeenCalledWith("An admin has been notified about your account request.");
   });
@@ -118,9 +110,9 @@ describe("GmailService", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     service.notifyUnauthorizedLogin("u@example.com", "ACME", "for research");
 
-    httpTestingController
-      .expectOne(r => r.url.endsWith("/gmail/notify-unauthorized") && r.method === "POST")
-      .flush("boom", { status: 500, statusText: "Internal Server Error" });
+    flushHttpRequest(httpTestingController, r => r.url.endsWith("/gmail/notify-unauthorized"), "POST", "boom", {
+      error: { status: 500, statusText: "Internal Server Error" },
+    });
 
     expect(notificationSpy.error).toHaveBeenCalledWith("Failed to notify admin about your account request.");
     expect(consoleSpy).toHaveBeenCalledWith("Notify error:", "boom");

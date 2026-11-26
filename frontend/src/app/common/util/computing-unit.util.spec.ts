@@ -21,6 +21,7 @@ import { TestBed, ComponentFixture } from "@angular/core/testing";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import type { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
 import { ComputingUnitState } from "../type/computing-unit-connection.interface";
+import { ComputingUnitFixtureOverrides, makeDashboardComputingUnit } from "../testing/computing-unit-test-fixtures";
 import {
   ComputingUnitMetadataComponent,
   unavailableComputingUnitReason,
@@ -42,36 +43,26 @@ import {
   buildLocalComputingUnitUri,
 } from "./computing-unit.util";
 
-function makeUnit(overrides: Partial<DashboardWorkflowComputingUnit> = {}): DashboardWorkflowComputingUnit {
-  return {
-    status: "Running",
-    metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
-    isOwner: true,
+function makeUnit(overrides: ComputingUnitFixtureOverrides = {}): DashboardWorkflowComputingUnit {
+  return makeDashboardComputingUnit({
     accessPrivilege: "READ",
-    ownerAvatar: "",
-    ownerName: "owner",
     ...overrides,
-    // Set computingUnit last so a `computingUnit` override merges into (rather than replaces)
-    // the nested default object, keeping fixtures valid even for partial overrides.
     computingUnit: {
-      cuid: 1,
-      uid: 1,
       name: "unit-a",
       creationTime: 1700000000000,
-      terminateTime: undefined,
       type: "kubernetes",
       uri: "http://localhost/wsapi",
+      ...(overrides.computingUnit ?? {}),
       resource: {
         cpuLimit: "1000m",
         memoryLimit: "2Gi",
         gpuLimit: "1",
         jvmMemorySize: "2G",
         shmSize: "64Mi",
-        nodeAddresses: [],
+        ...(overrides.computingUnit?.resource ?? {}),
       },
-      ...(overrides.computingUnit ?? {}),
     },
-  };
+  });
 }
 
 describe("parseResourceUnit", () => {
@@ -235,55 +226,33 @@ describe("unavailableComputingUnitReason", () => {
 
 describe("getComputingUnitStatusTooltip", () => {
   it("should map statuses to tooltip text", () => {
-    expect(getComputingUnitStatusTooltip({ status: "Running" } as unknown as DashboardWorkflowComputingUnit)).toBe(
-      "Ready to use"
-    );
-    expect(getComputingUnitStatusTooltip({ status: "Pending" } as unknown as DashboardWorkflowComputingUnit)).toBe(
-      "Computing unit is starting up"
-    );
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Running" }))).toBe("Ready to use");
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Pending" }))).toBe("Computing unit is starting up");
   });
 
   it("should show the backend's status reason whenever one is present", () => {
     // An authorized viewer's reason is already user-friendly, so it wins over every canned text:
     // a failure explanation, a Pending unschedulable note, or a Running recovered-OOM warning.
-    expect(
-      getComputingUnitStatusTooltip({
-        status: "Failed",
-        statusReason: "The computing unit keeps crashing because it runs out of memory.",
-      } as unknown as DashboardWorkflowComputingUnit)
-    ).toBe("The computing unit keeps crashing because it runs out of memory.");
-    expect(
-      getComputingUnitStatusTooltip({
-        status: "Running",
-        statusReason: "The last run was terminated because the computing unit ran out of memory.",
-      } as unknown as DashboardWorkflowComputingUnit)
-    ).toBe("The last run was terminated because the computing unit ran out of memory.");
-    expect(
-      getComputingUnitStatusTooltip({
-        status: "Pending",
-        statusReason: "The computing unit is waiting for cluster resources to become available.",
-      } as unknown as DashboardWorkflowComputingUnit)
-    ).toBe("The computing unit is waiting for cluster resources to become available.");
+    for (const [status, statusReason] of [
+      ["Failed", "The computing unit keeps crashing because it runs out of memory."],
+      ["Running", "The last run was terminated because the computing unit ran out of memory."],
+      ["Pending", "The computing unit is waiting for cluster resources to become available."],
+    ] as const) {
+      expect(getComputingUnitStatusTooltip(makeUnit({ status, statusReason }))).toBe(statusReason);
+    }
   });
 
   it("should show a generic unavailable message for reason-less failure states", () => {
-    expect(getComputingUnitStatusTooltip({ status: "Failed" } as unknown as DashboardWorkflowComputingUnit)).toBe(
-      "This computing unit is unavailable."
-    );
-    expect(getComputingUnitStatusTooltip({ status: "Unknown" } as unknown as DashboardWorkflowComputingUnit)).toBe(
-      "This computing unit is unavailable."
-    );
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Failed" }))).toBe("This computing unit is unavailable.");
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Unknown" }))).toBe("This computing unit is unavailable.");
   });
 
   it("should not let an empty-string statusReason shadow the canned fallback", () => {
     // The backend omits the reason (undefined) for ordinary shared users, but an empty string
     // must behave the same way: it is falsy, so the status switch still decides the text.
-    expect(
-      getComputingUnitStatusTooltip({
-        status: "Failed",
-        statusReason: "",
-      } as unknown as DashboardWorkflowComputingUnit)
-    ).toBe("This computing unit is unavailable.");
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Failed", statusReason: "" }))).toBe(
+      "This computing unit is unavailable."
+    );
   });
 
   it("should fall back to the canned text when the backend sends a null status reason", () => {
@@ -370,19 +339,31 @@ describe("isComputingUnitShmTooLarge", () => {
   });
 });
 
+function expectSliderConfig(
+  selectedMemory: string,
+  steps: number[],
+  selectedJvmMemorySize: string,
+  showSlider?: boolean,
+  sliderValue?: number
+): void {
+  const config = getJvmMemorySliderConfig(selectedMemory);
+  if (showSlider !== undefined) {
+    expect(config.showJvmMemorySlider).toBe(showSlider);
+  }
+  expect(config.jvmMemorySteps).toEqual(steps);
+  expect(config.selectedJvmMemorySize).toBe(selectedJvmMemorySize);
+  if (sliderValue !== undefined) {
+    expect(config.jvmMemorySliderValue).toBe(sliderValue);
+  }
+}
+
 describe("getJvmMemorySliderConfig", () => {
   it("should hide the slider for small memory sizes", () => {
-    const config = getJvmMemorySliderConfig("1Gi");
-    expect(config.showJvmMemorySlider).toBe(false);
-    expect(config.jvmMemorySteps).toEqual([1]);
-    expect(config.selectedJvmMemorySize).toBe("1G");
+    expectSliderConfig("1Gi", [1], "1G", false);
   });
 
   it("should show the slider and build doubling steps for larger memory sizes", () => {
-    const config = getJvmMemorySliderConfig("8Gi");
-    expect(config.showJvmMemorySlider).toBe(true);
-    expect(config.jvmMemorySteps).toEqual([2, 4, 8]);
-    expect(config.selectedJvmMemorySize).toBe("2G");
+    expectSliderConfig("8Gi", [2, 4, 8], "2G", true);
   });
 });
 
@@ -448,33 +429,22 @@ describe("isComputingUnitShmTooLarge (non-Gi selected memory)", () => {
 describe("getJvmMemorySliderConfig (memory unit handling)", () => {
   it("should convert a Mi memory value to whole GiB", () => {
     // 2048Mi -> 2Gi -> small path (<=3), defaultValue 2 (not 1)
-    const config = getJvmMemorySliderConfig("2048Mi");
-    expect(config.showJvmMemorySlider).toBe(false);
-    expect(config.jvmMemorySteps).toEqual([1, 2]);
-    expect(config.selectedJvmMemorySize).toBe("2G");
-    expect(config.jvmMemorySliderValue).toBe(1);
+    expectSliderConfig("2048Mi", [1, 2], "2G", false, 1);
   });
 
   it("should floor sub-GiB Mi values up to a minimum of 1 GiB", () => {
     // 512Mi -> floor(512/1024)=0 -> Math.max(1, 0) = 1
-    const config = getJvmMemorySliderConfig("512Mi");
-    expect(config.jvmMemorySteps).toEqual([1]);
-    expect(config.selectedJvmMemorySize).toBe("1G");
+    expectSliderConfig("512Mi", [1], "1G");
   });
 
   it("should build slider steps from a larger Mi value", () => {
     // 8192Mi -> 8Gi -> slider path
-    const config = getJvmMemorySliderConfig("8192Mi");
-    expect(config.showJvmMemorySlider).toBe(true);
-    expect(config.jvmMemorySteps).toEqual([2, 4, 8]);
-    expect(config.selectedJvmMemorySize).toBe("2G");
+    expectSliderConfig("8192Mi", [2, 4, 8], "2G", true);
   });
 
   it("should default to 1 GiB for a value with an unrecognized memory unit", () => {
     // "Ki" is neither Gi nor Mi, so memoryToGb falls back to 1
-    const config = getJvmMemorySliderConfig("500Ki");
-    expect(config.jvmMemorySteps).toEqual([1]);
-    expect(config.selectedJvmMemorySize).toBe("1G");
+    expectSliderConfig("500Ki", [1], "1G");
   });
 });
 

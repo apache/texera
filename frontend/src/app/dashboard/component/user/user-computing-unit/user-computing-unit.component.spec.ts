@@ -37,6 +37,19 @@ import { of } from "rxjs";
 import type { Mocked } from "vitest";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { UserComputingUnitListItemComponent } from "./user-computing-unit-list-item/user-computing-unit-list-item.component";
+import { makeDashboardComputingUnit } from "../../../../common/testing/computing-unit-test-fixtures";
+
+function makeUnit(cuid: number): DashboardWorkflowComputingUnit {
+  return makeDashboardComputingUnit({
+    computingUnit: {
+      cuid,
+      name: `unit-${cuid}`,
+      type: "kubernetes",
+      uri: `uri-${cuid}`,
+      resource: { jvmMemorySize: "1Gi", shmSize: "64Mi" },
+    },
+  });
+}
 describe("UserComputingUnitComponent", () => {
   let component: UserComputingUnitComponent;
   let fixture: ComponentFixture<UserComputingUnitComponent>;
@@ -97,34 +110,6 @@ describe("UserComputingUnitComponent", () => {
   });
 
   describe("fetching, polling and termination", () => {
-    function makeUnit(cuid: number): DashboardWorkflowComputingUnit {
-      return {
-        computingUnit: {
-          cuid,
-          uid: 1,
-          name: `unit-${cuid}`,
-          creationTime: 0,
-          terminateTime: undefined,
-          type: "kubernetes",
-          uri: `uri-${cuid}`,
-          resource: {
-            cpuLimit: "1",
-            memoryLimit: "1Gi",
-            gpuLimit: "0",
-            jvmMemorySize: "1Gi",
-            shmSize: "64Mi",
-            nodeAddresses: [],
-          },
-        },
-        status: "Running",
-        metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
-        isOwner: true,
-        accessPrivilege: "WRITE",
-        ownerAvatar: "",
-        ownerName: "owner",
-      } as DashboardWorkflowComputingUnit;
-    }
-
     afterEach(() => {
       // ngOnInit starts a 1s interval; destroying the fixture unsubscribes it so it
       // cannot tick into a later test.
@@ -196,34 +181,6 @@ describe("UserComputingUnitComponent", () => {
    * no layout, which is why the list looked empty: the viewport measures 0px and renders no rows.
    */
   describe("rendered page", () => {
-    function makeUnit(cuid: number): DashboardWorkflowComputingUnit {
-      return {
-        computingUnit: {
-          cuid,
-          uid: 1,
-          name: `unit-${cuid}`,
-          creationTime: 0,
-          terminateTime: undefined,
-          type: "kubernetes",
-          uri: `uri-${cuid}`,
-          resource: {
-            cpuLimit: "1",
-            memoryLimit: "1Gi",
-            gpuLimit: "0",
-            jvmMemorySize: "1Gi",
-            shmSize: "64Mi",
-            nodeAddresses: [],
-          },
-        },
-        status: "Running",
-        metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
-        isOwner: true,
-        accessPrivilege: "WRITE",
-        ownerAvatar: "",
-        ownerName: "owner",
-      } as DashboardWorkflowComputingUnit;
-    }
-
     /** Renders the page with the given units and forces the virtual list to materialize its rows. */
     function renderUnits(units: DashboardWorkflowComputingUnit[]): void {
       const statusService = TestBed.inject(ComputingUnitStatusService);

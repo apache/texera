@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../../../common/testing/http-service-test-utils";
 import { AdminSettingsService } from "./admin-settings.service";
 
 describe("AdminSettingsService", () => {
@@ -28,13 +28,7 @@ describe("AdminSettingsService", () => {
   const PUBLIC_URL = "/api/config/settings/public";
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AdminSettingsService],
-    });
-
-    httpTestingController = TestBed.inject(HttpTestingController);
-    service = TestBed.inject(AdminSettingsService);
+    ({ service, httpMock: httpTestingController } = setupHttpServiceTest(AdminSettingsService));
   });
 
   afterEach(() => {
@@ -48,8 +42,7 @@ describe("AdminSettingsService", () => {
     service.getPublicSetting("logo").subscribe(value => (logo = value));
     service.getPublicSetting("hub_enabled").subscribe(value => (hubEnabled = value));
 
-    const req = httpTestingController.expectOne(PUBLIC_URL);
-    req.flush({ logo: "custom.png", hub_enabled: "true" });
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "custom.png", hub_enabled: "true" });
 
     expect(logo).toEqual("custom.png");
     expect(hubEnabled).toEqual("true");
@@ -81,11 +74,10 @@ describe("AdminSettingsService", () => {
     httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "old.png" });
 
     service.updateSetting("logo", "new.png").subscribe();
-    const put = httpTestingController.expectOne("/api/config/settings/logo");
-    expect(put.request.method).toEqual("PUT");
-    expect(put.request.body).toEqual({ value: "new.png" });
+    const put = flushHttpRequest(httpTestingController, "/api/config/settings/logo", "PUT", null, {
+      body: { value: "new.png" },
+    });
     expect(put.request.withCredentials).toBe(true);
-    put.flush(null);
 
     let logo: string | null | undefined;
     service.getPublicSetting("logo").subscribe(value => (logo = value));
@@ -98,10 +90,7 @@ describe("AdminSettingsService", () => {
     httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "old.png" });
 
     service.resetSetting("logo").subscribe();
-    const post = httpTestingController.expectOne("/api/config/settings/reset/logo");
-    expect(post.request.method).toEqual("POST");
-    expect(post.request.body).toEqual({});
-    post.flush(null);
+    flushHttpRequest(httpTestingController, "/api/config/settings/reset/logo", "POST", null, { body: {} });
 
     service.getPublicSetting("logo").subscribe();
     httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "default.png" });
@@ -111,9 +100,10 @@ describe("AdminSettingsService", () => {
     let settings: Record<string, string> | undefined;
     service.getAllSettings().subscribe(value => (settings = value));
 
-    const req = httpTestingController.expectOne("/api/config/settings");
-    expect(req.request.method).toEqual("GET");
-    req.flush({ logo: "a.png", csv_parser_max_columns: "4096" });
+    flushHttpRequest(httpTestingController, "/api/config/settings", "GET", {
+      logo: "a.png",
+      csv_parser_max_columns: "4096",
+    });
 
     expect(settings).toEqual({ logo: "a.png", csv_parser_max_columns: "4096" });
   });

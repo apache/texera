@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
 import { firstValueFrom } from "rxjs";
 
+import { flushHttpRequest, setupHttpServiceTest } from "../testing/http-service-test-utils";
 import { GuiConfigService } from "./gui-config.service";
 import { AppSettings } from "../app-setting";
 
@@ -51,12 +51,7 @@ describe("GuiConfigService", () => {
 
   beforeEach(() => {
     localStorage.removeItem(TOKEN_KEY);
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [GuiConfigService],
-    });
-    service = TestBed.inject(GuiConfigService);
-    http = TestBed.inject(HttpTestingController);
+    ({ service, httpMock: http } = setupHttpServiceTest(GuiConfigService));
     vi.spyOn(AppSettings, "getApiEndpoint").mockReturnValue(API);
   });
 
@@ -65,16 +60,26 @@ describe("GuiConfigService", () => {
     http.verify();
   });
 
+  async function loadPreLogin(payload: Record<string, unknown> = PRE_LOGIN_PAYLOAD): Promise<void> {
+    const pending = firstValueFrom(service.loadPreLogin());
+    flushHttpRequest(http, `${API}/config/pre-login`, "GET", payload);
+    await pending;
+  }
+
+  async function loadPostLogin(
+    gui: Record<string, unknown> = GUI_PAYLOAD,
+    amber: Record<string, unknown> = AMBER_PAYLOAD
+  ): Promise<void> {
+    const pending = firstValueFrom(service.loadPostLogin());
+    flushHttpRequest(http, `${API}/config/gui`, "GET", gui);
+    flushHttpRequest(http, `${API}/config/amber`, "GET", amber);
+    await pending;
+  }
+
   // ─── loadPreLogin ─────────────────────────────────────────────────────────
 
   it("loadPreLogin fetches /config/pre-login and merges the response into env", async () => {
-    const pending = firstValueFrom(service.loadPreLogin());
-
-    const req = http.expectOne(`${API}/config/pre-login`);
-    expect(req.request.method).toBe("GET");
-    req.flush(PRE_LOGIN_PAYLOAD);
-
-    await pending;
+    await loadPreLogin();
     expect(service.env.localLogin).toBe(true);
     expect(service.env.googleLogin).toBe(false);
     expect(service.env.defaultLocalUser).toEqual({ username: "demo", password: "demo-pw" });
@@ -117,14 +122,8 @@ describe("GuiConfigService", () => {
     // Guards a refactor that overwrites the merged map with the gui/amber
     // response shape. Without this assertion, pre-login fields could silently
     // disappear from env after post-login completes.
-    const preLoginPending = firstValueFrom(service.loadPreLogin());
-    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
-    await preLoginPending;
-
-    const postLoginPending = firstValueFrom(service.loadPostLogin());
-    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
-    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
-    await postLoginPending;
+    await loadPreLogin();
+    await loadPostLogin();
 
     expect(service.env.localLogin).toBe(true);
     expect(service.env.defaultLocalUser).toEqual({ username: "demo", password: "demo-pw" });
@@ -200,9 +199,7 @@ describe("GuiConfigService", () => {
   // ─── env reference stability ───────────────────────────────────────────────
 
   it("env returns a stable reference between loads so two-way bindings persist", async () => {
-    const pending = firstValueFrom(service.loadPreLogin());
-    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
-    await pending;
+    await loadPreLogin();
 
     // Repeated reads must return the same object (relied on by change detection
     // and by the [(ngModel)] write-through at menu.component.html).
@@ -214,15 +211,10 @@ describe("GuiConfigService", () => {
   });
 
   it("env reference is rebuilt after a new source loads", async () => {
-    const preLoginPending = firstValueFrom(service.loadPreLogin());
-    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
-    await preLoginPending;
+    await loadPreLogin();
     const before = service.env;
 
-    const postLoginPending = firstValueFrom(service.loadPostLogin());
-    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
-    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
-    await postLoginPending;
+    await loadPostLogin();
 
     expect(service.env).not.toBe(before);
     expect(service.env.defaultDataTransferBatchSize).toBe(400);
@@ -235,17 +227,12 @@ describe("GuiConfigService", () => {
     // survive a re-fetch (e.g. a fresh login re-running loadPostLogin). This is
     // intentional (config reloads are authoritative) and is locked in here so a
     // future "persist edits across reloads" change is a deliberate decision.
-    const preLoginPending = firstValueFrom(service.loadPreLogin());
-    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
-    await preLoginPending;
+    await loadPreLogin();
 
     (service.env as any).workflowEmailNotificationEnabled = true;
     expect(service.env.workflowEmailNotificationEnabled).toBe(true);
 
-    const postLoginPending = firstValueFrom(service.loadPostLogin());
-    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
-    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
-    await postLoginPending;
+    await loadPostLogin();
 
     expect(service.env.workflowEmailNotificationEnabled).toBeUndefined();
   });
@@ -257,15 +244,10 @@ describe("GuiConfigService", () => {
     // the public API, but the merge reduce implements "later source wins" and
     // nothing else covers it. Inject overlapping keys via the raw payloads to
     // lock the documented order (preLogin, gui, amber).
-    const preLoginPending = firstValueFrom(service.loadPreLogin());
-    http.expectOne(`${API}/config/pre-login`).flush({ ...PRE_LOGIN_PAYLOAD, copilotEnabled: false });
-    await preLoginPending;
+    await loadPreLogin({ ...PRE_LOGIN_PAYLOAD, copilotEnabled: false });
     expect(service.env.copilotEnabled).toBe(false);
 
-    const postLoginPending = firstValueFrom(service.loadPostLogin());
-    http.expectOne(`${API}/config/gui`).flush({ ...GUI_PAYLOAD, defaultDataTransferBatchSize: 1 });
-    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
-    await postLoginPending;
+    await loadPostLogin({ ...GUI_PAYLOAD, defaultDataTransferBatchSize: 1 }, AMBER_PAYLOAD);
 
     // gui comes after preLogin, and amber after gui, so the later value wins each time.
     expect(service.env.copilotEnabled).toBe(true);
