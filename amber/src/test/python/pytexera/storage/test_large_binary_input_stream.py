@@ -17,6 +17,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
+from contextlib import closing, contextmanager
 from io import BytesIO
 from core.models.type.large_binary import largebinary
 from pytexera.storage.large_binary_input_stream import LargeBinaryInputStream
@@ -24,6 +25,15 @@ from pytexera.storage.large_binary_manager import LargeBinaryManager
 
 # The manager is a singleton; bind the shared instance for the tests.
 large_binary_manager = LargeBinaryManager()
+
+
+@contextmanager
+def _mock_s3(response):
+    with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
+        mock_s3_client = MagicMock()
+        mock_s3_client.get_object.return_value = response
+        mock_get_s3_client.return_value = mock_s3_client
+        yield mock_s3_client
 
 
 class TestLargeBinaryInputStream:
@@ -39,13 +49,10 @@ class TestLargeBinaryInputStream:
 
     def test_init_with_valid_large_binary(self, large_binary):
         """Test initialization with a valid largebinary."""
-        stream = LargeBinaryInputStream(large_binary)
-        try:
+        with closing(LargeBinaryInputStream(large_binary)) as stream:
             assert stream._large_binary == large_binary
             assert stream._underlying is None
             assert not stream.closed
-        finally:
-            stream.close()
 
     def test_init_with_none_raises_error(self):
         """Test that initializing with None raises ValueError."""
@@ -54,13 +61,8 @@ class TestLargeBinaryInputStream:
 
     def test_lazy_init_downloads_from_s3(self, large_binary, mock_s3_response):
         """Test that _lazy_init downloads from S3 on first read."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = mock_s3_response
-            mock_get_s3_client.return_value = mock_s3_client
-
-            stream = LargeBinaryInputStream(large_binary)
-            try:
+        with _mock_s3(mock_s3_response) as mock_s3_client:
+            with closing(LargeBinaryInputStream(large_binary)) as stream:
                 assert stream._underlying is None  # Not initialized yet
 
                 # Trigger lazy init by reading
@@ -72,66 +74,36 @@ class TestLargeBinaryInputStream:
                 mock_s3_client.get_object.assert_called_once_with(
                     Bucket="test-bucket", Key="path/to/object"
                 )
-            finally:
-                stream.close()
 
     def test_read_all(self, large_binary, mock_s3_response):
         """Test reading all data."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = mock_s3_response
-            mock_get_s3_client.return_value = mock_s3_client
-
-            stream = LargeBinaryInputStream(large_binary)
-            try:
+        with _mock_s3(mock_s3_response):
+            with closing(LargeBinaryInputStream(large_binary)) as stream:
                 data = stream.read()
                 assert data == b"test data content"
-            finally:
-                stream.close()
 
     def test_read_partial(self, large_binary, mock_s3_response):
         """Test reading partial data."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = mock_s3_response
-            mock_get_s3_client.return_value = mock_s3_client
-
-            stream = LargeBinaryInputStream(large_binary)
-            try:
+        with _mock_s3(mock_s3_response):
+            with closing(LargeBinaryInputStream(large_binary)) as stream:
                 data = stream.read(4)
                 assert data == b"test"
-            finally:
-                stream.close()
 
     def test_readline(self, large_binary):
         """Test reading a line."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            response = {"Body": BytesIO(b"line1\nline2\nline3")}
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = response
-            mock_get_s3_client.return_value = mock_s3_client
-
-            stream = LargeBinaryInputStream(large_binary)
-            try:
+        response = {"Body": BytesIO(b"line1\nline2\nline3")}
+        with _mock_s3(response):
+            with closing(LargeBinaryInputStream(large_binary)) as stream:
                 line = stream.readline()
                 assert line == b"line1\n"
-            finally:
-                stream.close()
 
     def test_readlines(self, large_binary):
         """Test reading all lines."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            response = {"Body": BytesIO(b"line1\nline2\nline3")}
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = response
-            mock_get_s3_client.return_value = mock_s3_client
-
-            stream = LargeBinaryInputStream(large_binary)
-            try:
+        response = {"Body": BytesIO(b"line1\nline2\nline3")}
+        with _mock_s3(response):
+            with closing(LargeBinaryInputStream(large_binary)) as stream:
                 lines = stream.readlines()
                 assert lines == [b"line1\n", b"line2\n", b"line3"]
-            finally:
-                stream.close()
 
     def test_readable(self, large_binary):
         """Test readable() method."""
@@ -147,11 +119,8 @@ class TestLargeBinaryInputStream:
 
     def test_seekable(self, large_binary):
         """Test seekable() method (should always return False)."""
-        stream = LargeBinaryInputStream(large_binary)
-        try:
+        with closing(LargeBinaryInputStream(large_binary)) as stream:
             assert stream.seekable() is False
-        finally:
-            stream.close()
 
     def test_closed_property(self, large_binary):
         """Test closed property."""
@@ -167,11 +136,7 @@ class TestLargeBinaryInputStream:
 
     def test_close(self, large_binary, mock_s3_response):
         """Test closing the stream."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = mock_s3_response
-            mock_get_s3_client.return_value = mock_s3_client
-
+        with _mock_s3(mock_s3_response):
             stream = LargeBinaryInputStream(large_binary)
             stream.read(1)  # Trigger lazy init
             assert stream._underlying is not None
@@ -182,11 +147,7 @@ class TestLargeBinaryInputStream:
 
     def test_context_manager(self, large_binary, mock_s3_response):
         """Test using as context manager."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = mock_s3_response
-            mock_get_s3_client.return_value = mock_s3_client
-
+        with _mock_s3(mock_s3_response):
             with LargeBinaryInputStream(large_binary) as stream:
                 data = stream.read()
                 assert data == b"test data content"
@@ -197,26 +158,15 @@ class TestLargeBinaryInputStream:
 
     def test_iteration(self, large_binary):
         """Test iteration over lines."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            response = {"Body": BytesIO(b"line1\nline2\nline3")}
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = response
-            mock_get_s3_client.return_value = mock_s3_client
-
-            stream = LargeBinaryInputStream(large_binary)
-            try:
+        response = {"Body": BytesIO(b"line1\nline2\nline3")}
+        with _mock_s3(response):
+            with closing(LargeBinaryInputStream(large_binary)) as stream:
                 lines = list(stream)
                 assert lines == [b"line1\n", b"line2\n", b"line3"]
-            finally:
-                stream.close()
 
     def test_read_after_close_raises_error(self, large_binary, mock_s3_response):
         """Test that reading after close raises ValueError."""
-        with patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client:
-            mock_s3_client = MagicMock()
-            mock_s3_client.get_object.return_value = mock_s3_response
-            mock_get_s3_client.return_value = mock_s3_client
-
+        with _mock_s3(mock_s3_response):
             stream = LargeBinaryInputStream(large_binary)
             stream.close()
 

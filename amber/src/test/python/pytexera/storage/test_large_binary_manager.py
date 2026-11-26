@@ -18,7 +18,7 @@
 import re
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pytexera.storage.large_binary_manager import LargeBinaryManager
 from core.storage.storage_config import StorageConfig
 
@@ -52,29 +52,31 @@ def _init_storage_config():
         )
 
 
+@pytest.fixture
+def empty_s3_cache(monkeypatch):
+    monkeypatch.setattr(large_binary_manager, "_s3_client", None)
+
+
+@pytest.fixture
+def s3_factory(empty_s3_cache):
+    with patch("boto3.client") as factory:
+        factory.return_value.exceptions.NoSuchBucket = type(
+            "NoSuchBucket", (Exception,), {}
+        )
+        yield factory
+
+
 class TestLargeBinaryManager:
-    def test_get_s3_client_initializes_once(self):
+    def test_get_s3_client_initializes_once(self, s3_factory):
         """Test that S3 client is initialized and cached."""
-        # Reset the client
-        large_binary_manager._s3_client = None
+        assert large_binary_manager._get_s3_client() == s3_factory.return_value
+        s3_factory.assert_called_once()
 
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
+        assert large_binary_manager._get_s3_client() == s3_factory.return_value
+        s3_factory.assert_called_once()
 
-            # First call should create client
-            client1 = large_binary_manager._get_s3_client()
-            assert client1 == mock_client
-            assert mock_boto3_client.call_count == 1
-
-            # Second call should return cached client
-            client2 = large_binary_manager._get_s3_client()
-            assert client2 == mock_client
-            assert mock_boto3_client.call_count == 1  # Still 1, not 2
-
-    def test_get_s3_client_without_boto3_raises_error(self):
+    def test_get_s3_client_without_boto3_raises_error(self, empty_s3_cache):
         """Test that missing boto3 raises RuntimeError."""
-        large_binary_manager._s3_client = None
 
         import sys
 
@@ -97,36 +99,23 @@ class TestLargeBinaryManager:
             if boto3_backup is not None:
                 sys.modules["boto3"] = boto3_backup
 
-    def test_ensure_bucket_exists_when_bucket_exists(self):
+    def test_ensure_bucket_exists_when_bucket_exists(self, s3_factory):
         """Test that existing bucket doesn't trigger creation."""
-        large_binary_manager._s3_client = None
+        client = s3_factory.return_value
+        client.head_bucket.return_value = None
 
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
-            # head_bucket doesn't raise exception (bucket exists)
-            mock_client.head_bucket.return_value = None
-            mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
+        large_binary_manager._ensure_bucket_exists("test-bucket")
+        client.head_bucket.assert_called_once_with(Bucket="test-bucket")
+        client.create_bucket.assert_not_called()
 
-            large_binary_manager._ensure_bucket_exists("test-bucket")
-            mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
-            mock_client.create_bucket.assert_not_called()
-
-    def test_ensure_bucket_exists_creates_bucket_when_missing(self):
+    def test_ensure_bucket_exists_creates_bucket_when_missing(self, s3_factory):
         """Test that missing bucket triggers creation."""
-        large_binary_manager._s3_client = None
+        client = s3_factory.return_value
+        client.head_bucket.side_effect = client.exceptions.NoSuchBucket()
 
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
-            # head_bucket raises NoSuchBucket exception
-            no_such_bucket = type("NoSuchBucket", (Exception,), {})
-            mock_client.exceptions.NoSuchBucket = no_such_bucket
-            mock_client.head_bucket.side_effect = no_such_bucket()
-
-            large_binary_manager._ensure_bucket_exists("test-bucket")
-            mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
-            mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
+        large_binary_manager._ensure_bucket_exists("test-bucket")
+        client.head_bucket.assert_called_once_with(Bucket="test-bucket")
+        client.create_bucket.assert_called_once_with(Bucket="test-bucket")
 
     def test_create_appends_unique_suffix_to_base_uri(self):
         """create() returns the configured base URI plus a unique suffix (no S3 call)."""
