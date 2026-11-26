@@ -21,7 +21,10 @@ import pyarrow
 import pytest
 
 import core.architecture.packaging.input_manager as input_manager_module
-from core.architecture.packaging.input_manager import InputManager
+from core.architecture.packaging.input_manager import (
+    InputManager,
+    canonicalize_port_id,
+)
 from core.models.payload import DataFrame, StateFrame
 from core.models.schema.schema import Schema
 from core.models.state import State
@@ -107,6 +110,28 @@ class TestPortIdentityDefaults:
         port = manager.get_port(port_id)
         assert port.get_schema() == first_schema
         assert len(port.get_channels()) == 1
+
+
+class TestCanonicalizePortId:
+    """The shared helper both managers call before keying a PortIdentity."""
+
+    def test_defaults_unset_fields_in_place(self):
+        port_id = PortIdentity(id=None, internal=None)
+
+        result = canonicalize_port_id(port_id)
+
+        # The caller's object is mutated, and the same object is returned.
+        assert result is port_id
+        assert port_id.id == 0
+        assert port_id.internal is False
+
+    def test_leaves_already_set_fields_untouched(self):
+        port_id = PortIdentity(id=3, internal=True)
+
+        canonicalize_port_id(port_id)
+
+        assert port_id.id == 3
+        assert port_id.internal is True
 
 
 class TestChannelRegistration:
