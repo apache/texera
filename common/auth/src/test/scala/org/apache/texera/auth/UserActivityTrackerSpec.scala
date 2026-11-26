@@ -67,12 +67,20 @@ class UserActivityTrackerSpec
     def upsert(uid: Integer, ts: Instant): Unit = { calls.add((uid, ts)); () }
   }
 
+  /** The instant every test's clock starts at. */
+  private val t0 = Instant.parse("2026-01-01T00:00:00Z")
+
+  /** A tracker over a fresh recorder and a settable clock that starts at `t0`. */
   private def makeTracker(
-      writeInterval: Duration,
-      recorder: Recorder,
-      clock: AtomicReference[Instant]
-  ) =
-    new UserActivityTracker(writeInterval, recorder.upsert, sameThread, () => clock.get())
+      writeInterval: Duration = Duration.ofMinutes(5),
+      executor: Executor = sameThread
+  ): (Recorder, AtomicReference[Instant], UserActivityTracker) = {
+    val recorder = new Recorder
+    val clock = new AtomicReference[Instant](t0)
+    val tracker =
+      new UserActivityTracker(writeInterval, recorder.upsert, executor, () => clock.get())
+    (recorder, clock, tracker)
+  }
 
   // -- singleton fixture ------------------------------------------------------
   //
@@ -148,24 +156,18 @@ class UserActivityTrackerSpec
     getDSLContext.fetchCount(USER_LAST_ACTIVE_TIME, USER_LAST_ACTIVE_TIME.UID.eq(uid))
 
   "UserActivityTracker" should "trigger an upsert on the first call for a uid" in {
-    val recorder = new Recorder
-    val now = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](now)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, _, tracker) = makeTracker()
 
     tracker.markActive(42)
 
     recorder.calls.size shouldBe 1
     val (uid, ts) = recorder.calls.peek()
     uid shouldBe 42
-    ts shouldBe now
+    ts shouldBe t0
   }
 
   it should "skip upserts within the cooldown window" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(42)
     clock.set(t0.plus(Duration.ofMinutes(2)))
@@ -177,10 +179,7 @@ class UserActivityTrackerSpec
   }
 
   it should "fire another upsert once the cooldown elapses" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(42)
     clock.set(t0.plus(Duration.ofMinutes(5)))
@@ -190,9 +189,7 @@ class UserActivityTrackerSpec
   }
 
   it should "track different uids independently" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, _, tracker) = makeTracker()
 
     tracker.markActive(1)
     tracker.markActive(2)
@@ -202,9 +199,7 @@ class UserActivityTrackerSpec
   }
 
   it should "treat null uid as a no-op" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, _, tracker) = makeTracker()
 
     tracker.markActive(null)
 
@@ -212,10 +207,7 @@ class UserActivityTrackerSpec
   }
 
   it should "evict cooldown entries older than 2 * writeInterval" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (_, clock, tracker) = makeTracker()
 
     tracker.markActive(1)
     tracker.markActive(2)
@@ -244,7 +236,6 @@ class UserActivityTrackerSpec
   it should "swallow upsertFn exceptions instead of propagating to the caller" in {
     nonFatalShapes.foreach { boom =>
       withClue(s"upsertFn threw $boom: ") {
-        val t0 = Instant.parse("2026-01-01T00:00:00Z")
         val clock = new AtomicReference[Instant](t0)
         val executor = new CapturingExecutor
         val throwing: (Integer, Instant) => Unit = (_, _) => throw boom
@@ -297,9 +288,7 @@ class UserActivityTrackerSpec
   }
 
   it should "not create a cooldown entry for a null uid" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (_, _, tracker) = makeTracker()
 
     tracker.markActive(null)
 
@@ -307,10 +296,7 @@ class UserActivityTrackerSpec
   }
 
   it should "keep exactly one cooldown entry per uid across repeated calls" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(42)
     clock.set(t0.plus(Duration.ofMinutes(1)))
@@ -323,11 +309,8 @@ class UserActivityTrackerSpec
   }
 
   it should "stamp each upsert with the clock value at claim time" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
     val t1 = t0.plus(Duration.ofMinutes(7))
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(42)
     // a suppressed call in between must not change the recorded timestamps
@@ -342,10 +325,7 @@ class UserActivityTrackerSpec
   }
 
   it should "evict only the stale entries and retain the fresh ones" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(1)
     clock.set(t0.plus(Duration.ofMinutes(8)))
@@ -363,10 +343,7 @@ class UserActivityTrackerSpec
   }
 
   it should "retain an entry that is exactly 2 * writeInterval old" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (_, clock, tracker) = makeTracker()
 
     tracker.markActive(1)
 
@@ -382,9 +359,7 @@ class UserActivityTrackerSpec
   }
 
   it should "tolerate evictStale on an empty tracker" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, _, tracker) = makeTracker()
 
     noException should be thrownBy tracker.evictStale()
 
@@ -393,10 +368,7 @@ class UserActivityTrackerSpec
   }
 
   it should "re-claim a uid whose entry was evicted" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(1)
     clock.set(t0.plus(Duration.ofMinutes(11)))
@@ -410,9 +382,7 @@ class UserActivityTrackerSpec
   }
 
   it should "perform exactly one upsert when many threads race on the same uid" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, _, tracker) = makeTracker()
 
     val start = new CountDownLatch(1)
     val threads = (1 to 16).map(_ =>
@@ -436,9 +406,7 @@ class UserActivityTrackerSpec
   }
 
   it should "upsert on every call when the write interval is zero" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
-    val tracker = makeTracker(Duration.ZERO, recorder, clock)
+    val (recorder, _, tracker) = makeTracker(Duration.ZERO)
 
     tracker.markActive(42)
     tracker.markActive(42)
@@ -448,10 +416,7 @@ class UserActivityTrackerSpec
   }
 
   it should "suppress the upsert when the clock moves backwards" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
-    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+    val (recorder, clock, tracker) = makeTracker()
 
     tracker.markActive(42)
     clock.set(t0.minus(Duration.ofMinutes(30)))
@@ -463,12 +428,8 @@ class UserActivityTrackerSpec
   }
 
   it should "keep the cooldown claim when the executor drops the write" in {
-    val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
-    val clock = new AtomicReference[Instant](t0)
     val dropping: Executor = (_: Runnable) => ()
-    val tracker =
-      new UserActivityTracker(Duration.ofMinutes(5), recorder.upsert, dropping, () => clock.get())
+    val (recorder, clock, tracker) = makeTracker(executor = dropping)
 
     tracker.markActive(42)
     tracker.cooldownSize shouldBe 1
@@ -482,11 +443,8 @@ class UserActivityTrackerSpec
   }
 
   it should "swallow a rejection thrown by the executor" in {
-    val recorder = new Recorder
-    val clock = new AtomicReference[Instant](Instant.parse("2026-01-01T00:00:00Z"))
     val rejecting: Executor = (_: Runnable) => throw new RejectedExecutionException("queue full")
-    val tracker =
-      new UserActivityTracker(Duration.ofMinutes(5), recorder.upsert, rejecting, () => clock.get())
+    val (recorder, _, tracker) = makeTracker(executor = rejecting)
 
     noException should be thrownBy tracker.markActive(42)
 
@@ -497,7 +455,6 @@ class UserActivityTrackerSpec
 
   it should "let a fatal error from the clock escape markActive" in {
     val recorder = new Recorder
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
     // The catch is `NonFatal`, not `Throwable`: a transient clock/DB hiccup is
     // swallowed (cases above), but an InterruptedException or an OOM has to reach
     // the caller instead of being logged and dropped as if it were transient.
@@ -529,7 +486,6 @@ class UserActivityTrackerSpec
   }
 
   it should "let a fatal error from upsertFn escape markActive" in {
-    val t0 = Instant.parse("2026-01-01T00:00:00Z")
     val clock = new AtomicReference[Instant](t0)
     val fatal: (Integer, Instant) => Unit =
       (_, _) => throw new InterruptedException("fatal upsert")
