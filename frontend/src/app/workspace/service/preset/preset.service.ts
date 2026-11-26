@@ -70,7 +70,6 @@ export type Preset = { [key: string]: string | number | boolean };
 })
 export class PresetService {
   private static ajv = new Ajv();
-  private static ajvStrip = new Ajv({ useDefaults: true, removeAdditional: true, strict: false }); // removes extra properties from an object that aren't described by schema
   private static isPreset = PresetService.ajv.compile(PresetSchema);
   private static isPresetArray = PresetService.ajv.compile(PresetArraySchema);
 
@@ -320,39 +319,6 @@ export class PresetService {
       required: Object.keys(properties),
       additionalProperties: false,
     };
-  }
-
-  /**
-   * get preset from operator properties if it has a preset schema and a valid preset (all properties are assigned)
-   * Throws an error if operatorProperties doesn't have all the properties in the presetSchema, unlike filterOperatorProperties.
-   * @param operatorSchema
-   * @param operatorProperties
-   * @returns Preset
-   */
-  public static getOperatorPreset(operatorSchema: CustomJSONSchema7, operatorProperties: object): Preset {
-    const copy = cloneDeep(operatorProperties as Preset);
-    const presetSchema = this.getOperatorPresetSchema(operatorSchema);
-    const strip = this.ajvStrip.compile(presetSchema); // this validator also removes extra properties that aren't a part of the preset
-    const result = strip(copy);
-    if (asType(result, "boolean") === true) return copy;
-    throw new Error(
-      `provided operator properties ${operatorProperties} does not conform to preset schema ${presetSchema}`
-    );
-  }
-
-  /**
-   * get the subset of operatorProperties that only includes properties that are in its PresetSchema
-   * this doesn't always yield a complete preset, unlike getOperatorPreset
-   * @param operatorSchema
-   * @param operatorProperties
-   * @returns
-   */
-  public static filterOperatorPresetProperties(operatorSchema: CustomJSONSchema7, operatorProperties: object): Preset {
-    const copy = cloneDeep(operatorProperties as Preset);
-    const presetSchema = this.getOperatorPresetSchema(operatorSchema);
-    const strip = this.ajvStrip.compile(presetSchema); // this validator also removes extra properties that aren't a part of the preset
-    strip(copy);
-    return copy;
   }
 }
 
