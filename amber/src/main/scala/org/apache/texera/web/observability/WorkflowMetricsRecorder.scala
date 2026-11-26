@@ -71,7 +71,6 @@ object WorkflowMetricsRecorder {
         case _: Throwable => 0L
       }
     )
-    WorkflowMetrics.ensureBound()
   }
 
   /** Record that a run started. */

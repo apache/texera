@@ -22,84 +22,43 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{ModelUserAccessDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{ModelUserAccess, User}
-import org.apache.texera.service.MockLakeFS
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.`type`.LakeFSFileNode
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.util.Optional
 
-class ModelUploadResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockTexeraDB
-    with MockLakeFS
-    with BeforeAndAfterAll
-    with ResourceTestHelpers {
-
-  private val ownerUser: User = {
-    val user = new User
-    user.setName("model_upload_user")
-    user.setEmail("model_upload_user@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
-  }
+class ModelUploadResourceSpec extends ModelResourceTestSupport("model_upload_user") {
 
   /** A second account that is granted WRITE on a model but never owns one. */
-  private val collaboratorUser: User = {
-    val user = new User
-    user.setName("model_upload_collaborator")
-    user.setEmail("model_upload_collaborator@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user
-  }
+  private val collaboratorUser: User = mkUser("model_upload_collaborator", UserRoleEnum.REGULAR)
+  override protected def extraUsers: Seq[User] = Seq(collaboratorUser)
 
-  lazy val modelResource = new ModelResource()
-  lazy val sessionUser = new SessionUser(ownerUser)
   lazy val collaboratorSession = new SessionUser(collaboratorUser)
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-    val userDao = new UserDao(getDSLContext.configuration())
-    userDao.insert(ownerUser)
-    userDao.insert(collaboratorUser)
-  }
-
-  override protected def afterAll(): Unit = {
-    try shutdownDB()
-    finally super.afterAll()
-  }
 
   // ---------- helpers ----------
   /** Creates a fresh model (provisions its LakeFS repo) and returns it. */
   private def newModel(): ModelResource.DashboardModel =
-    modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = uniqueName("upload-model"),
-        modelDescription = "for upload tests",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    createModelFixture(uniqueName("upload-model"), "for upload tests")
 
-  private def uploadOneShot(mid: Integer, path: String, bytes: Array[Byte]): Response =
-    modelResource.uploadOneFileToModel(
-      mid,
-      urlEnc(path),
-      "upload",
-      new ByteArrayInputStream(bytes),
-      mkHeaders(bytes.length.toLong),
+  /** Runs multipart-upload operation `op` on file `filePath` of `model` as the owner. */
+  private def multipartOp(
+      op: String,
+      model: ModelResource.DashboardModel,
+      filePath: String,
+      fileSizeBytes: Optional[java.lang.Long] = Optional.empty(),
+      partSizeBytes: Optional[java.lang.Long] = Optional.empty()
+  ): Response =
+    modelResource.multipartUpload(
+      op,
+      ownerUser.getEmail,
+      model.model.getName,
+      urlEnc(filePath),
+      fileSizeBytes,
+      partSizeBytes,
+      Optional.empty(),
       sessionUser
     )
 
@@ -110,7 +69,7 @@ class ModelUploadResourceSpec
     val model = newModel()
     val mid = model.model.getMid
 
-    uploadOneShot(mid, "model.pt", Array.fill[Byte](2048)(0x5a)).getStatus shouldEqual 200
+    upload(mid, "model.pt", Array.fill[Byte](2048)(0x5a))
 
     val version = modelResource.createModelVersion("initial", mid, sessionUser)
     version.modelVersion.getName should startWith("v1")
@@ -140,11 +99,7 @@ class ModelUploadResourceSpec
 
   it should "accept a .pth extension as well" in {
     val model = newModel()
-    uploadOneShot(
-      model.model.getMid,
-      "weights.pth",
-      Array.fill[Byte](1024)(0x1)
-    ).getStatus shouldEqual 200
+    upload(model.model.getMid, "weights.pth", Array.fill[Byte](1024)(0x1))
   }
 
   "createModelVersion" should "reject a version when there are no staged changes" in {
@@ -158,7 +113,7 @@ class ModelUploadResourceSpec
   "deleteModelFile" should "remove a staged file" in {
     val model = newModel()
     val mid = model.model.getMid
-    uploadOneShot(mid, "scratch.pt", Array.fill[Byte](512)(0x2)).getStatus shouldEqual 200
+    upload(mid, "scratch.pt", Array.fill[Byte](512)(0x2))
     modelResource.deleteModelFile(mid, urlEnc("scratch.pt"), sessionUser).getStatus shouldEqual 200
   }
 
@@ -170,13 +125,9 @@ class ModelUploadResourceSpec
     val mid = model.model.getMid
 
     // a typical model folder: weights plus config/tokenizer companions
-    uploadOneShot(mid, "model.pt", Array.fill[Byte](256)(0x5)).getStatus shouldEqual 200
-    uploadOneShot(
-      mid,
-      "config.json",
-      "{\"hidden\":8}".getBytes(StandardCharsets.UTF_8)
-    ).getStatus shouldEqual 200
-    uploadOneShot(mid, "tokenizer.txt", Array.fill[Byte](32)(0x4)).getStatus shouldEqual 200
+    upload(mid, "model.pt", Array.fill[Byte](256)(0x5))
+    upload(mid, "config.json", "{\"hidden\":8}".getBytes(StandardCharsets.UTF_8))
+    upload(mid, "tokenizer.txt", Array.fill[Byte](32)(0x4))
 
     val version = modelResource.createModelVersion("folder", mid, sessionUser)
     version.fileNodes.nonEmpty shouldBe true
@@ -190,17 +141,9 @@ class ModelUploadResourceSpec
     val mid = model.model.getMid
 
     // a HuggingFace-style layout: files inside subdirectories
-    uploadOneShot(mid, "pytorch_model.bin", Array.fill[Byte](128)(0x6)).getStatus shouldEqual 200
-    uploadOneShot(
-      mid,
-      "tokenizer/vocab.txt",
-      Array.fill[Byte](64)(0x7)
-    ).getStatus shouldEqual 200
-    uploadOneShot(
-      mid,
-      "shards/part-00001/data.bin",
-      Array.fill[Byte](64)(0x8)
-    ).getStatus shouldEqual 200
+    upload(mid, "pytorch_model.bin", Array.fill[Byte](128)(0x6))
+    upload(mid, "tokenizer/vocab.txt", Array.fill[Byte](64)(0x7))
+    upload(mid, "shards/part-00001/data.bin", Array.fill[Byte](64)(0x8))
 
     modelResource.createModelVersion("nested", mid, sessionUser)
 
@@ -227,14 +170,14 @@ class ModelUploadResourceSpec
     val mid = model.model.getMid
 
     // v1: four files, with b at a known size
-    uploadOneShot(mid, "a.pt", Array.fill[Byte](100)(0x1)).getStatus shouldEqual 200
-    uploadOneShot(mid, "b.pt", Array.fill[Byte](200)(0x2)).getStatus shouldEqual 200
-    uploadOneShot(mid, "c.pt", Array.fill[Byte](300)(0x3)).getStatus shouldEqual 200
-    uploadOneShot(mid, "d.pt", Array.fill[Byte](400)(0x4)).getStatus shouldEqual 200
+    upload(mid, "a.pt", Array.fill[Byte](100)(0x1))
+    upload(mid, "b.pt", Array.fill[Byte](200)(0x2))
+    upload(mid, "c.pt", Array.fill[Byte](300)(0x3))
+    upload(mid, "d.pt", Array.fill[Byte](400)(0x4))
     val v1 = modelResource.createModelVersion("first", mid, sessionUser)
 
     // v2: re-upload ONLY b, with a different size so the two revisions are distinguishable
-    uploadOneShot(mid, "b.pt", Array.fill[Byte](999)(0x9)).getStatus shouldEqual 200
+    upload(mid, "b.pt", Array.fill[Byte](999)(0x9))
     val v2 = modelResource.createModelVersion("second", mid, sessionUser)
 
     def nodesOf(mvid: Integer) =
@@ -265,19 +208,9 @@ class ModelUploadResourceSpec
     val mid = model.model.getMid
 
     // The collaborator can write, but the model still belongs to ownerUser.
-    new ModelUserAccessDao(getDSLContext.configuration())
-      .insert(new ModelUserAccess(mid, collaboratorUser.getUid, PrivilegeEnum.WRITE))
+    grantAccess(mid, collaboratorUser.getUid, PrivilegeEnum.WRITE)
 
-    modelResource
-      .uploadOneFileToModel(
-        mid,
-        urlEnc("weights.bin"),
-        "upload",
-        new ByteArrayInputStream(Array.fill[Byte](64)(0x3)),
-        mkHeaders(64L),
-        collaboratorSession
-      )
-      .getStatus shouldEqual 200
+    upload(mid, "weights.bin", Array.fill[Byte](64)(0x3), collaboratorSession)
 
     val created = modelResource.createModelVersion("from-collab", mid, collaboratorSession)
     val versionName = created.modelVersion.getName
@@ -306,7 +239,7 @@ class ModelUploadResourceSpec
     val model = newModel()
     val mid = model.model.getMid
 
-    uploadOneShot(mid, "weights.pt", Array.fill[Byte](32)(0x1)).getStatus shouldEqual 200
+    upload(mid, "weights.pt", Array.fill[Byte](32)(0x1))
 
     // The insert happens after the LakeFS commit, so an unchecked name would strand the
     // staged file behind a commit no version points at.
@@ -329,7 +262,7 @@ class ModelUploadResourceSpec
     val model = newModel()
     val mid = model.model.getMid
 
-    uploadOneShot(mid, "weights.pt", Array.fill[Byte](32)(0x1)).getStatus shouldEqual 200
+    upload(mid, "weights.pt", Array.fill[Byte](32)(0x1))
 
     intercept[BadRequestException] {
       modelResource.createModelVersion("2024/01 snapshot", mid, sessionUser)
@@ -344,8 +277,8 @@ class ModelUploadResourceSpec
     val modelA = newModel()
     val modelB = newModel()
 
-    uploadOneShot(modelA.model.getMid, "a.pt", Array.fill[Byte](16)(0x1)).getStatus shouldEqual 200
-    uploadOneShot(modelB.model.getMid, "b.pt", Array.fill[Byte](16)(0x2)).getStatus shouldEqual 200
+    upload(modelA.model.getMid, "a.pt", Array.fill[Byte](16)(0x1))
+    upload(modelB.model.getMid, "b.pt", Array.fill[Byte](16)(0x2))
     modelResource.createModelVersion("va", modelA.model.getMid, sessionUser)
     val versionOfB = modelResource.createModelVersion("vb", modelB.model.getMid, sessionUser)
 
@@ -361,22 +294,11 @@ class ModelUploadResourceSpec
 
   "multipartUpload" should "400 when the operation type is missing or unknown" in {
     val model = newModel()
-    val ownerEmail = ownerUser.getEmail
-    val modelName = model.model.getName
 
     // Absent means null, which used to NPE into a 500.
     for (op <- Seq(null, "", "bogus")) {
       intercept[BadRequestException] {
-        modelResource.multipartUpload(
-          op,
-          ownerEmail,
-          modelName,
-          urlEnc("f.pt"),
-          Optional.empty(),
-          Optional.empty(),
-          Optional.empty(),
-          sessionUser
-        )
+        multipartOp(op, model, "f.pt")
       }
     }
   }
@@ -394,15 +316,12 @@ class ModelUploadResourceSpec
     val partSize = 8L * 1024L * 1024L
 
     // init -> one part expected
-    val initResp = modelResource.multipartUpload(
+    val initResp = multipartOp(
       "init",
-      ownerEmail,
-      modelName,
-      urlEnc(filePath),
+      model,
+      filePath,
       Optional.of(java.lang.Long.valueOf(payload.length.toLong)),
-      Optional.of(java.lang.Long.valueOf(partSize)),
-      Optional.empty(),
-      sessionUser
+      Optional.of(java.lang.Long.valueOf(partSize))
     )
     initResp.getStatus shouldEqual 200
 
@@ -419,17 +338,7 @@ class ModelUploadResourceSpec
     partResp.getStatus shouldEqual 200
 
     // finish
-    val finishResp = modelResource.multipartUpload(
-      "finish",
-      ownerEmail,
-      modelName,
-      urlEnc(filePath),
-      Optional.empty(),
-      Optional.empty(),
-      Optional.empty(),
-      sessionUser
-    )
-    finishResp.getStatus shouldEqual 200
+    multipartOp("finish", model, filePath).getStatus shouldEqual 200
 
     // the finished file is now staged and can be committed as a version
     val version = modelResource.createModelVersion("from-multipart", mid, sessionUser)
@@ -442,34 +351,16 @@ class ModelUploadResourceSpec
 
   it should "abort an initiated upload" in {
     val model = newModel()
-    val ownerEmail = ownerUser.getEmail
-    val modelName = model.model.getName
     val filePath = "abort-model.pt"
 
-    modelResource
-      .multipartUpload(
-        "init",
-        ownerEmail,
-        modelName,
-        urlEnc(filePath),
-        Optional.of(java.lang.Long.valueOf(16L)),
-        Optional.of(java.lang.Long.valueOf(8L * 1024L * 1024L)),
-        Optional.empty(),
-        sessionUser
-      )
-      .getStatus shouldEqual 200
+    multipartOp(
+      "init",
+      model,
+      filePath,
+      Optional.of(java.lang.Long.valueOf(16L)),
+      Optional.of(java.lang.Long.valueOf(8L * 1024L * 1024L))
+    ).getStatus shouldEqual 200
 
-    modelResource
-      .multipartUpload(
-        "abort",
-        ownerEmail,
-        modelName,
-        urlEnc(filePath),
-        Optional.empty(),
-        Optional.empty(),
-        Optional.empty(),
-        sessionUser
-      )
-      .getStatus shouldEqual 200
+    multipartOp("abort", model, filePath).getStatus shouldEqual 200
   }
 }

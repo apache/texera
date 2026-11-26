@@ -69,8 +69,6 @@ export interface ResourceDescriptor {
   setPublished?(id: number, next: boolean): Observable<unknown>;
   /** A ready-to-render URL for the entry's cover image, or null when it has none. */
   coverUrl?(id: number): Observable<string | null>;
-  /** Points the cover at a committed file of the entry, as "<version>/<path>". */
-  setCover?(id: number, path: string): Observable<unknown>;
   /** Entry ids of this kind; absent when the backend exposes no such endpoint. */
   retrieveIds?(): Observable<number[]>;
 }
