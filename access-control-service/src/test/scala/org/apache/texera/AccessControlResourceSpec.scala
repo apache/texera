@@ -200,10 +200,15 @@ class AccessControlResourceSpec
     response.getHeaderString("Host") shouldBe testRecordedUri
   }
 
-  "AccessControlResource" should "return FORBIDDEN for a GET request without a token" in {
+  /** A request for unit 1 whose Authorization header comes back as an empty list, not null. */
+  private def emptyAuthorizationRequest(): Request = {
     val request = mockRequest(testPath, Some("1"), authorizationHeader = None)
     when(request.headers.getRequestHeader("Authorization")).thenReturn(new util.ArrayList[String]())
-    assertForbidden(request.get())
+    request
+  }
+
+  "AccessControlResource" should "return FORBIDDEN for a GET request without a token" in {
+    assertForbidden(emptyAuthorizationRequest().get())
   }
 
   it should "return FORBIDDEN for a GET request with a non-integer cuid" in {
@@ -211,9 +216,7 @@ class AccessControlResourceSpec
   }
 
   it should "return FORBIDDEN for a POST request without a token" in {
-    val request = mockRequest(testPath, Some("1"), authorizationHeader = None)
-    when(request.headers.getRequestHeader("Authorization")).thenReturn(new util.ArrayList[String]())
-    assertForbidden(request.post(null))
+    assertForbidden(emptyAuthorizationRequest().post(null))
   }
 
   "AccessControlResource" should "return FORBIDDEN for an unknown computing unit" in {

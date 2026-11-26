@@ -35,6 +35,7 @@ import org.apache.texera.dao.jooq.generated.enums.{
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
   DatasetDao,
+  DatasetUserAccessDao,
   DatasetVersionDao,
   UserDao,
   WorkflowComputingUnitDao
@@ -42,6 +43,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   ComputingUnitUserAccess,
   Dataset,
+  DatasetUserAccess,
   DatasetVersion,
   User,
   WorkflowComputingUnit
@@ -167,9 +169,9 @@ class ComputingUnitMountResourceSpec
   /** Expects `mount` to throw `T` before the node mounter is asked for anything. */
   private def expectMountRejected[T <: Throwable: ClassTag](
       user: User = owner,
-      cuid: Int = 7,
-      repo: String = "dataset-1",
-      commit: String = "abc123",
+      cuid: Int = computingUnit.getCuid,
+      repo: String = ownedDataset.getRepositoryName,
+      commit: String = ownedVersion.getVersionHash,
       build: MounterClient => ComputingUnitMountResource = resource(_)
   ): Unit = {
     val mounter = new RecordingMounter
@@ -195,6 +197,13 @@ class ComputingUnitMountResourceSpec
     access.setUid(reader.getUid)
     access.setPrivilege(PrivilegeEnum.READ)
     new ComputingUnitUserAccessDao(getDSLContext.configuration()).insert(access)
+    // The reader may read the owned dataset, so only the unit's WRITE requirement can refuse
+    // the reader's mount.
+    val datasetAccess = new DatasetUserAccess()
+    datasetAccess.setDid(ownedDataset.getDid)
+    datasetAccess.setUid(reader.getUid)
+    datasetAccess.setPrivilege(PrivilegeEnum.READ)
+    new DatasetUserAccessDao(getDSLContext.configuration()).insert(datasetAccess)
   }
 
   override protected def afterAll(): Unit = closeConnectionPool()
