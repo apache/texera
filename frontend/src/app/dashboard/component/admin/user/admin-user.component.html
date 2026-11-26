@@ -47,8 +47,8 @@
         nzCustomFilter>
         Name
         <nz-filter-trigger
-          [(nzVisible)]="nameSearchVisible"
-          [nzActive]="nameSearchValue.length > 0"
+          [(nzVisible)]="searchVisible.name"
+          [nzActive]="searchValue.name.length > 0"
           [nzDropdownMenu]="nameMenu">
           <span
             nz-icon
@@ -61,8 +61,8 @@
         nzCustomFilter>
         Email
         <nz-filter-trigger
-          [(nzVisible)]="emailSearchVisible"
-          [nzActive]="emailSearchValue.length > 0"
+          [(nzVisible)]="searchVisible.email"
+          [nzActive]="searchValue.email.length > 0"
           [nzDropdownMenu]="emailMenu">
           <span
             nz-icon
@@ -85,8 +85,8 @@
         nzCustomFilter>
         Comment
         <nz-filter-trigger
-          [(nzVisible)]="commentSearchVisible"
-          [nzActive]="commentSearchValue.length > 0"
+          [(nzVisible)]="searchVisible.comment"
+          [nzActive]="searchValue.comment.length > 0"
           [nzDropdownMenu]="commentMenu">
           <span
             nz-icon
@@ -97,11 +97,7 @@
         nzWidth="200px"
         [nzFilterFn]="filterByRole"
         [nzSortDirections]="['ascend', 'descend']"
-        [nzFilters]="[
-      { text: 'INACTIVE', value: 'INACTIVE' },
-      { text: 'REGULAR', value: 'REGULAR'},
-      { text: 'ADMIN', value: 'ADMIN'},
-      { text: 'RESTRICTED', value: 'RESTRICTED'}]"
+        [nzFilters]="roleFilters"
         [nzSortFn]="sortByRole">
         User Role
       </th>
@@ -114,16 +110,19 @@
       </th>
     </tr>
   </thead>
-  <nz-dropdown-menu #nameMenu="nzDropdownMenu">
+  <ng-template
+    #textFilterMenu
+    let-field="field"
+    let-placeholder="placeholder">
     <div class="ant-table-filter-dropdown">
       <div class="search-box">
         <input
-          [(ngModel)]="nameSearchValue"
+          [(ngModel)]="$any(searchValue)[field]"
           nz-input
-          placeholder="Search name"
+          [placeholder]="placeholder"
           type="text" />
         <button
-          (click)="searchByName()"
+          (click)="searchByField(field)"
           class="search-button"
           nz-button
           nzSize="small"
@@ -138,56 +137,15 @@
         </button>
       </div>
     </div>
+  </ng-template>
+  <nz-dropdown-menu #nameMenu="nzDropdownMenu">
+    <ng-container *ngTemplateOutlet="textFilterMenu; context: { field: 'name', placeholder: 'Search name' }" />
   </nz-dropdown-menu>
   <nz-dropdown-menu #emailMenu="nzDropdownMenu">
-    <div class="ant-table-filter-dropdown">
-      <div class="search-box">
-        <input
-          [(ngModel)]="emailSearchValue"
-          nz-input
-          placeholder="Search name"
-          type="text" />
-        <button
-          (click)="searchByEmail()"
-          class="search-button"
-          nz-button
-          nzSize="small"
-          nzType="primary">
-          Search
-        </button>
-        <button
-          (click)="reset()"
-          nz-button
-          nzSize="small">
-          Reset
-        </button>
-      </div>
-    </div>
+    <ng-container *ngTemplateOutlet="textFilterMenu; context: { field: 'email', placeholder: 'Search name' }" />
   </nz-dropdown-menu>
   <nz-dropdown-menu #commentMenu="nzDropdownMenu">
-    <div class="ant-table-filter-dropdown">
-      <div class="search-box">
-        <input
-          [(ngModel)]="commentSearchValue"
-          nz-input
-          placeholder="Search comment"
-          type="text" />
-        <button
-          (click)="searchByComment()"
-          class="search-button"
-          nz-button
-          nzSize="small"
-          nzType="primary">
-          Search
-        </button>
-        <button
-          (click)="reset()"
-          nz-button
-          nzSize="small">
-          Reset
-        </button>
-      </div>
-    </div>
+    <ng-container *ngTemplateOutlet="textFilterMenu; context: { field: 'comment', placeholder: 'Search comment' }" />
   </nz-dropdown-menu>
   <tbody>
     <tr *ngFor="let user of basicTable.data">
@@ -274,28 +232,11 @@
           ngModel="{{user.role}}"
           nzVariant="borderless">
           <nz-option
+            *ngFor="let role of roleFilters; let idx = index"
             nzCustomContent
-            nzLabel="0"
-            nzValue="INACTIVE"
-            ><span class="role c0">INACTIVE</span></nz-option
-          >
-          <nz-option
-            nzCustomContent
-            nzLabel="1"
-            nzValue="REGULAR"
-            ><span class="role c1">REGULAR</span></nz-option
-          >
-          <nz-option
-            nzCustomContent
-            nzLabel="2"
-            nzValue="ADMIN"
-            ><span class="role c2">ADMIN</span></nz-option
-          >
-          <nz-option
-            nzCustomContent
-            nzLabel="3"
-            nzValue="RESTRICTED"
-            ><span class="role c3">RESTRICTED</span></nz-option
+            [nzLabel]="'' + idx"
+            [nzValue]="role.value"
+            ><span class="role c{{idx}}">{{role.text}}</span></nz-option
           >
         </nz-select>
         <ng-template

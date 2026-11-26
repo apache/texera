@@ -147,11 +147,8 @@ export class UserQuotaComponent implements OnInit {
     const monthMap = new Map<string, number>();
     data.forEach(([date, value]) => {
       const month = date.substring(0, 7); // 'YYYY-MM'
-      if (monthMap.has(month)) {
-        monthMap.set(month, monthMap.get(month)! + value);
-      } else {
-        monthMap.set(month, value);
-      }
+      const previous = monthMap.get(month);
+      monthMap.set(month, previous === undefined ? value : previous + value);
     });
     return Array.from(monthMap, ([date, value]) => [date, value]);
   }
@@ -240,6 +237,33 @@ export class UserQuotaComponent implements OnInit {
     Plotly.newPlot(chart, data, layout);
   }
 
+  get quotaSummaryItems(): ReadonlyArray<{ heading: string; value: string | number }> {
+    return [
+      { heading: "Files Uploaded", value: this.createdFiles.length },
+      { heading: "Datasets Uploaded", value: this.totalUploadedDatasetCount },
+      { heading: "Total Size of Datasets", value: formatSize(this.totalUploadedDatasetSize) },
+      { heading: "Workflows Created", value: this.createdWorkflows.length },
+      { heading: "Files with Access", value: this.accessFiles.length },
+      { heading: "Workflows with Access", value: this.accessWorkflows.length },
+      { heading: "Total Size of the Files", value: formatSize(this.totalFileSize) },
+      { heading: "Total Result Cache Size", value: formatSize(this.totalQuotaSize) },
+    ];
+  }
+
+  executionSize(execution: ExecutionQuota): number {
+    return execution.resultBytes + execution.logBytes + execution.runTimeStatsBytes;
+  }
+
+  private populateUploadLineChart(creationTimes: ReadonlyArray<number>, title: string, chart: string): void {
+    const countsByDate = new Map<string, number>();
+    creationTimes.forEach(creationTime => {
+      const date = new Date(creationTime).toLocaleDateString();
+      countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
+    });
+    const aggregatedData = this.aggregateData(Array.from(countsByDate.entries()), 5);
+    this.generateLineChart(aggregatedData, "Date", "Count", title, chart);
+  }
+
   refreshData() {
     this.UserService.getCreatedDatasets(this.userId)
       .pipe(untilDestroyed(this))
@@ -247,47 +271,29 @@ export class UserQuotaComponent implements OnInit {
         this.datasetList = datasetList;
         let totalDatasetSize = 0;
         this.totalUploadedDatasetCount = datasetList.length;
-        let pieChartData: Array<[string, ...number[]]> = [];
-        let lineChartData: Map<string, number> = new Map();
+        const pieChartData: Array<[string, ...number[]]> = [];
         this.datasetList.forEach(dataset => {
           totalDatasetSize += dataset.size;
           pieChartData.push([dataset.name, dataset.size]);
-          const date = new Date(dataset.creationTime).toLocaleDateString();
-          if (lineChartData.has(date)) {
-            lineChartData.set(date, lineChartData.get(date)! + 1);
-          } else {
-            lineChartData.set(date, 1);
-          }
         });
         this.generatePieChart(pieChartData, "Dataset Size Distribution", "sizePieChart");
-        let lineChartDataArray: Array<[string, number]> = [];
-        lineChartData.forEach((count, date) => {
-          lineChartDataArray.push([date, count]);
-        });
-        lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
-        this.generateLineChart(lineChartDataArray, "Date", "Count", "Dataset Upload Overview", "datasetLineChart");
+        this.populateUploadLineChart(
+          this.datasetList.map(dataset => dataset.creationTime),
+          "Dataset Upload Overview",
+          "datasetLineChart"
+        );
         this.totalUploadedDatasetSize = totalDatasetSize;
       });
 
     this.UserService.getCreatedWorkflows(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowList => {
-        let lineChartData: Map<string, number> = new Map();
         this.createdWorkflows = workflowList;
-        this.createdWorkflows.forEach(workflow => {
-          const date = new Date(workflow.creationTime).toLocaleDateString();
-          if (lineChartData.has(date)) {
-            lineChartData.set(date, lineChartData.get(date)! + 1);
-          } else {
-            lineChartData.set(date, 1);
-          }
-        });
-        let lineChartDataArray: Array<[string, number]> = [];
-        lineChartData.forEach((count, date) => {
-          lineChartDataArray.push([date, count]);
-        });
-        lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
-        this.generateLineChart(lineChartDataArray, "Date", "Count", "Workflow Upload Overview", "workflowLineChart");
+        this.populateUploadLineChart(
+          this.createdWorkflows.map(workflow => workflow.creationTime),
+          "Workflow Upload Overview",
+          "workflowLineChart"
+        );
       });
 
     this.UserService.getAccessWorkflows(this.userId)
@@ -329,8 +335,7 @@ export class UserQuotaComponent implements OnInit {
         this.workflows.forEach((workflow, index, array) => {
           const executionToDelete = workflow.executions.find(execution => execution.eid === eid);
           if (executionToDelete) {
-            this.totalQuotaSize -=
-              executionToDelete.resultBytes + executionToDelete.logBytes + executionToDelete.runTimeStatsBytes;
+            this.totalQuotaSize -= this.executionSize(executionToDelete);
             workflow.executions = workflow.executions.filter(execution => execution.eid !== eid);
           }
         });
@@ -342,5 +347,5 @@ export class UserQuotaComponent implements OnInit {
   formatSize = formatSize;
 
   public sortBySize: NzTableSortFn<ExecutionQuota> = (a: ExecutionQuota, b: ExecutionQuota) =>
-    a.resultBytes + a.logBytes + a.runTimeStatsBytes - (b.resultBytes + b.logBytes + b.runTimeStatsBytes);
+    this.executionSize(a) - this.executionSize(b);
 }

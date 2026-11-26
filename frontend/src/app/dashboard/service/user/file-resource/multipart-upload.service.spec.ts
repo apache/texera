@@ -59,22 +59,53 @@ describe("MultipartUploadService", () => {
     service = TestBed.inject(MultipartUploadService);
     http = TestBed.inject(HttpTestingController);
     FakeXMLHttpRequest.reset();
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     http.verify();
   });
+
+  const startUpload = (
+    fileName: string,
+    {
+      endpoint = DATASET_FILE_RESOURCE_ENDPOINT,
+      bytes = new Uint8Array(4) as BlobPart,
+      chunkSize = 4,
+      captureError = false,
+    } = {}
+  ) => {
+    const emissions: MultipartUploadProgress[] = [];
+    const obs = service.multipartUpload(
+      endpoint,
+      "o@e.com",
+      endpoint === WIDGET_ENDPOINT ? "my-widget" : "ds",
+      fileName,
+      new File([bytes], fileName),
+      chunkSize,
+      1,
+      false
+    );
+    let subscription!: ReturnType<typeof obs.subscribe>;
+    const done = new Promise<unknown>((resolve, reject) => {
+      subscription = obs.subscribe({
+        next: p => emissions.push(p),
+        error: captureError ? resolve : reject,
+        complete: () => resolve(null),
+      });
+    });
+    return { done, emissions, subscription };
+  };
+
+  const flushInit = (body: object | null = { missingParts: [1], completedPartsCount: 0 }) =>
+    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush(body);
 
   // ─── the endpoint seam ────────────────────────────────────────────────────
 
   it("addresses init, part and finish through the supplied endpoint", async () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    const file = new File([new Uint8Array(4)], "w.bin");
-    const done = new Promise<void>((resolve, reject) => {
-      service
-        .multipartUpload(WIDGET_ENDPOINT, "o@e.com", "my-widget", "w.bin", file, 4, 1, false)
-        .subscribe({ error: reject, complete: resolve });
-    });
+    const { done } = startUpload("w.bin", { endpoint: WIDGET_ENDPOINT });
 
     const init = http.expectOne(isType(WIDGET_ENDPOINT, "init"));
     expect(init.request.params.get("widgetName")).toBe("my-widget");
@@ -126,74 +157,38 @@ describe("MultipartUploadService", () => {
   // ─── upload flow ──────────────────────────────────────────────────────────
 
   it("emits progress, attaches the auth header, and finishes at 100%", async () => {
-    const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue("tok123");
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    try {
-      const file = new File([new Uint8Array(8)], "d.bin");
-      const emissions: MultipartUploadProgress[] = [];
-      const done = new Promise<void>((resolve, reject) => {
-        service
-          .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "d.bin", file, 8, 1, false)
-          .subscribe({ next: p => emissions.push(p), error: reject, complete: resolve });
-      });
+    vi.spyOn(AuthService, "getAccessToken").mockReturnValue("tok123");
+    const { done, emissions } = startUpload("d.bin", { bytes: new Uint8Array(8), chunkSize: 8 });
+    flushInit();
 
-      http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({
-        missingParts: [1],
-        completedPartsCount: 0,
-      });
+    const xhr = FakeXMLHttpRequest.instances[0];
+    expect(xhr.requestHeaders.get("Content-Type")).toBe("application/octet-stream");
+    expect(xhr.requestHeaders.get("Authorization")).toBe("Bearer tok123");
 
-      const xhr = FakeXMLHttpRequest.instances[0];
-      expect(xhr.requestHeaders.get("Content-Type")).toBe("application/octet-stream");
-      expect(xhr.requestHeaders.get("Authorization")).toBe("Bearer tok123");
+    xhr.emitProgress(4);
+    xhr.respond(200);
+    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "finish")).flush({});
+    await done;
 
-      xhr.emitProgress(4);
-      xhr.respond(200);
-      http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "finish")).flush({});
-      await done;
-
-      expect(emissions[0]).toMatchObject({ status: "initializing" });
-      expect(emissions.some(e => e.status === "uploading" && e.percentage > 0 && e.percentage <= 99)).toBe(true);
-      expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
-    } finally {
-      tokenSpy.mockRestore();
-    }
+    expect(emissions[0]).toMatchObject({ status: "initializing" });
+    expect(emissions.some(e => e.status === "uploading" && e.percentage > 0 && e.percentage <= 99)).toBe(true);
+    expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
   });
 
   it("omits the auth header when there is no access token", () => {
-    const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue(null);
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    try {
-      const file = new File([new Uint8Array(4)], "anon.bin");
-      const subscription = service
-        .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "anon.bin", file, 4, 1, false)
-        .subscribe();
-      http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({
-        missingParts: [1],
-        completedPartsCount: 0,
-      });
+    vi.spyOn(AuthService, "getAccessToken").mockReturnValue(null);
+    const { subscription } = startUpload("anon.bin");
+    flushInit();
 
-      expect(FakeXMLHttpRequest.instances[0].requestHeaders.has("Authorization")).toBe(false);
-      subscription.unsubscribe();
-    } finally {
-      tokenSpy.mockRestore();
-    }
+    expect(FakeXMLHttpRequest.instances[0].requestHeaders.has("Authorization")).toBe(false);
+    subscription.unsubscribe();
   });
 
   it("resumes by uploading only the parts the backend reports missing", async () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    const file = new File(["abcdefgh"], "resume.txt");
-    const emissions: MultipartUploadProgress[] = [];
-    const done = new Promise<void>((resolve, reject) => {
-      service
-        .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "resume.txt", file, 4, 1, false)
-        .subscribe({ next: p => emissions.push(p), error: reject, complete: resolve });
-    });
+    const { done, emissions } = startUpload("resume.txt", { bytes: "abcdefgh" });
 
     // One of two parts already landed, so the baseline starts at 50%.
-    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({
-      missingParts: [2],
-      completedPartsCount: 1,
-    });
+    flushInit({ missingParts: [2], completedPartsCount: 1 });
 
     expect(emissions[0]).toMatchObject({ percentage: 50, status: "initializing" });
     expect(FakeXMLHttpRequest.instances.map(x => x.params().get("partNumber"))).toEqual(["2"]);
@@ -205,16 +200,10 @@ describe("MultipartUploadService", () => {
   });
 
   it("finishes without uploading anything when no parts are missing", async () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    const file = new File([new Uint8Array(4)], "c.bin");
-    const done = new Promise<void>((resolve, reject) => {
-      service
-        .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "c.bin", file, 4, 1, false)
-        .subscribe({ error: reject, complete: resolve });
-    });
+    const { done } = startUpload("c.bin");
 
     // A sparse payload also exercises the nullish-coalescing defaults.
-    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({});
+    flushInit({});
     expect(FakeXMLHttpRequest.instances.length).toBe(0);
     http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "finish")).flush({});
     await done;
@@ -223,19 +212,9 @@ describe("MultipartUploadService", () => {
   // ─── failure and teardown ─────────────────────────────────────────────────
 
   it("fails the upload when a part returns a non-2xx status", async () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    const file = new File([new Uint8Array(4)], "e.bin");
-    const emissions: MultipartUploadProgress[] = [];
-    const outcome = new Promise<unknown>(resolve => {
-      service
-        .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "e.bin", file, 4, 1, false)
-        .subscribe({ next: p => emissions.push(p), error: resolve, complete: () => resolve(null) });
-    });
+    const { done: outcome, emissions } = startUpload("e.bin", { captureError: true });
 
-    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({
-      missingParts: [1],
-      completedPartsCount: 0,
-    });
+    flushInit();
     FakeXMLHttpRequest.instances[0].respond(500);
 
     const err = await outcome;
@@ -244,34 +223,18 @@ describe("MultipartUploadService", () => {
   });
 
   it("fails the upload when a part errors at the transport level", async () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    const file = new File([new Uint8Array(4)], "x.bin");
-    const outcome = new Promise<unknown>(resolve => {
-      service
-        .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "x.bin", file, 4, 1, false)
-        .subscribe({ error: resolve, complete: () => resolve(null) });
-    });
+    const { done: outcome } = startUpload("x.bin", { captureError: true });
 
-    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({
-      missingParts: [1],
-      completedPartsCount: 0,
-    });
+    flushInit();
     FakeXMLHttpRequest.instances[0].fail();
 
     expect(await outcome).toBeInstanceOf(Error);
   });
 
   it("aborts the in-flight part request when the caller unsubscribes", () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
-    const file = new File([new Uint8Array(4)], "t.bin");
-    const subscription = service
-      .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", "t.bin", file, 4, 1, false)
-      .subscribe();
+    const { subscription } = startUpload("t.bin");
 
-    http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init")).flush({
-      missingParts: [1],
-      completedPartsCount: 0,
-    });
+    flushInit();
 
     const xhr = FakeXMLHttpRequest.instances[0];
     expect(xhr.aborted).toBe(false);
@@ -295,12 +258,8 @@ describe("MultipartUploadService", () => {
   });
 
   it("percent-encodes the file path on both the init params and the part URL", async () => {
-    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
     const nested = "folder sub/a+b.csv";
-    const file = new File([new Uint8Array(4)], "a.csv");
-    const subscription = service
-      .multipartUpload(DATASET_FILE_RESOURCE_ENDPOINT, "o@e.com", "ds", nested, file, 4, 1, false)
-      .subscribe();
+    const { subscription } = startUpload(nested);
 
     const init = http.expectOne(isType(DATASET_FILE_RESOURCE_ENDPOINT, "init"));
     // HttpParams decodes on read, so this asserts the pre-encoding the backend expects.

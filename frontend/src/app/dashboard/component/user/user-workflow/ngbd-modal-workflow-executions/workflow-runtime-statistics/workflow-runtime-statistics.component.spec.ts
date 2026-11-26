@@ -135,6 +135,13 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     return found as Series;
   }
 
+  async function mountChart(workflowRuntimeStatistics?: WorkflowRuntimeStatistics[]) {
+    await createFixture({ workflowRuntimeStatistics });
+    const gd = chartDiv();
+    fixture.detectChanges();
+    return gd;
+  }
+
   beforeEach(() => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
@@ -146,16 +153,12 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("should create", async () => {
-    await createFixture({ workflowRuntimeStatistics: validStats() });
-    chartDiv();
-    fixture.detectChanges();
+    await mountChart(validStats());
     expect(component).toBeTruthy();
   });
 
   it("ngOnInit plots the metric-0 dataset and layout onto the #chart div", async () => {
-    await createFixture({ workflowRuntimeStatistics: validStats() });
-    const gd = chartDiv();
-    fixture.detectChanges(); // ngOnInit -> createChart(0)
+    const gd = await mountChart(validStats());
 
     // Two distinct operatorIds => two grouped series rendered onto the chart div.
     expect(gd.data).toBeDefined();
@@ -167,9 +170,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("ngOnInit warns and does not plot when workflowRuntimeStatistics is undefined", async () => {
-    await createFixture({ workflowRuntimeStatistics: undefined });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart(undefined);
 
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
     expect(gd.data).toBeUndefined();
@@ -258,9 +259,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("onTabChanged re-plots the newly selected metric onto the #chart div", async () => {
-    await createFixture({ workflowRuntimeStatistics: validStats() });
-    const gd = chartDiv();
-    fixture.detectChanges(); // metric index 0 (Input Tuple Count)
+    const gd = await mountChart(validStats());
     expect(gd.layout?.title?.text).toBe("Input Tuple Count");
 
     component.onTabChanged(7); // metric index 7 (Number of Workers)
@@ -271,20 +270,14 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("createChart warns and does not plot when the dataset is empty (only a sink operator)", async () => {
-    await createFixture({
-      workflowRuntimeStatistics: [makeStat({ operatorId: "sink-op-999999", timestamp: 1000, inputTupleCount: 42 })],
-    });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart([makeStat({ operatorId: "sink-op-999999", timestamp: 1000, inputTupleCount: 42 })]);
 
     expect(warnSpy).toHaveBeenCalledWith("No data available for the chart.");
     expect(gd.data).toBeUndefined();
   });
 
   it("createChart warns twice and does not plot when the statistics array is empty", async () => {
-    await createFixture({ workflowRuntimeStatistics: [] });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart([]);
 
     // groupStatisticsByOperatorId warns about the empty input, then createChart warns about the empty dataset.
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
@@ -295,9 +288,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   it("onTabChanged after a statistics-less init yields an empty dataset and warns instead of plotting", async () => {
     // ngOnInit bails out before groupedStatistics is ever assigned, but the tabs still render,
     // so a tab click reaches createDataset with no grouping in place.
-    await createFixture({ workflowRuntimeStatistics: undefined });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart(undefined);
 
     expect((component as unknown as { createDataset(i: number): Series[] }).createDataset(3)).toEqual([]);
 
