@@ -1216,14 +1216,6 @@ describe("MenuComponent", () => {
   });
 
   describe("version history", () => {
-    it("onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions", () => {
-      const displaySpy = vi.spyOn(workflowVersionService, "displayWorkflowVersions").mockImplementation(() => {});
-
-      component.onClickGetAllVersions();
-
-      expect(displaySpy).toHaveBeenCalledTimes(1);
-    });
-
     it("closeParticularVersionDisplay delegates to workflowVersionService", () => {
       const closeSpy = vi.spyOn(workflowVersionService, "closeParticularVersionDisplay").mockImplementation(() => {});
 

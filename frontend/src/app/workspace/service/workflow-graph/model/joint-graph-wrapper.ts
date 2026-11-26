@@ -31,42 +31,28 @@ import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
 
-type JointModelEventInfo = {
-  add: boolean;
-  merge: boolean;
-  remove: boolean;
-  changes: {
-    added: joint.dia.Cell[];
-    merged: joint.dia.Cell[];
-    removed: joint.dia.Cell[];
-  };
-};
-
-// argument type of callback event on a JointJS Model,
-// which is a 3-element tuple:
-// 1. the JointJS model (Cell) of the event
-// 2 and 3. additional information of the event
-type JointModelEvent = [joint.dia.Cell, { graph: joint.dia.Graph; models: joint.dia.Cell[] }, JointModelEventInfo];
+// JointJS add/remove put the cell in the first event slot.
+type JointModelEvent = [joint.dia.Cell, ...unknown[]];
 
 type JointLinkChangeEvent = [joint.dia.Link, { x: number; y: number }, { ui: boolean; updateConnectionOnly: boolean }];
 
 type JointPositionChangeEvent = [joint.dia.Element, { x: number; y: number }];
 
-export const RESULT_PREVIEW_SETTING_KEY = "result-preview-on-hover";
+const RESULT_PREVIEW_SETTING_KEY = "result-preview-on-hover";
 
 type PositionInfo = {
   currPos: Point;
   lastPos: Point | undefined;
 };
 
-export type JointHighlights = Readonly<{
+type JointHighlights = Readonly<{
   operators: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
   ports: readonly LogicalPort[];
 }>;
 
-export type JointGraphContextType = Readonly<{
+type JointGraphContextType = Readonly<{
   async: boolean;
 }>;
 const DefaultContext: JointGraphContextType = {
@@ -155,8 +141,6 @@ export class JointGraphWrapper {
   // the currently highlighted links' ids
   private currentHighlightedLinks: string[] = [];
   private currentHighlightedPorts: LogicalPort[] = [];
-  // the IDs of ports currently being edited
-
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
 
@@ -836,7 +820,7 @@ export class JointGraphWrapper {
       private static jointPaper: joint.dia.Paper | undefined;
 
       public static async() {
-        return this._async(this.getContext());
+        return this.getContext().async;
       }
 
       // Custom RXJS operator to buffer output while the jointgraph
@@ -892,17 +876,13 @@ export class JointGraphWrapper {
 
       protected static exit(): void {
         if (this.jointPaper !== undefined) {
-          const CURRENT_ASYNC_MODE = this._async(this.getContext());
-          const NEW_ASYNC_MODE = this._async(this.prevContext());
+          const CURRENT_ASYNC_MODE = this.getContext().async;
+          const NEW_ASYNC_MODE = this.prevContext().async;
 
           this.jointPaper.options.async = NEW_ASYNC_MODE;
           if (CURRENT_ASYNC_MODE && !NEW_ASYNC_MODE) this.jointPaper.updateViews();
         }
         super.exit();
-      }
-
-      private static _async(context: JointGraphContextType) {
-        return context.async;
       }
     }
 
@@ -1000,7 +980,7 @@ export class JointGraphWrapper {
     }, 300);
   }
 
-  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: ReturnType<typeof setInterval>) {
+  public removeCurrentEditing(previousEditing: string, intervalId: ReturnType<typeof setInterval>) {
     clearInterval(intervalId);
     this.getMainJointPaper()
       ?.getModelById(previousEditing)
@@ -1027,7 +1007,7 @@ export class JointGraphWrapper {
       });
   }
 
-  public removePropertyChanged(coeditor: User, currentChanged: string) {
+  public removePropertyChanged(currentChanged: string) {
     this.getMainJointPaper()
       ?.getModelById(currentChanged)
       .attr({

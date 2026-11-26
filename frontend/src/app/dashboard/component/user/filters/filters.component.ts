@@ -45,9 +45,11 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzDatePickerComponent, NzRangePickerComponent } from "ng-zorro-antd/date-picker";
 import { FormsModule } from "@angular/forms";
-import { NgFor, NgIf } from "@angular/common";
+import { NgFor } from "@angular/common";
 import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from "ng-zorro-antd/menu";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
+
+const DATE_TAG_PREFIXES = ["ctime: ", "mtime: "] as const;
 
 @UntilDestroy()
 @Component({
@@ -70,7 +72,6 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
     NzMenuDirective,
     NzMenuItemComponent,
     NzCheckboxComponent,
-    NgIf,
     NzSubMenuComponent,
     NzSpaceCompactComponent,
   ],
@@ -120,6 +121,26 @@ export class FiltersComponent implements OnInit, OnChanges {
   public selectedIDs: string[] = [];
   public selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator"];
+
+  public readonly dateDropdowns = [
+    { field: "mtime", cssClass: "modification-time-button", id: "mtimeSort", title: "Modification Time", icon: "form" },
+    {
+      field: "ctime",
+      cssClass: "search-creation-time-button",
+      id: "ctimeSort",
+      title: "Creation Time",
+      icon: "calendar",
+    },
+  ] as const;
+
+  public readonly facetDropdowns = [
+    { field: "owner", cssClass: "search-owners-button", id: "sortOwner", title: "Owner", icon: "user" },
+    { field: "id", cssClass: "search-wids-button", id: "sortID", title: "Workflow ID", icon: "ordered-list" },
+  ] as const;
+
+  public facetEntryLabel(entry: (typeof this.owners)[number] | (typeof this.wids)[number]): string {
+    return "userName" in entry ? entry.userName : entry.id;
+  }
 
   constructor(
     private userService: UserService,
@@ -174,12 +195,17 @@ export class FiltersComponent implements OnInit, OnChanges {
   public clearFacetSelections(): void {
     this.selectedOwners = [];
     this.selectedIDs = [];
-    this.owners.forEach(owner => (owner.checked = false));
-    this.wids.forEach(wid => (wid.checked = false));
+    this.uncheckFacetEntries();
     this.setMasterFilterList(
       this.masterFilterList.filter(tag => !tag.startsWith("owner: ") && !tag.startsWith("id: ")),
       false
     );
+  }
+
+  public onDateRangeChange(field: "mtime" | "ctime", range: Date[]): void {
+    if (field === "mtime") this.selectedMtime = range;
+    else this.selectedCtime = range;
+    this.buildMasterFilterList();
   }
 
   /** Refetches both facets for the kind and scope now in effect. */
@@ -266,15 +292,22 @@ export class FiltersComponent implements OnInit, OnChanges {
    * updates selectedOwners array to match owners checked in dropdown menu
    */
   public updateSelectedOwners(): void {
-    this.selectedOwners = this.owners.filter(owner => owner.checked).map(owner => owner.userName);
-    this.buildMasterFilterList();
+    this.updateCheckedFacet("selectedOwners", this.owners, owner => owner.userName);
   }
 
   /**
    * updates selectedIDs array to match worfklow ids checked in dropdown menu
    */
   public updateSelectedIDs(): void {
-    this.selectedIDs = this.wids.filter(wid => wid.checked).map(wid => wid.id);
+    this.updateCheckedFacet("selectedIDs", this.wids, wid => wid.id);
+  }
+
+  private updateCheckedFacet<T extends { checked: boolean }>(
+    target: "selectedOwners" | "selectedIDs",
+    items: T[],
+    pick: (item: T) => string
+  ): void {
+    this[target] = items.filter(item => item.checked).map(pick);
     this.buildMasterFilterList();
   }
 
@@ -320,24 +353,24 @@ export class FiltersComponent implements OnInit, OnChanges {
         const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
         switch (searchField) {
           case "owner":
-            const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
-            if (selectedOwnerIndex === -1) {
-              this.removeInvalidFilterTag(tag);
-              this.notificationService.error("Invalid owner name");
-              break;
-            }
-            this.owners[selectedOwnerIndex].checked = true;
-            this.selectedOwners.push(searchValue);
+            this.applyFacetSelection(
+              tag,
+              this.owners,
+              owner => owner.userName === searchValue,
+              this.selectedOwners,
+              searchValue,
+              "Invalid owner name"
+            );
             break;
           case "id":
-            const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
-            if (selectedIDIndex === -1) {
-              this.removeInvalidFilterTag(tag);
-              this.notificationService.error("Invalid workflow id");
-              break;
-            }
-            this.wids[selectedIDIndex].checked = true;
-            this.selectedIDs.push(searchValue);
+            this.applyFacetSelection(
+              tag,
+              this.wids,
+              wid => wid.id === searchValue,
+              this.selectedIDs,
+              searchValue,
+              "Invalid workflow id"
+            );
             break;
           case "operator":
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
@@ -358,52 +391,46 @@ export class FiltersComponent implements OnInit, OnChanges {
             }
             break;
           case "ctime": //should only run at most once
-            if (this.selectedCtime.length > 0) {
-              // if there is already an selected date, ignore the subsequent ctime tags
-              this.notificationService.error("Multiple search dates is not allowed");
-              break;
-            }
-            if (!searchDate) {
-              this.notificationService.error("Date format is incorrect");
-              break;
-            }
-            this.selectedCtime[0] = new Date(
-              parseInt(searchDate[1]),
-              parseInt(searchDate[2]) - 1,
-              parseInt(searchDate[3])
-            );
-            this.selectedCtime[1] = new Date(
-              parseInt(searchDate[4]),
-              parseInt(searchDate[5]) - 1,
-              parseInt(searchDate[6])
-            );
-            break;
           case "mtime": //should only run at most once
-            if (this.selectedMtime.length > 0) {
-              // if there is already an selected date, ignore the subsequent ctime tags
-              this.notificationService.error("Multiple search dates is not allowed");
-              break;
-            }
-            if (!searchDate) {
-              this.notificationService.error("Date format is incorrect");
-              break;
-            }
-            this.selectedMtime[0] = new Date(
-              parseInt(searchDate[1]),
-              parseInt(searchDate[2]) - 1,
-              parseInt(searchDate[3])
-            );
-            this.selectedMtime[1] = new Date(
-              parseInt(searchDate[4]),
-              parseInt(searchDate[5]) - 1,
-              parseInt(searchDate[6])
-            );
+            this.parseDateTag(searchDate, searchField === "ctime" ? this.selectedCtime : this.selectedMtime);
             break;
         }
       }
     });
     this.selectedOperators = newSelectedOperators;
     this.buildMasterFilterList();
+  }
+
+  private applyFacetSelection<T extends { checked: boolean }>(
+    tag: string,
+    entries: T[],
+    matches: (entry: T) => boolean,
+    selected: string[],
+    value: string,
+    errorMessage: string
+  ): void {
+    const entry = entries.find(matches);
+    if (!entry) {
+      this.removeInvalidFilterTag(tag);
+      this.notificationService.error(errorMessage);
+      return;
+    }
+    entry.checked = true;
+    selected.push(value);
+  }
+
+  private parseDateTag(searchDate: RegExpMatchArray | null, targetRange: Date[]): void {
+    if (targetRange.length > 0) {
+      // if there is already a selected date, ignore the subsequent tags
+      this.notificationService.error("Multiple search dates is not allowed");
+      return;
+    }
+    if (!searchDate) {
+      this.notificationService.error("Date format is incorrect");
+      return;
+    }
+    const n = (idx: number): number => parseInt(searchDate[idx]);
+    targetRange.push(new Date(n(1), n(2) - 1, n(3)), new Date(n(4), n(5) - 1, n(6)));
   }
 
   private removeInvalidFilterTag(tag: string): void {
@@ -413,16 +440,16 @@ export class FiltersComponent implements OnInit, OnChanges {
     );
   }
 
+  private uncheckFacetEntries(): void {
+    this.owners.forEach(owner => (owner.checked = false));
+    this.wids.forEach(wid => (wid.checked = false));
+  }
+
   /**
    * sets all dropdown menu options to unchecked
    */
   private setDropdownSelectionsToUnchecked(): void {
-    this.owners.forEach(owner => {
-      owner.checked = false;
-    });
-    this.wids.forEach(wid => {
-      wid.checked = false;
-    });
+    this.uncheckFacetEntries();
     for (let operatorList of this.operators.values()) {
       operatorList.forEach(operator => (operator.checked = false));
     }
@@ -447,21 +474,15 @@ export class FiltersComponent implements OnInit, OnChanges {
     newFilterList = newFilterList.concat(
       this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
     );
-    if (this.selectedCtime.length != 0) {
-      newFilterList.push(
-        "ctime: " +
-          this.getFormattedDateString(this.selectedCtime[0]) +
-          " ~ " +
-          this.getFormattedDateString(this.selectedCtime[1])
-      );
-    }
-    if (this.selectedMtime.length != 0) {
-      newFilterList.push(
-        "mtime: " +
-          this.getFormattedDateString(this.selectedMtime[0]) +
-          " ~ " +
-          this.getFormattedDateString(this.selectedMtime[1])
-      );
+    for (const [prefix, range] of [
+      ["ctime: ", this.selectedCtime],
+      ["mtime: ", this.selectedMtime],
+    ] as const) {
+      if (range.length !== 0) {
+        newFilterList.push(
+          `${prefix}${this.getFormattedDateString(range[0])} ~ ${this.getFormattedDateString(range[1])}`
+        );
+      }
     }
     this.setMasterFilterList(this.updateMasterFilterList(this.masterFilterList, newFilterList), false);
   }
@@ -471,20 +492,12 @@ export class FiltersComponent implements OnInit, OnChanges {
     // The purpose of this function is to preserve order.
     // Add the item if it doesn't exist.
     for (const item of items) {
-      const ctime = item.startsWith("ctime: ");
-      const mtime = item.startsWith("mtime: ");
-      if (ctime || mtime) {
-        const index = list.findIndex(i => i.startsWith(ctime ? "ctime: " : "mtime: "));
-        if (index !== -1) {
-          list[index] = item;
-        } else {
-          list.push(item);
-        }
+      const datePrefix = DATE_TAG_PREFIXES.find(prefix => item.startsWith(prefix));
+      const index = datePrefix ? list.findIndex(i => i.startsWith(datePrefix)) : list.indexOf(item);
+      if (index !== -1) {
+        list[index] = item;
       } else {
-        const index = list.indexOf(item);
-        if (index === -1) {
-          list.push(item);
-        }
+        list.push(item);
       }
     }
     // Remove ones that doesn't exist in the new list.
@@ -495,9 +508,8 @@ export class FiltersComponent implements OnInit, OnChanges {
    * returns a formatted string representing a Date object
    */
   private getFormattedDateString(date: Date): string {
-    let dateMonth: number = date.getMonth() + 1;
-    let dateDay: number = date.getDate();
-    return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
+    const pad2 = (value: number): string => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
   }
 
   public getSearchFilterParameters(): SearchFilterParameters {

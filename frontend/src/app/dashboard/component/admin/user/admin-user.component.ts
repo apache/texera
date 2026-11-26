@@ -52,10 +52,12 @@ import { NzInputDirective } from "ng-zorro-antd/input";
 import { FormsModule } from "@angular/forms";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { NgFor, NgClass, NgIf, DatePipe } from "@angular/common";
+import { NgFor, NgClass, NgIf, NgTemplateOutlet, DatePipe } from "@angular/common";
 import { UserAvatarComponent } from "../../user/user-avatar/user-avatar.component";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+
+type AdminSearchField = "name" | "email" | "comment";
 
 @UntilDestroy()
 @Component({
@@ -84,6 +86,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     UserAvatarComponent,
     NgClass,
     NgIf,
+    NgTemplateOutlet,
     NzSelectComponent,
     NzOptionComponent,
     NzTooltipDirective,
@@ -92,6 +95,13 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
   ],
 })
 export class AdminUserComponent implements OnInit {
+  private readonly searchFields: ReadonlyArray<AdminSearchField> = ["name", "email", "comment"];
+  readonly roleFilters = [
+    { text: "INACTIVE", value: "INACTIVE" },
+    { text: "REGULAR", value: "REGULAR" },
+    { text: "ADMIN", value: "ADMIN" },
+    { text: "RESTRICTED", value: "RESTRICTED" },
+  ];
   userList: ReadonlyArray<User> = [];
   editUid: number = 0;
   editAttribute: string = "";
@@ -99,12 +109,8 @@ export class AdminUserComponent implements OnInit {
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
   editComment: string = "";
-  nameSearchValue: string = "";
-  emailSearchValue: string = "";
-  commentSearchValue: string = "";
-  nameSearchVisible = false;
-  emailSearchVisible = false;
-  commentSearchVisible = false;
+  searchValue: Record<AdminSearchField, string> = { name: "", email: "", comment: "" };
+  searchVisible: Record<AdminSearchField, boolean> = { name: false, email: false, comment: false };
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
   feedbackCounts = new Map<number, number>();
@@ -179,21 +185,21 @@ export class AdminUserComponent implements OnInit {
     this.editRole = user.role;
     this.editComment = user.comment;
 
-    setTimeout(() => {
-      if (attribute === "name" && this.nameInputRef) {
-        const input = this.nameInputRef.nativeElement;
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-      } else if (attribute === "email" && this.emailInputRef) {
-        const input = this.emailInputRef.nativeElement;
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-      } else if (attribute === "comment" && this.commentTextareaRef) {
-        const textarea = this.commentTextareaRef.nativeElement;
-        textarea.focus();
-        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      }
-    }, 0);
+    setTimeout(() => this.focusEditableElement(attribute), 0);
+  }
+
+  private focusEditableElement(attribute: string): void {
+    const refMap: Record<string, ElementRef<HTMLInputElement | HTMLTextAreaElement> | undefined> = {
+      name: this.nameInputRef,
+      email: this.emailInputRef,
+      comment: this.commentTextareaRef,
+    };
+    const element = refMap[attribute]?.nativeElement;
+    if (!element) {
+      return;
+    }
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
   }
 
   saveEdit(): void {
@@ -244,25 +250,23 @@ export class AdminUserComponent implements OnInit {
     this.editAttribute = "";
   }
 
+  private sortByStringField(selector: (user: User) => string | undefined): NzTableSortFn<User> {
+    return (a: User, b: User) => {
+      const compare = (selector(a) || "").localeCompare(selector(b) || "");
+      return compare === 0 ? a.uid - b.uid : compare;
+    };
+  }
+
   // NzTableSortFn must order ascending: nz-table applies the result as-is for the 'ascend' sort
   // order and negates it for 'descend'. Reversing the operands here would render the column
   // backwards under the up caret.
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => a.uid - b.uid;
 
-  public sortByName: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (a.name || "").localeCompare(b.name || "");
-    return compare === 0 ? a.uid - b.uid : compare;
-  };
+  public sortByName: NzTableSortFn<User> = this.sortByStringField(u => u.name);
 
-  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (a.email || "").localeCompare(b.email || "");
-    return compare === 0 ? a.uid - b.uid : compare;
-  };
+  public sortByEmail: NzTableSortFn<User> = this.sortByStringField(u => u.email);
 
-  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (a.comment || "").localeCompare(b.comment || "");
-    return compare === 0 ? a.uid - b.uid : compare;
-  };
+  public sortByComment: NzTableSortFn<User> = this.sortByStringField(u => u.comment);
 
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => {
     const compare = a.role.localeCompare(b.role);
@@ -274,23 +278,15 @@ export class AdminUserComponent implements OnInit {
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
-  public sortByAffiliation: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (a.affiliation || "").localeCompare(b.affiliation || "");
-    return compare === 0 ? a.uid - b.uid : compare;
-  };
+  public sortByAffiliation: NzTableSortFn<User> = this.sortByStringField(u => u.affiliation);
 
-  public sortByJoiningReason: NzTableSortFn<User> = (a: User, b: User) => {
-    const compare = (a.joiningReason || "").localeCompare(b.joiningReason || "");
-    return compare === 0 ? a.uid - b.uid : compare;
-  };
+  public sortByJoiningReason: NzTableSortFn<User> = this.sortByStringField(u => u.joiningReason);
 
   reset(): void {
-    this.nameSearchValue = "";
-    this.emailSearchValue = "";
-    this.commentSearchValue = "";
-    this.nameSearchVisible = false;
-    this.emailSearchVisible = false;
-    this.commentSearchVisible = false;
+    for (const field of this.searchFields) {
+      this.searchValue[field] = "";
+      this.searchVisible[field] = false;
+    }
     this.listOfDisplayUser = [...this.userList];
   }
 
@@ -298,34 +294,14 @@ export class AdminUserComponent implements OnInit {
     return (value ?? "").trim();
   }
 
-  searchByName(): void {
-    this.nameSearchVisible = false;
-    this.nameSearchValue = this.trimSearchValue(this.nameSearchValue);
-    this.emailSearchValue = "";
-    this.commentSearchValue = "";
-
-    const q = this.nameSearchValue.toLowerCase();
-    this.listOfDisplayUser = this.userList.filter(user => (user.name ?? "").toLowerCase().includes(q));
-  }
-
-  searchByEmail(): void {
-    this.emailSearchVisible = false;
-    this.emailSearchValue = this.trimSearchValue(this.emailSearchValue);
-    this.nameSearchValue = "";
-    this.commentSearchValue = "";
-
-    const q = this.emailSearchValue.toLowerCase();
-    this.listOfDisplayUser = this.userList.filter(user => (user.email ?? "").toLowerCase().includes(q));
-  }
-
-  searchByComment(): void {
-    this.commentSearchVisible = false;
-    this.commentSearchValue = this.trimSearchValue(this.commentSearchValue);
-    this.nameSearchValue = "";
-    this.emailSearchValue = "";
-
-    const q = this.commentSearchValue.toLowerCase();
-    this.listOfDisplayUser = this.userList.filter(user => (user.comment ?? "").toLowerCase().includes(q));
+  searchByField(field: AdminSearchField): void {
+    this.searchVisible[field] = false;
+    const trimmed = this.trimSearchValue(this.searchValue[field]);
+    for (const candidate of this.searchFields) {
+      this.searchValue[candidate] = candidate === field ? trimmed : "";
+    }
+    const query = trimmed.toLowerCase();
+    this.listOfDisplayUser = this.userList.filter(user => (user[field] ?? "").toLowerCase().includes(query));
   }
 
   clickToViewQuota(uid: number) {

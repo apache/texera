@@ -29,11 +29,14 @@ describe("MarkdownDescriptionComponent", () => {
   // without pulling in the real (config-dependent) ngx-markdown parser.
   const parse = vi.fn((text: string) => (text ? `<p>${text}</p>` : ""));
 
-  // Passing `modalData` provides NZ_MODAL_DATA (the "opened in a modal" case);
-  // omitting it leaves the optional injection null (the inline case).
-  async function createFixture(modalData?: {
-    description?: string;
-  }): Promise<ComponentFixture<MarkdownDescriptionComponent>> {
+  type FixtureOptions = Partial<
+    Pick<MarkdownDescriptionComponent, "description" | "editable" | "enableViewMore" | "hasOverflow">
+  > & { modalData?: { description?: string } };
+
+  // Omitting modalData leaves the optional NZ_MODAL_DATA injection null.
+  async function render({ modalData, ...inputs }: FixtureOptions = {}): Promise<
+    ComponentFixture<MarkdownDescriptionComponent>
+  > {
     const providers: Provider[] = [{ provide: MarkdownService, useValue: { parse } }];
     if (modalData !== undefined) {
       providers.push({ provide: NZ_MODAL_DATA, useValue: modalData });
@@ -42,7 +45,10 @@ describe("MarkdownDescriptionComponent", () => {
       imports: [MarkdownDescriptionComponent],
       providers,
     }).compileComponents();
-    return TestBed.createComponent(MarkdownDescriptionComponent);
+    const fixture = TestBed.createComponent(MarkdownDescriptionComponent);
+    Object.assign(fixture.componentInstance, inputs);
+    fixture.detectChanges();
+    return fixture;
   }
 
   // A non-first change of the `description` input.
@@ -53,9 +59,7 @@ describe("MarkdownDescriptionComponent", () => {
   beforeEach(() => parse.mockClear());
 
   it("should create and render the preview template when not opened in a modal", async () => {
-    const fixture = await createFixture();
-    fixture.componentInstance.description = "hello";
-    fixture.detectChanges();
+    const fixture = await render({ description: "hello" });
     await fixture.whenStable();
 
     expect(fixture.componentInstance).toBeTruthy();
@@ -63,23 +67,17 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("shows the Edit action in preview mode when editable", async () => {
-    const fixture = await createFixture();
-    fixture.componentInstance.editable = true;
-    fixture.detectChanges();
+    const fixture = await render({ editable: true });
     expect(fixture.nativeElement.querySelector(".md-actions")).toBeTruthy();
   });
 
   it("hides the Edit action in preview mode when not editable", async () => {
-    const fixture = await createFixture();
-    fixture.componentInstance.editable = false;
-    fixture.detectChanges();
+    const fixture = await render({ editable: false });
     expect(fixture.nativeElement.querySelector(".md-actions")).toBeNull();
   });
 
   it("binds enableViewMore by toggling the preview collapsed class", async () => {
-    const fixture = await createFixture();
-    fixture.componentInstance.enableViewMore = true;
-    fixture.detectChanges();
+    const fixture = await render({ enableViewMore: true });
 
     const previewBox = fixture.nativeElement.querySelector(".preview-box") as HTMLElement;
     expect(previewBox.classList.contains("collapsed")).toBe(true);
@@ -89,10 +87,8 @@ describe("MarkdownDescriptionComponent", () => {
     expect(previewBox.classList.contains("collapsed")).toBe(false);
   });
   it("ngOnInit starts in preview mode and seeds editingContent from description (inline)", async () => {
-    const fixture = await createFixture();
+    const fixture = await render({ description: "content" });
     const component = fixture.componentInstance;
-    component.description = "content";
-    fixture.detectChanges();
 
     expect(component.currentMode).toBe("preview");
     expect(component.editingContent).toBe("content");
@@ -100,9 +96,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("ngOnInit enters edit mode and pulls the description from modal data", async () => {
-    const fixture = await createFixture({ description: "from modal" });
+    const fixture = await render({ modalData: { description: "from modal" } });
     const component = fixture.componentInstance;
-    fixture.detectChanges();
 
     expect(component.editable).toBe(true);
     expect(component.currentMode).toBe("edit");
@@ -111,19 +106,16 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("ngOnInit defaults the description to empty when modal data omits it", async () => {
-    const fixture = await createFixture({});
+    const fixture = await render({ modalData: {} });
     const component = fixture.componentInstance;
-    fixture.detectChanges();
 
     expect(component.description).toBe("");
     expect(component.currentMode).toBe("edit");
   });
 
   it("ngOnChanges refreshes editingContent from a new description while in preview mode", async () => {
-    const fixture = await createFixture();
+    const fixture = await render({ description: "old" });
     const component = fixture.componentInstance;
-    component.description = "old";
-    fixture.detectChanges();
     parse.mockClear();
 
     component.description = "new";
@@ -134,9 +126,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("ngOnChanges leaves editingContent untouched while in edit mode (unsaved edits win)", async () => {
-    const fixture = await createFixture({ description: "orig" });
+    const fixture = await render({ modalData: { description: "orig" } });
     const component = fixture.componentInstance;
-    fixture.detectChanges(); // modal -> edit mode
     component.editingContent = "user is typing";
 
     component.description = "external change";
@@ -146,10 +137,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("ngOnChanges ignores the first change", async () => {
-    const fixture = await createFixture();
+    const fixture = await render({ description: "seed" });
     const component = fixture.componentInstance;
-    component.description = "seed";
-    fixture.detectChanges();
     component.editingContent = "seed";
 
     component.ngOnChanges({ description: new SimpleChange(undefined, "seed", true) });
@@ -158,10 +147,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("enterEditMode switches to edit mode only when editable", async () => {
-    const fixture = await createFixture();
+    const fixture = await render({ description: "d" });
     const component = fixture.componentInstance;
-    component.description = "d";
-    fixture.detectChanges();
 
     component.editable = false;
     component.enterEditMode();
@@ -174,11 +161,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("save emits descriptionChange and returns to preview mode when inline", async () => {
-    const fixture = await createFixture();
+    const fixture = await render({ description: "old", editable: true });
     const component = fixture.componentInstance;
-    component.description = "old";
-    component.editable = true;
-    fixture.detectChanges();
     component.enterEditMode();
     component.editingContent = "edited";
 
@@ -192,9 +176,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("save stays in edit mode when opened in a modal", async () => {
-    const fixture = await createFixture({ description: "x" });
+    const fixture = await render({ modalData: { description: "x" } });
     const component = fixture.componentInstance;
-    fixture.detectChanges(); // modal -> edit mode
     component.editingContent = "y";
 
     const emitted: string[] = [];
@@ -206,11 +189,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("cancel restores editingContent from description and returns to preview", async () => {
-    const fixture = await createFixture();
+    const fixture = await render({ description: "orig", editable: true });
     const component = fixture.componentInstance;
-    component.description = "orig";
-    component.editable = true;
-    fixture.detectChanges();
     component.enterEditMode();
     component.editingContent = "unsaved";
 
@@ -236,12 +216,10 @@ describe("MarkdownDescriptionComponent", () => {
       content: string,
       selection: [number, number]
     ): Promise<ComponentFixture<MarkdownDescriptionComponent>> {
-      const fixture = await createFixture();
-      const component = fixture.componentInstance;
-      component.editable = true;
       // First cycle runs ngOnInit, which forces preview mode; only then can edit mode be set and
       // the textarea rendered by a second cycle. Setting it beforehand is silently overwritten.
-      fixture.detectChanges();
+      const fixture = await render({ editable: true });
+      const component = fixture.componentInstance;
       component.currentMode = "edit";
       component.editingContent = content;
       fixture.detectChanges();
@@ -296,9 +274,8 @@ describe("MarkdownDescriptionComponent", () => {
   });
 
   it("renderMarkdown renders non-empty input and clears on blank input without parsing", async () => {
-    const fixture = await createFixture();
+    const fixture = await render();
     const component = fixture.componentInstance;
-    fixture.detectChanges();
 
     component.renderMarkdown("# Hi");
     await fixture.whenStable();
@@ -316,10 +293,8 @@ describe("MarkdownDescriptionComponent", () => {
   // in the template actually execute.
   describe("template rendering", () => {
     it("enters edit mode when the Edit button is clicked", async () => {
-      const fixture = await createFixture();
+      const fixture = await render({ editable: true });
       const component = fixture.componentInstance;
-      component.editable = true;
-      fixture.detectChanges();
 
       const editBtn = fixture.nativeElement.querySelector(".md-actions button") as HTMLButtonElement;
       expect(editBtn).toBeTruthy();
@@ -332,10 +307,8 @@ describe("MarkdownDescriptionComponent", () => {
     });
 
     it("renders the parsed markdown through the innerHTML binding", async () => {
-      const fixture = await createFixture();
+      const fixture = await render({ description: "hello" });
       const component = fixture.componentInstance;
-      component.description = "hello";
-      fixture.detectChanges();
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -345,9 +318,7 @@ describe("MarkdownDescriptionComponent", () => {
     });
 
     it("falls back to the no-description template when nothing is rendered", async () => {
-      const fixture = await createFixture();
-      fixture.componentInstance.description = "";
-      fixture.detectChanges();
+      const fixture = await render({ description: "" });
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -356,12 +327,9 @@ describe("MarkdownDescriptionComponent", () => {
     });
 
     it("toggles view-more from the template and flips the chevron binding", async () => {
-      const fixture = await createFixture();
-      const component = fixture.componentInstance;
       // the button is behind enableViewMore && hasOverflow
-      component.enableViewMore = true;
-      component.hasOverflow = true;
-      fixture.detectChanges();
+      const fixture = await render({ enableViewMore: true, hasOverflow: true });
+      const component = fixture.componentInstance;
 
       const viewMoreBtn = fixture.nativeElement.querySelector(".view-more-btn") as HTMLButtonElement;
       expect(viewMoreBtn).toBeTruthy();
@@ -391,10 +359,7 @@ describe("MarkdownDescriptionComponent", () => {
     });
 
     it("omits the view-more control when the description does not overflow", async () => {
-      const fixture = await createFixture();
-      fixture.componentInstance.enableViewMore = true;
-      fixture.componentInstance.hasOverflow = false;
-      fixture.detectChanges();
+      const fixture = await render({ enableViewMore: true, hasOverflow: false });
 
       expect(fixture.nativeElement.querySelector(".view-more-btn")).toBeNull();
     });
@@ -403,10 +368,7 @@ describe("MarkdownDescriptionComponent", () => {
   // The edit-mode markup (toolbar + textarea) only renders once currentMode is "edit".
   describe("edit-mode template", () => {
     async function enterEditMode(): Promise<ComponentFixture<MarkdownDescriptionComponent>> {
-      const fixture = await createFixture();
-      fixture.componentInstance.description = "hello";
-      fixture.componentInstance.editable = true;
-      fixture.detectChanges();
+      const fixture = await render({ description: "hello", editable: true });
 
       // Go through the Edit button so its (click) binding executes.
       const editButton = fixture.debugElement.query(By.css(".md-actions button"));

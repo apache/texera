@@ -17,8 +17,9 @@
  * under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController, TestRequest } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
+import { Observable } from "rxjs";
 import {
   UserQuotaService,
   USER_CREATED_DATASETS,
@@ -37,7 +38,6 @@ describe("UserQuotaService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [UserQuotaService],
     });
     service = TestBed.inject(UserQuotaService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -51,58 +51,43 @@ describe("UserQuotaService", () => {
     expect(service).toBeTruthy();
   });
 
-  it("getCreatedDatasets() GETs the created-datasets endpoint", () => {
-    const datasets: ReadonlyArray<DatasetQuota> = [
-      { did: 1, name: "dataset-a", creationTime: 1700000000000, size: 2048 },
-    ];
-    let result: ReadonlyArray<DatasetQuota> | undefined;
+  it.each<[string, string, Parameters<TestRequest["flush"]>[0], (svc: UserQuotaService) => Observable<unknown>]>([
+    [
+      "getCreatedDatasets() GETs the created-datasets endpoint",
+      USER_CREATED_DATASETS,
+      [{ did: 1, name: "dataset-a", creationTime: 1700000000000, size: 2048 }] satisfies ReadonlyArray<DatasetQuota>,
+      svc => svc.getCreatedDatasets(1),
+    ],
+    [
+      "getCreatedWorkflows() GETs the created-workflows endpoint",
+      USER_CREATED_WORKFLOWS,
+      [{ wid: 1 } as any],
+      svc => svc.getCreatedWorkflows(1),
+    ],
+    [
+      "getAccessWorkflows() GETs the access-workflows endpoint",
+      USER_ACCESS_WORKFLOWS,
+      [10, 20],
+      svc => svc.getAccessWorkflows(1),
+    ],
+    [
+      "getExecutionQuota() GETs the quota-size endpoint",
+      USER_QUOTA_SIZE,
+      [
+        { eid: 1, workflowId: 2, workflowName: "wf", resultBytes: 10, runTimeStatsBytes: 20, logBytes: 30 },
+      ] satisfies ReadonlyArray<ExecutionQuota>,
+      svc => svc.getExecutionQuota(1),
+    ],
+  ])("%s", (_name, endpoint, payload, call) => {
+    let result: unknown;
 
-    service.getCreatedDatasets(1).subscribe(r => (result = r));
+    call(service).subscribe(r => (result = r));
 
-    const req = httpMock.expectOne(USER_CREATED_DATASETS);
+    const req = httpMock.expectOne(endpoint);
     expect(req.request.method).toEqual("GET");
-    req.flush(datasets);
+    req.flush(payload);
 
-    expect(result).toEqual(datasets);
-  });
-
-  it("getCreatedWorkflows() GETs the created-workflows endpoint", () => {
-    const workflows = [{ wid: 1 } as any];
-    let result: readonly any[] | undefined;
-
-    service.getCreatedWorkflows(1).subscribe(r => (result = r));
-
-    const req = httpMock.expectOne(USER_CREATED_WORKFLOWS);
-    expect(req.request.method).toEqual("GET");
-    req.flush(workflows);
-
-    expect(result).toEqual(workflows);
-  });
-
-  it("getAccessWorkflows() GETs the access-workflows endpoint", () => {
-    let result: readonly number[] | undefined;
-    service.getAccessWorkflows(1).subscribe(r => (result = r));
-
-    const req = httpMock.expectOne(USER_ACCESS_WORKFLOWS);
-    expect(req.request.method).toEqual("GET");
-    req.flush([10, 20]);
-
-    expect(result).toEqual([10, 20]);
-  });
-
-  it("getExecutionQuota() GETs the quota-size endpoint", () => {
-    const quota: ReadonlyArray<ExecutionQuota> = [
-      { eid: 1, workflowId: 2, workflowName: "wf", resultBytes: 10, runTimeStatsBytes: 20, logBytes: 30 },
-    ];
-    let result: ReadonlyArray<ExecutionQuota> | undefined;
-
-    service.getExecutionQuota(1).subscribe(r => (result = r));
-
-    const req = httpMock.expectOne(USER_QUOTA_SIZE);
-    expect(req.request.method).toEqual("GET");
-    req.flush(quota);
-
-    expect(result).toEqual(quota);
+    expect(result).toEqual(payload);
   });
 
   it("deleteExecutionCollection() DELETEs the per-execution endpoint", () => {

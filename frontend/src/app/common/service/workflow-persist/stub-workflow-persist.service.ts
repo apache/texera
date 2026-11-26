@@ -19,9 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { Observable, of } from "rxjs";
-import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { Workflow } from "../../type/workflow";
-import { SearchFilterParameters, searchTestEntries } from "../../../dashboard/type/search-filter-parameters";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 
 @Injectable()
@@ -34,11 +32,6 @@ export class StubWorkflowPersistService {
     );
   }
 
-  public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
-    return new Observable(observer => {
-      return observer.next(searchTestEntries(keywords, params, this.testWorkflows, "workflow").map(i => i.workflow));
-    });
-  }
   /**
    * retrieves all workflow owners
    */

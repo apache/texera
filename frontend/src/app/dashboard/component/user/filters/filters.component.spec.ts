@@ -43,6 +43,27 @@ import { By } from "@angular/platform-browser";
 import { of, throwError, Subject } from "rxjs";
 import { SimpleChange } from "@angular/core";
 
+const FILTERS_TEST_IMPORTS = [FiltersComponent, NzModalModule, NzDropDownModule, FormsModule, HttpClientTestingModule];
+
+const FILTERS_BASE_PROVIDERS = [
+  JwtHelperService,
+  { provide: JWT_OPTIONS, useValue: {} },
+  { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+  { provide: UserService, useClass: StubUserService },
+  provideNzI18n(en_US),
+  ...commonTestProviders,
+];
+
+function clearOverlayContainer(): void {
+  // Clear any CDK overlays (dropdowns/modals) opened during the test via the
+  // injected OverlayContainer rather than mutating the global document, so we
+  // only touch the container Angular created for this TestBed.
+  const overlayContainer = TestBed.inject(OverlayContainer, null);
+  if (overlayContainer) {
+    overlayContainer.getContainerElement().innerHTML = "";
+  }
+}
+
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
   let fixture: ComponentFixture<FiltersComponent>;
@@ -64,16 +85,11 @@ describe("FiltersComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       providers: [
-        JwtHelperService,
-        { provide: JWT_OPTIONS, useValue: {} },
+        ...FILTERS_BASE_PROVIDERS,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserService, useClass: StubUserService },
         { provide: DatasetService, useValue: { retrieveOwners: vi.fn(() => of([])) } },
-        provideNzI18n(en_US),
-        ...commonTestProviders,
       ],
-      imports: [FiltersComponent, NzModalModule, NzDropDownModule, FormsModule, HttpClientTestingModule],
+      imports: FILTERS_TEST_IMPORTS,
     }).compileComponents();
   });
 
@@ -85,13 +101,7 @@ describe("FiltersComponent", () => {
 
   afterEach(() => {
     fixture.destroy();
-    // Clear any CDK overlays (dropdowns/modals) opened during the test via the
-    // injected OverlayContainer rather than mutating the global document, so we
-    // only touch the container Angular created for this TestBed.
-    const overlayContainer = TestBed.inject(OverlayContainer, null);
-    if (overlayContainer) {
-      overlayContainer.getContainerElement().innerHTML = "";
-    }
+    clearOverlayContainer();
   });
 
   it("should create", () => {
@@ -134,14 +144,23 @@ describe("FiltersComponent", () => {
       expect(component.wids.every(w => !w.checked)).toBe(true);
     });
 
-    it("skips owner and id retrieval when the user is not logged in at init", () => {
+    function withLoggedOutFilters(verify: (f: ComponentFixture<FiltersComponent>) => void): void {
       const stubUser = TestBed.inject(UserService) as unknown as StubUserService;
       // Capture and restore the shared stub's user so logging out here does not
       // leak into later tests (state leak / order-dependence).
       const previousUser = stubUser.user;
       try {
         stubUser.user = undefined;
-        const loggedOutFixture = TestBed.createComponent(FiltersComponent);
+        const f = TestBed.createComponent(FiltersComponent);
+        verify(f);
+        f.destroy();
+      } finally {
+        stubUser.user = previousUser;
+      }
+    }
+
+    it("skips owner and id retrieval when the user is not logged in at init", () => {
+      withLoggedOutFilters(loggedOutFixture => {
         const loggedOutComponent = loggedOutFixture.componentInstance;
         loggedOutFixture.detectChanges();
         expect(loggedOutComponent.isLogin).toBe(false);
@@ -149,29 +168,19 @@ describe("FiltersComponent", () => {
         expect(loggedOutComponent.wids).toEqual([]);
         // Operator metadata is not login-gated, so it is still loaded.
         expect(loggedOutComponent.operatorGroups).toEqual(["Source", "Analysis", "View Results"]);
-        loggedOutFixture.destroy();
-      } finally {
-        stubUser.user = previousUser;
-      }
+      });
     });
 
     it("offers no owner facet to a signed-out hub visitor", () => {
       // The hub is reachable signed out, but /hub/owners is @RolesAllowed and the list is emails.
-      const stubUser = TestBed.inject(UserService) as unknown as StubUserService;
-      const previousUser = stubUser.user;
-      try {
-        stubUser.user = undefined;
-        const anonFixture = TestBed.createComponent(FiltersComponent);
+      withLoggedOutFilters(anonFixture => {
         anonFixture.componentInstance.ownerScope = "public";
         anonFixture.detectChanges();
 
         expect(anonFixture.componentInstance.owners).toEqual([]);
         const ownerButton = anonFixture.nativeElement.querySelector(".search-owners-button") as HTMLElement;
         expect(ownerButton.hidden).toBe(true);
-        anonFixture.destroy();
-      } finally {
-        stubUser.user = previousUser;
-      }
+      });
     });
   });
 
@@ -254,65 +263,72 @@ describe("FiltersComponent", () => {
     let errorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-      const notificationService = TestBed.inject(NotificationService);
-      errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
     });
 
-    it("reports an invalid owner name and removes the tag", () => {
-      component.masterFilterList = ["owner: Nobody"];
-      expect(errorSpy).toHaveBeenCalledWith("Invalid owner name");
-      expect(component.masterFilterList).toEqual([]);
-      expect(component.selectedOwners).toEqual([]);
-    });
-
-    it("reports an invalid workflow id and removes the tag", () => {
-      component.masterFilterList = ["id: 999"];
-      expect(errorSpy).toHaveBeenCalledWith("Invalid workflow id");
-      expect(component.masterFilterList).toEqual([]);
-      expect(component.selectedIDs).toEqual([]);
-    });
-
-    it("reports an invalid operator name and removes the tag", () => {
-      component.masterFilterList = ["operator: Ghost Operator"];
-      expect(errorSpy).toHaveBeenCalledWith("Invalid operator name");
-      expect(component.masterFilterList).toEqual([]);
-      expect(component.selectedOperators).toEqual([]);
-    });
+    for (const [desc, tag, message, pickSelected] of [
+      [
+        "reports an invalid owner name and removes the tag",
+        "owner: Nobody",
+        "Invalid owner name",
+        () => component.selectedOwners,
+      ],
+      [
+        "reports an invalid workflow id and removes the tag",
+        "id: 999",
+        "Invalid workflow id",
+        () => component.selectedIDs,
+      ],
+      [
+        "reports an invalid operator name and removes the tag",
+        "operator: Ghost Operator",
+        "Invalid operator name",
+        () => component.selectedOperators,
+      ],
+    ] as const) {
+      it(desc, () => {
+        component.masterFilterList = [tag];
+        expect(errorSpy).toHaveBeenCalledWith(message);
+        expect(component.masterFilterList).toEqual([]);
+        expect(pickSelected()).toEqual([]);
+      });
+    }
   });
 
   describe("updateDropdownMenus guards date tags", () => {
     let errorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-      const notificationService = TestBed.inject(NotificationService);
-      errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
     });
 
-    it("rejects a malformed ctime tag", () => {
-      component.masterFilterList = ["ctime: not-a-date"];
-      expect(errorSpy).toHaveBeenCalledWith("Date format is incorrect");
-      expect(component.selectedCtime).toEqual([]);
-    });
+    for (const [desc, tag, field] of [
+      ["rejects a malformed ctime tag", "ctime: not-a-date", "selectedCtime"],
+      ["rejects a malformed mtime tag", "mtime: 22-01-2022", "selectedMtime"],
+    ] as const) {
+      it(desc, () => {
+        component.masterFilterList = [tag];
+        expect(errorSpy).toHaveBeenCalledWith("Date format is incorrect");
+        expect(component[field]).toEqual([]);
+      });
+    }
 
-    it("rejects a malformed mtime tag", () => {
-      component.masterFilterList = ["mtime: 22-01-2022"];
-      expect(errorSpy).toHaveBeenCalledWith("Date format is incorrect");
-      expect(component.selectedMtime).toEqual([]);
-    });
-
-    it("keeps only the first ctime tag when multiple are supplied", () => {
-      component.masterFilterList = ["ctime: 2022-01-22 ~ 2022-04-21", "ctime: 2023-01-01 ~ 2023-02-02"];
-      expect(errorSpy).toHaveBeenCalledWith("Multiple search dates is not allowed");
-      expectDateRange(component.selectedCtime, [2022, 0, 22], [2022, 3, 21]);
-      expect(component.masterFilterList).toEqual(["ctime: 2022-01-22 ~ 2022-04-21"]);
-    });
-
-    it("keeps only the first mtime tag when multiple are supplied", () => {
-      component.masterFilterList = ["mtime: 2022-01-22 ~ 2022-04-21", "mtime: 2023-01-01 ~ 2023-02-02"];
-      expect(errorSpy).toHaveBeenCalledWith("Multiple search dates is not allowed");
-      expectDateRange(component.selectedMtime, [2022, 0, 22], [2022, 3, 21]);
-      expect(component.masterFilterList).toEqual(["mtime: 2022-01-22 ~ 2022-04-21"]);
-    });
+    for (const [desc, field] of [
+      ["keeps only the first ctime tag when multiple are supplied", "ctime"],
+      ["keeps only the first mtime tag when multiple are supplied", "mtime"],
+    ] as const) {
+      it(desc, () => {
+        const first = `${field}: 2022-01-22 ~ 2022-04-21`;
+        component.masterFilterList = [first, `${field}: 2023-01-01 ~ 2023-02-02`];
+        expect(errorSpy).toHaveBeenCalledWith("Multiple search dates is not allowed");
+        expectDateRange(
+          field === "ctime" ? component.selectedCtime : component.selectedMtime,
+          [2022, 0, 22],
+          [2022, 3, 21]
+        );
+        expect(component.masterFilterList).toEqual([first]);
+      });
+    }
   });
 
   describe("buildMasterFilterList date handling", () => {
@@ -471,20 +487,15 @@ describe("FiltersComponent per-resource owners", () => {
 
     await TestBed.configureTestingModule({
       providers: [
-        JwtHelperService,
-        { provide: JWT_OPTIONS, useValue: {} },
+        ...FILTERS_BASE_PROVIDERS,
         {
           provide: WorkflowPersistService,
           useValue: { retrieveOwners: workflowOwners, retrieveWorkflowIDs: workflowIds },
         },
         { provide: DatasetService, useValue: { retrieveOwners: datasetOwners } },
         { provide: ModelService, useValue: { retrieveOwners: modelOwners } },
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserService, useClass: StubUserService },
-        provideNzI18n(en_US),
-        ...commonTestProviders,
       ],
-      imports: [FiltersComponent, NzModalModule, NzDropDownModule, FormsModule, HttpClientTestingModule],
+      imports: FILTERS_TEST_IMPORTS,
     }).compileComponents();
 
     fixture = TestBed.createComponent(FiltersComponent);
@@ -495,11 +506,17 @@ describe("FiltersComponent per-resource owners", () => {
     fixture.detectChanges();
   }
 
+  function switchEntityType(
+    target: FiltersComponent,
+    prev: EntityType | null | undefined,
+    next: EntityType | null
+  ): void {
+    target.entityType = next;
+    target.ngOnChanges({ entityType: new SimpleChange(prev, next, false) });
+  }
+
   afterEach(() => {
-    const overlayContainer = TestBed.inject(OverlayContainer, null);
-    if (overlayContainer) {
-      overlayContainer.getContainerElement().innerHTML = "";
-    }
+    clearOverlayContainer();
   });
 
   it("defaults to workflows, which the Your Work workflows page still relies on", async () => {
@@ -567,8 +584,7 @@ describe("FiltersComponent per-resource owners", () => {
     await render(EntityType.Workflow);
     expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner"]);
 
-    component.entityType = EntityType.Dataset;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+    switchEntityType(component, EntityType.Workflow, EntityType.Dataset);
     fixture.detectChanges();
 
     expect(component.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
@@ -588,8 +604,7 @@ describe("FiltersComponent per-resource owners", () => {
     await render(EntityType.Dataset);
     expect(component.wids).toEqual([]);
 
-    component.entityType = EntityType.Workflow;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+    switchEntityType(component, EntityType.Dataset, EntityType.Workflow);
 
     expect(workflowIds).toHaveBeenCalled();
     expect(component.wids.map(wid => wid.id)).toEqual(["7"]);
@@ -608,10 +623,7 @@ describe("FiltersComponent per-resource owners", () => {
     pending.detectChanges();
     expect(pending.componentInstance.owners).toEqual([]);
 
-    pending.componentInstance.entityType = EntityType.Dataset;
-    pending.componentInstance.ngOnChanges({
-      entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false),
-    });
+    switchEntityType(pending.componentInstance, EntityType.Workflow, EntityType.Dataset);
     expect(pending.componentInstance.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
 
     // The superseded request answering late must not put workflow owners on the Datasets tab.
@@ -628,8 +640,7 @@ describe("FiltersComponent per-resource owners", () => {
     await render(EntityType.Dataset);
     workflowIds.mockReturnValue(throwError(() => new Error("boom")));
 
-    component.entityType = EntityType.Workflow;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+    switchEntityType(component, EntityType.Dataset, EntityType.Workflow);
 
     // The owner facet still lands: a failed id request costs its own facet, not the other one.
     expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner"]);
@@ -637,19 +648,16 @@ describe("FiltersComponent per-resource owners", () => {
 
     // And the subscription is still alive, so later switches keep working.
     workflowIds.mockReturnValue(of([7]));
-    component.entityType = EntityType.Dataset;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+    switchEntityType(component, EntityType.Workflow, EntityType.Dataset);
     expect(component.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
 
-    component.entityType = EntityType.Workflow;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+    switchEntityType(component, EntityType.Dataset, EntityType.Workflow);
     expect(component.wids.map(wid => wid.id)).toEqual(["7"]);
   });
 
   it("keeps an id tag that the new kind still offers", async () => {
     await render(EntityType.Dataset);
-    component.entityType = EntityType.Workflow;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+    switchEntityType(component, EntityType.Dataset, EntityType.Workflow);
     component.masterFilterList = ["id: 7"];
 
     expect(component.selectedIDs).toEqual(["7"]);
@@ -677,8 +685,7 @@ describe("FiltersComponent per-resource owners", () => {
     component.masterFilterList = ["owner: workflow-owner"];
     expect(component.selectedOwners).toEqual(["workflow-owner"]);
 
-    component.entityType = EntityType.Dataset;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+    switchEntityType(component, EntityType.Workflow, EntityType.Dataset);
 
     // Cleared with the facet it came from, so no search carries it into the new kind.
     expect(component.selectedOwners).toEqual([]);
@@ -695,8 +702,7 @@ describe("FiltersComponent per-resource owners", () => {
     datasetOwners.mockReturnValue(of(["workflow-owner"]));
     component.masterFilterList = ["owner: workflow-owner"];
 
-    component.entityType = EntityType.Dataset;
-    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+    switchEntityType(component, EntityType.Workflow, EntityType.Dataset);
 
     expect(component.selectedOwners).toEqual([]);
     expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner"]);

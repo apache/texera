@@ -1112,7 +1112,7 @@ describe("JointGraphWrapperService", () => {
       try {
         expect(intervalId).toBeDefined();
 
-        jointGraphWrapper.removeCurrentEditing(coeditor, mockScanPredicate.operatorID, intervalId);
+        jointGraphWrapper.removeCurrentEditing(mockScanPredicate.operatorID, intervalId);
         expect(clearIntervalSpy).toHaveBeenCalledWith(intervalId);
       } finally {
         clearInterval(intervalId);
@@ -1122,7 +1122,7 @@ describe("JointGraphWrapperService", () => {
 
     it("set/removePropertyChanged are no-ops when no paper is attached", () => {
       expect(() => jointGraphWrapper.setPropertyChanged(coeditor, mockScanPredicate.operatorID)).not.toThrow();
-      expect(() => jointGraphWrapper.removePropertyChanged(coeditor, mockScanPredicate.operatorID)).not.toThrow();
+      expect(() => jointGraphWrapper.removePropertyChanged(mockScanPredicate.operatorID)).not.toThrow();
     });
   });
 
@@ -1513,7 +1513,7 @@ describe("JointGraphWrapperService", () => {
       vi.useFakeTimers();
       const intervalId = jointGraphWrapper.setCurrentEditing(alice, mockScanPredicate.operatorID);
       try {
-        jointGraphWrapper.removeCurrentEditing(alice, mockScanPredicate.operatorID, intervalId);
+        jointGraphWrapper.removeCurrentEditing(mockScanPredicate.operatorID, intervalId);
 
         expect(editingBanner()).toMatchObject({ text: "", visibility: "hidden" });
       } finally {
@@ -1539,7 +1539,7 @@ describe("JointGraphWrapperService", () => {
         visibility: "visible",
       });
 
-      jointGraphWrapper.removePropertyChanged(alice, mockScanPredicate.operatorID);
+      jointGraphWrapper.removePropertyChanged(mockScanPredicate.operatorID);
       expect(banner()).toMatchObject({ text: "", visibility: "hidden" });
     });
   });

@@ -272,7 +272,7 @@ export class CoeditorPresenceService {
         previousIntervalId &&
         this.workflowActionService.getTexeraGraph().hasOperator(previousEditing)
       ) {
-        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing, previousIntervalId);
+        this.jointGraphWrapper.removeCurrentEditing(previousEditing, previousIntervalId);
         this.coeditorCurrentlyEditing.delete(clientId);
         this.currentlyEditingTimers.delete(clientId);
         if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
@@ -301,7 +301,7 @@ export class CoeditorPresenceService {
         this.jointGraphWrapper.setPropertyChanged(coeditorState.user, currentChanged);
         setTimeout(() => {
           this.coeditorOperatorPropertyChanged.delete(clientId);
-          this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
+          this.jointGraphWrapper.removePropertyChanged(currentChanged);
         }, 2000);
       }
     }

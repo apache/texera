@@ -111,6 +111,18 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public static readonly HEIGHT = 450;
   public static readonly BARCHARTSIZE = 600;
 
+  private static readonly EXECUTION_COMPARATORS: Record<
+    string,
+    (a: WorkflowExecutionsEntry, b: WorkflowExecutionsEntry) => number
+  > = {
+    "Name (ID)": (a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+    Username: (a, b) => a.userName.toLowerCase().localeCompare(b.userName.toLowerCase()),
+    "Execution Start Time": (a, b) => (a.startingTime > b.startingTime ? 1 : b.startingTime > a.startingTime ? -1 : 0),
+    "Execution Completion Time": (a, b) =>
+      a.completionTime > b.completionTime ? 1 : b.completionTime > a.completionTime ? -1 : 0,
+    "Computing Unit ID": (a, b) => a.cuId - b.cuId,
+  };
+
   // Instance properties referencing the static ones
   public usernamePieChartId = WorkflowExecutionHistoryComponent.USERNAME_PIE_CHART_ID;
   public statusPieChartId = WorkflowExecutionHistoryComponent.STATUS_PIE_CHART_ID;
@@ -415,12 +427,16 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
 
   /* rename a single execution */
 
+  private stopEditingName(index: number): void {
+    this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+      entryIsEditingIndex => entryIsEditingIndex != index
+    );
+  }
+
   confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
     // if name doesn't change, no need to call API
     if (name === row.name) {
-      this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
-        entryIsEditingIndex => entryIsEditingIndex != index
-      );
+      this.stopEditingName(index);
       return;
     }
 
@@ -441,72 +457,29 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
         this.fuse.setCollection(this.paginatedExecutionEntries);
       })
       .add(() => {
-        this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
-          entryIsEditingIndex => entryIsEditingIndex != index
-        );
+        this.stopEditingName(index);
       });
   }
 
-  /* sort executions by name/username/start time/update time
-   based in ascending alphabetical order */
+  /* sort executions by name/username/start time/update time */
 
-  ascSort(type: string): void {
-    if (type === "Name (ID)") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
-    } else if (type === "Username") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
-    } else if (type === "Execution Start Time") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) =>
-          exe1.startingTime > exe2.startingTime ? 1 : exe2.startingTime > exe1.startingTime ? -1 : 0
-        );
-    } else if (type == "Execution Completion Time") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) =>
-          exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
-        );
-    } else if (type === "Computing Unit ID") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((a, b) => a.cuId - b.cuId);
+  private sortExecutions(type: string, ascending: boolean): void {
+    const comparators = WorkflowExecutionHistoryComponent.EXECUTION_COMPARATORS;
+    if (!Object.hasOwn(comparators, type)) {
+      return;
     }
+    const comparator = comparators[type];
+    this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
+      ?.slice()
+      .sort((a, b) => (ascending ? comparator(a, b) : comparator(b, a)));
   }
 
-  /* sort executions by name/username/start time/update time
-   based in descending alphabetical order */
+  ascSort(type: string): void {
+    this.sortExecutions(type, true);
+  }
 
   dscSort(type: string): void {
-    if (type === "Name (ID)") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
-    } else if (type === "Username") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
-    } else if (type === "Execution Start Time") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) =>
-          exe1.startingTime < exe2.startingTime ? 1 : exe2.startingTime < exe1.startingTime ? -1 : 0
-        );
-    } else if (type == "Execution Completion Time") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((exe1, exe2) =>
-          exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
-        );
-    } else if (type === "Computing Unit ID") {
-      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
-        ?.slice()
-        .sort((a, b) => b.cuId - a.cuId);
-    }
+    this.sortExecutions(type, false);
   }
 
   /**
@@ -608,8 +581,12 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     }
   }
 
+  private tokenizeSearchQuery(value: string): string[] {
+    return value.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g);
+  }
+
   public searchInputOnChange(value: string): void {
-    const searchConditionsSet = [...new Set(value.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g))];
+    const searchConditionsSet = [...new Set(this.tokenizeSearchQuery(value))];
     searchConditionsSet.forEach((condition, index) => {
       const preCondition = searchConditionsSet.slice(0, index);
       var executionSearchField = "";
@@ -681,7 +658,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       return;
     }
     let andPathQuery: Object[] = [];
-    const searchConditionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    const searchConditionsSet = new Set(this.tokenizeSearchQuery(this.executionSearchValue));
     searchConditionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
