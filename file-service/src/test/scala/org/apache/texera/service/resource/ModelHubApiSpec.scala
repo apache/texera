@@ -22,95 +22,40 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.Response
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, ModelUserAccessDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{ModelUserAccess, ModelVersion, User}
-import org.apache.texera.service.MockLakeFS
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.tables.daos.ModelDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.{ModelVersion, User}
 import org.apache.texera.service.util.CoverImageUtils
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
 
-import java.io.ByteArrayInputStream
 import java.util.Optional
 
 // What a model page needs beyond the owner's dashboard: the cover image a card
 // renders, and the anonymous halves of version browsing.
-class ModelHubApiSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockTexeraDB
-    with MockLakeFS
-    with BeforeAndAfterAll
-    with ResourceTestHelpers {
+class ModelHubApiSpec extends ModelResourceTestSupport("model_hub_owner") {
 
-  private def mkUser(name: String): User = {
-    val user = new User
-    user.setName(name)
-    user.setEmail(s"$name@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
-  }
-
-  private val ownerUser: User = mkUser("model_hub_owner")
   private val readerUser: User = mkUser("model_hub_reader")
   private val strangerUser: User = mkUser("model_hub_stranger")
+  override protected def extraUsers: Seq[User] = Seq(readerUser, strangerUser)
 
-  lazy val modelResource = new ModelResource()
   lazy val modelDao = new ModelDao(getDSLContext.configuration())
-  lazy val ownerSession = new SessionUser(ownerUser)
+
   lazy val readerSession = new SessionUser(readerUser)
   lazy val strangerSession = new SessionUser(strangerUser)
 
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-    val userDao = new UserDao(getDSLContext.configuration())
-    Seq(ownerUser, readerUser, strangerUser).foreach(userDao.insert)
-  }
-
-  override protected def afterAll(): Unit = {
-    try shutdownDB()
-    finally super.afterAll()
-  }
-
   // ---------- helpers ----------
   private def newModel(isPublic: Boolean): ModelResource.DashboardModel =
-    modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = uniqueName("hub-model"),
-        modelDescription = "for model hub api tests",
-        isModelPublic = isPublic,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      ownerSession
-    )
-
-  private def upload(mid: Integer, path: String, bytes: Array[Byte]): Unit =
-    modelResource
-      .uploadOneFileToModel(
-        mid,
-        urlEnc(path),
-        "upload",
-        new ByteArrayInputStream(bytes),
-        mkHeaders(bytes.length.toLong),
-        ownerSession
-      )
-      .getStatus shouldEqual 200
+    createModelFixture(uniqueName("hub-model"), "for model hub api tests", isPublic = isPublic)
 
   /** Commits `cover.jpg` plus a weights file, returning the generated version. */
   private def commitVersionWithCover(mid: Integer): ModelVersion = {
     upload(mid, "cover.jpg", Array.fill[Byte](512)(0xff.toByte))
     upload(mid, "model.pt", Array.fill[Byte](64)(0x1))
-    modelResource.createModelVersion("init", mid, ownerSession).modelVersion
+    modelResource.createModelVersion("init", mid, sessionUser).modelVersion
   }
 
-  private def grantRead(mid: Integer, uid: Integer): Unit =
-    new ModelUserAccessDao(getDSLContext.configuration())
-      .insert(new ModelUserAccess(mid, uid, PrivilegeEnum.READ))
+  /** Sets the cover image of model `mid` to `path` as `user`. */
+  private def setCover(mid: Integer, path: String, user: SessionUser = sessionUser): Response =
+    modelResource.updateModelCoverImage(mid, CoverImageUtils.CoverImageRequest(path), user)
 
   private def urlOf(response: Response): Option[String] =
     Option(
@@ -131,12 +76,7 @@ class ModelHubApiSpec
     val version = commitVersionWithCover(mid)
     val coverPath = s"${version.getName}/cover.jpg"
 
-    val response =
-      modelResource.updateModelCoverImage(
-        mid,
-        CoverImageUtils.CoverImageRequest(coverPath),
-        ownerSession
-      )
+    val response = setCover(mid, coverPath)
 
     response.getStatus shouldEqual 200
     response.getEntity.asInstanceOf[Map[String, String]]("coverImage") shouldEqual coverPath
@@ -148,11 +88,7 @@ class ModelHubApiSpec
     val version = commitVersionWithCover(mid)
 
     assertThrows[BadRequestException] {
-      modelResource.updateModelCoverImage(
-        mid,
-        CoverImageUtils.CoverImageRequest(s"${version.getName}/model.pt"),
-        ownerSession
-      )
+      setCover(mid, s"${version.getName}/model.pt")
     }
   }
 
@@ -160,7 +96,7 @@ class ModelHubApiSpec
     val mid = newModel(isPublic = false).model.getMid
 
     assertThrows[BadRequestException] {
-      modelResource.updateModelCoverImage(mid, CoverImageUtils.CoverImageRequest(""), ownerSession)
+      setCover(mid, "")
     }
   }
 
@@ -169,11 +105,7 @@ class ModelHubApiSpec
     commitVersionWithCover(mid)
 
     assertThrows[BadRequestException] {
-      modelResource.updateModelCoverImage(
-        mid,
-        CoverImageUtils.CoverImageRequest("cover.jpg"),
-        ownerSession
-      )
+      setCover(mid, "cover.jpg")
     }
   }
 
@@ -182,25 +114,17 @@ class ModelHubApiSpec
     commitVersionWithCover(mid)
 
     assertThrows[BadRequestException] {
-      modelResource.updateModelCoverImage(
-        mid,
-        CoverImageUtils.CoverImageRequest("v9 - nope/cover.jpg"),
-        ownerSession
-      )
+      setCover(mid, "v9 - nope/cover.jpg")
     }
   }
 
   it should "reject a caller with only read access" in {
     val mid = newModel(isPublic = false).model.getMid
     val version = commitVersionWithCover(mid)
-    grantRead(mid, readerUser.getUid)
+    grantAccess(mid, readerUser.getUid, PrivilegeEnum.READ)
 
     assertThrows[ForbiddenException] {
-      modelResource.updateModelCoverImage(
-        mid,
-        CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
-        readerSession
-      )
+      setCover(mid, s"${version.getName}/cover.jpg", readerSession)
     }
   }
 
@@ -210,11 +134,7 @@ class ModelHubApiSpec
   "getModelCover" should "redirect a logged-out visitor to the presigned URL of a public model" in {
     val mid = newModel(isPublic = true).model.getMid
     val version = commitVersionWithCover(mid)
-    modelResource.updateModelCoverImage(
-      mid,
-      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
-      ownerSession
-    )
+    setCover(mid, s"${version.getName}/cover.jpg")
 
     val response = modelResource.getModelCover(mid, Optional.empty())
 
@@ -226,7 +146,7 @@ class ModelHubApiSpec
     val mid = newModel(isPublic = true).model.getMid
 
     assertThrows[NotFoundException] {
-      modelResource.getModelCover(mid, Optional.of(ownerSession))
+      modelResource.getModelCover(mid, Optional.of(sessionUser))
     }
   }
 
@@ -249,13 +169,9 @@ class ModelHubApiSpec
   "getModelCoverUrl" should "return the presigned URL to the owner of a private model" in {
     val mid = newModel(isPublic = false).model.getMid
     val version = commitVersionWithCover(mid)
-    modelResource.updateModelCoverImage(
-      mid,
-      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
-      ownerSession
-    )
+    setCover(mid, s"${version.getName}/cover.jpg")
 
-    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(sessionUser))
 
     response.getStatus shouldEqual 200
     urlOf(response) shouldBe defined
@@ -264,12 +180,8 @@ class ModelHubApiSpec
   it should "return the presigned URL to a read-grantee of a private model" in {
     val mid = newModel(isPublic = false).model.getMid
     val version = commitVersionWithCover(mid)
-    modelResource.updateModelCoverImage(
-      mid,
-      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
-      ownerSession
-    )
-    grantRead(mid, readerUser.getUid)
+    setCover(mid, s"${version.getName}/cover.jpg")
+    grantAccess(mid, readerUser.getUid, PrivilegeEnum.READ)
 
     urlOf(modelResource.getModelCoverUrl(mid, Optional.of(readerSession))) shouldBe defined
   }
@@ -278,30 +190,26 @@ class ModelHubApiSpec
   it should "report no cover, not fail, when the stored path no longer resolves" in {
     val mid = newModel(isPublic = true).model.getMid
     val version = commitVersionWithCover(mid)
-    modelResource.updateModelCoverImage(
-      mid,
-      CoverImageUtils.CoverImageRequest(s"${version.getName}/cover.jpg"),
-      ownerSession
-    )
+    setCover(mid, s"${version.getName}/cover.jpg")
 
     // Point the stored cover at a version that never existed.
     val model = modelDao.fetchOneByMid(mid)
     model.setCoverImage("v9 - deleted/cover.jpg")
     modelDao.update(model)
 
-    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(sessionUser))
     response.getStatus shouldEqual 200
     urlOf(response) shouldBe empty
 
     assertThrows[NotFoundException] {
-      modelResource.getModelCover(mid, Optional.of(ownerSession))
+      modelResource.getModelCover(mid, Optional.of(sessionUser))
     }
   }
 
   it should "return a null url rather than 404 when no cover image is set" in {
     val mid = newModel(isPublic = true).model.getMid
 
-    val response = modelResource.getModelCoverUrl(mid, Optional.of(ownerSession))
+    val response = modelResource.getModelCoverUrl(mid, Optional.of(sessionUser))
 
     response.getStatus shouldEqual 200
     urlOf(response) shouldBe empty
@@ -388,7 +296,7 @@ class ModelHubApiSpec
 
     val anonymous = modelResource.retrievePublicModelVersionRootFileNodes(mid, version.getMvid)
     val authenticated =
-      modelResource.retrieveModelVersionRootFileNodes(mid, version.getMvid, ownerSession)
+      modelResource.retrieveModelVersionRootFileNodes(mid, version.getMvid, sessionUser)
 
     anonymous.fileNodes.map(_.getName).sorted shouldEqual
       authenticated.fileNodes.map(_.getName).sorted
