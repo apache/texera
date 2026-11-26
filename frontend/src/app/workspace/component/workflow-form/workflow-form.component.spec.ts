@@ -2821,6 +2821,105 @@ describe("WorkflowFormComponent", () => {
       vi.useRealTimers();
     });
 
+    describe("full screen", () => {
+      let fullScreenElement: Element | null;
+      let card: HTMLElement;
+
+      // jsdom has no Fullscreen API, so these tests supply the part the page uses.
+      beforeEach(() => {
+        fullScreenElement = null;
+        Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => fullScreenElement });
+        Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: true });
+        card = document.createElement("div");
+        card.dataset.resultId = "op-1";
+      });
+
+      afterEach(() => {
+        delete (document as any).fullscreenElement;
+        delete (document as any).fullscreenEnabled;
+        delete (document as any).exitFullscreen;
+        vi.useRealTimers();
+      });
+
+      it("puts a result card in full screen, and takes it out again", () => {
+        build(formViewWorkflow).ngOnInit();
+        card.requestFullscreen = vi.fn(() => Promise.resolve());
+        const exit = vi.fn(() => Promise.resolve());
+        document.exitFullscreen = exit;
+
+        expect(component.canFullScreen).toBe(true);
+        component.toggleFullScreen(card);
+        expect(card.requestFullscreen).toHaveBeenCalled();
+        expect(exit).not.toHaveBeenCalled();
+
+        fullScreenElement = card;
+        component.toggleFullScreen(card);
+        expect(exit).toHaveBeenCalled();
+      });
+
+      // Spied: this runner does not fail on an unhandled rejection, so the catch is checked directly,
+      // and what it returns has to settle cleanly (a rethrowing or empty catch would not).
+      it("ignores a browser that refuses full screen, either way", async () => {
+        build(formViewWorkflow).ngOnInit();
+        const refused = Promise.reject(new TypeError("not allowed"));
+        const handled = vi.spyOn(refused, "catch");
+        card.requestFullscreen = vi.fn(() => refused);
+        component.toggleFullScreen(card);
+        expect(handled).toHaveBeenCalled();
+        await expect(handled.mock.results[0].value).resolves.toBeUndefined();
+
+        const exitRefused = Promise.reject(new TypeError("document not active"));
+        const exitHandled = vi.spyOn(exitRefused, "catch");
+        document.exitFullscreen = vi.fn(() => exitRefused);
+        fullScreenElement = card;
+        component.toggleFullScreen(card);
+        expect(exitHandled).toHaveBeenCalled();
+        await expect(exitHandled.mock.results[0].value).resolves.toBeUndefined();
+      });
+
+      it("offers no full screen where the browser cannot give one", () => {
+        build(formViewWorkflow).ngOnInit();
+        Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: false });
+        expect(component.canFullScreen).toBe(false);
+
+        delete (document as any).fullscreenEnabled; // no API at all
+        expect(component.canFullScreen).toBe(false);
+      });
+
+      it("tracks which card is full screen and re-fits it as the screen changes", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        const fit = vi.spyOn(component as any, "fitVisualisations").mockImplementation(() => {});
+        (component as any).host = {
+          nativeElement: { contains: (el: Element) => el === card, querySelector: () => null },
+        };
+
+        fullScreenElement = card;
+        component.onFullScreenChange();
+        expect(component.isFullScreen("op-1")).toBe(true);
+        expect(component.isFullScreen("op-2")).toBe(false);
+        vi.advanceTimersByTime(60);
+        expect(fit).toHaveBeenCalledTimes(1);
+
+        // Esc, or the browser's own control, leaves full screen without our button.
+        fullScreenElement = null;
+        component.onFullScreenChange();
+        expect(component.isFullScreen("op-1")).toBe(false);
+        vi.advanceTimersByTime(60);
+        expect(fit).toHaveBeenCalledTimes(2);
+      });
+
+      it("does not claim another page element that went full screen", () => {
+        build(formViewWorkflow).ngOnInit();
+        vi.spyOn(component as any, "fitVisualisations").mockImplementation(() => {});
+        fullScreenElement = card; // the harness host contains nothing, so this is not our card
+
+        component.onFullScreenChange();
+
+        expect(component.isFullScreen("op-1")).toBe(false);
+      });
+    });
+
     it("bumps the result version and re-fits on a result update", () => {
       vi.useFakeTimers();
       build(formViewWorkflow).ngOnInit();

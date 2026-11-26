@@ -566,6 +566,8 @@
              ring, so the move reads as "this is that step's result" rather than a reshuffle. -->
         <div
           class="card result"
+          #resultCard
+          [attr.data-result-id]="id"
           [style.order]="resultOrder(id)"
           [class.lead-result]="leadsResults(id)">
           <div class="result-head">
@@ -592,6 +594,19 @@
                 <i
                   nz-icon
                   nzType="plus"
+                  aria-hidden="true"></i>
+              </button>
+              <!-- The card is one fixed height, too small for a picture the reader explores, such as
+                   a 3D structure. Full screen gives that picture the whole display, where the browser
+                   allows it. -->
+              <button
+                *ngIf="canFullScreen"
+                (click)="toggleFullScreen(resultCard)"
+                [nz-tooltip]="isFullScreen(id) ? 'Exit full screen' : 'Full screen'"
+                [attr.aria-label]="isFullScreen(id) ? 'Exit full screen' : 'Full screen'">
+                <i
+                  nz-icon
+                  [nzType]="isFullScreen(id) ? 'fullscreen-exit' : 'fullscreen'"
                   aria-hidden="true"></i>
               </button>
             </span>
