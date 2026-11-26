@@ -150,15 +150,12 @@ class ProxyServer(FlightServerBase):
         )
 
         # The runtime installs the data, control, and actor handlers.
-        def unregistered_handler():
-            def handle(*args, **kwargs):
-                raise NotImplementedError
+        def unregistered_handler(*args, **kwargs):
+            raise NotImplementedError
 
-            return handle
-
-        self.process_data = unregistered_handler()
-        self.process_control = unregistered_handler()
-        self.process_actor = unregistered_handler()
+        self.process_data = unregistered_handler
+        self.process_control = unregistered_handler
+        self.process_actor = unregistered_handler
 
     ###########################
     # Flights related methods #
@@ -226,8 +223,6 @@ class ProxyServer(FlightServerBase):
         if action_name not in self._procedures:
             raise KeyError(f"Unknown action {action_name!r}")
         procedure, _ = self._procedures.get(action_name)
-        if not action:
-            raise KeyError(f"Unknown action {action_name!r}")
 
         payload = action.body.to_pybytes()
         result = procedure(payload) if payload else procedure()
