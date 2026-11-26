@@ -124,17 +124,17 @@ const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
  */
 const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
-export const operatorReuseCacheTextClass = "texera-operator-result-reuse-text";
-export const operatorReuseCacheIconClass = "texera-operator-result-reuse-icon";
-export const operatorViewResultIconClass = "texera-operator-view-result-icon";
+const operatorReuseCacheTextClass = "texera-operator-result-reuse-text";
+const operatorReuseCacheIconClass = "texera-operator-result-reuse-icon";
+const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
 export const operatorAgentActionProgressClass = "texera-operator-agent-action-progress";
 
-export const operatorIconClass = "texera-operator-icon";
+const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
-export const operatorFriendlyNameClass = "texera-operator-friendly-name";
+const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
 const operatorWorkerCountClass = "operator-worker-count";
 
@@ -207,8 +207,6 @@ class TexeraCustomCommentElement extends joint.shapes.devs.Model {
 export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
-  public static readonly DEFAULT_GROUP_MARGIN = 50;
-  public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
   public static readonly MAX_OPERATOR_NAME_PIXELS = 200;
