@@ -185,15 +185,25 @@ class TestOpenDocumentNamespaceRouting:
         with pytest.raises(ValueError, match="not supported"):
             DocumentFactory.open_document(VFS_URI)
 
-    def test_missing_table_raises_value_error(
-        self, mock_vfs, _icb, mock_load, _schema_cls, _doc
+    # The message names the URI as given: non-ASCII kept, percent escapes not decoded.
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            VFS_URI,
+            "vfs:///wid/0/eid/0/opid/café/main/0/0/result",
+            "vfs:///wid/0/eid/0/opid/caf%C3%A9%20op/main/0/0/result",
+        ],
+    )
+    def test_missing_table_raises_value_error_naming_the_uri(
+        self, mock_vfs, _icb, mock_load, _schema_cls, _doc, uri
     ):
         mock_vfs.VFS_FILE_URI_SCHEME = "vfs"
         mock_vfs.decode_uri.side_effect = _decode_returning(VFSResourceType.STATE)
         mock_load.return_value = None
 
-        with pytest.raises(ValueError, match="No storage is found"):
-            DocumentFactory.open_document(VFS_URI)
+        with pytest.raises(ValueError, match="No storage is found") as raised:
+            DocumentFactory.open_document(uri)
+        assert uri in str(raised.value)
 
 
 def test_open_document_rejects_non_vfs_scheme():

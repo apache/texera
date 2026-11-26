@@ -223,13 +223,14 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   private val vfsSchema: Schema = Schema().add("v", AttributeType.INTEGER)
 
-  private def freshResultURI(): URI = {
+  private def freshResultURI(opIdPrefix: String = "op"): URI = {
     val base = VFSURIFactory.createPortBaseURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       GlobalPortIdentity(
         PhysicalOpIdentity(
-          logicalOpId = OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}"),
+          logicalOpId =
+            OperatorIdentity(s"$opIdPrefix-${UUID.randomUUID().toString.replace("-", "")}"),
           layerName = "main"
         ),
         PortIdentity()
@@ -317,12 +318,19 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     schemaOpt.get.getAttributes.map(_.getName) should contain("v")
   }
 
-  it should "throw DocumentNotFoundException when opening a vfs URI with no backing storage" in {
-    val thrown = intercept[DocumentNotFoundException] {
-      DocumentFactory.openDocument(freshResultURI())
+  // The message names the URI as given: non-ASCII kept, percent escapes not decoded.
+  it should "throw a DocumentNotFoundException naming a vfs URI with no backing storage" in {
+    Seq("op", "op-café", "op-caf%C3%A9%20x").foreach { prefix =>
+      withClue(s"opId prefix $prefix: ") {
+        val missing = freshResultURI(prefix)
+        val thrown = intercept[DocumentNotFoundException] {
+          DocumentFactory.openDocument(missing)
+        }
+        thrown.getMessage should include("No storage is found")
+        thrown.getMessage should include(missing.toString)
+        // Callers that catch the type it has always been still match.
+        thrown shouldBe an[IllegalArgumentException]
+      }
     }
-    thrown.getMessage should include("No storage is found")
-    // Callers that catch the type it has always been still match.
-    thrown shouldBe an[IllegalArgumentException]
   }
 }
