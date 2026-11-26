@@ -33,12 +33,12 @@
     <nz-tabs nzCentered>
       <nz-tab nzTitle="Quota Table">
         <div class="info-container">
-          <div
-            *ngFor="let item of quotaSummaryItems"
-            class="info-box">
+          @for (item of quotaSummaryItems; track item.heading) {
+          <div class="info-box">
             <h2 class="info-heading">{{ item.heading }}</h2>
             <p class="info-content">{{ item.value }}</p>
           </div>
+          }
         </div>
       </nz-tab>
       <nz-tab nzTitle="Result Cache">

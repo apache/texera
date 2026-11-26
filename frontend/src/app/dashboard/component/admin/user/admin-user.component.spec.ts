@@ -123,10 +123,6 @@ describe("AdminUserComponent", () => {
     expect(placeholderTags[0].closest("tr")?.textContent).toContain("test1");
   });
 
-  type SearchField = "name" | "email" | "comment";
-  const searchKey = (f: SearchField): `${SearchField}SearchValue` => `${f}SearchValue`;
-  const runSearch = (f: SearchField): void =>
-    f === "name" ? component.searchByName() : f === "email" ? component.searchByEmail() : component.searchByComment();
   const searchUsers = (): User[] => [
     mk({ name: "Alice", email: "alice@example.com", comment: "Needs review" }),
     mk({ name: "Bob", email: "bob@example.com", comment: "Approved" }),
@@ -140,8 +136,8 @@ describe("AdminUserComponent", () => {
   ).forEach(([field, query, expected]) => {
     it(`should search ${field} case-insensitively`, () => {
       component.userList = searchUsers();
-      component[searchKey(field)] = query;
-      runSearch(field);
+      component.searchValue[field] = query;
+      component.searchByField(field);
       expect(component.listOfDisplayUser.length).toBe(1);
       expect(component.listOfDisplayUser[0][field]).toBe(expected);
     });
@@ -155,9 +151,9 @@ describe("AdminUserComponent", () => {
   ).forEach(([field, query, trimmed, expected]) => {
     it(`should trim active ${field} search value without lowercasing the stored input`, () => {
       component.userList = [searchUsers()[0]];
-      component[searchKey(field)] = query;
-      runSearch(field);
-      expect(component[searchKey(field)]).toBe(trimmed);
+      component.searchValue[field] = query;
+      component.searchByField(field);
+      expect(component.searchValue[field]).toBe(trimmed);
       expect(component.listOfDisplayUser.length).toBe(1);
       expect(component.listOfDisplayUser[0][field]).toBe(expected);
     });
@@ -171,12 +167,12 @@ describe("AdminUserComponent", () => {
     ] as const
   ).forEach(([field, query, f1, v1, f2, v2]) => {
     it(`should clear inactive search values when searching by ${field}`, () => {
-      component[searchKey(f1)] = v1;
-      component[searchKey(f2)] = v2;
-      component[searchKey(field)] = query;
-      runSearch(field);
-      expect(component[searchKey(f1)]).toBe("");
-      expect(component[searchKey(f2)]).toBe("");
+      component.searchValue[f1] = v1;
+      component.searchValue[f2] = v2;
+      component.searchValue[field] = query;
+      component.searchByField(field);
+      expect(component.searchValue[f1]).toBe("");
+      expect(component.searchValue[f2]).toBe("");
     });
   });
 
@@ -259,22 +255,22 @@ describe("AdminUserComponent", () => {
 
   it("reset clears search state and restores the full display list", () => {
     component.userList = [userA, userB];
-    component.nameSearchValue = "Alice";
-    component.emailSearchValue = "alice@example.com";
-    component.commentSearchValue = "c";
-    component.nameSearchVisible = true;
-    component.emailSearchVisible = true;
-    component.commentSearchVisible = true;
+    component.searchValue.name = "Alice";
+    component.searchValue.email = "alice@example.com";
+    component.searchValue.comment = "c";
+    component.searchVisible.name = true;
+    component.searchVisible.email = true;
+    component.searchVisible.comment = true;
     component.listOfDisplayUser = [userA];
 
     component.reset();
 
-    expect(component.nameSearchValue).toBe("");
-    expect(component.emailSearchValue).toBe("");
-    expect(component.commentSearchValue).toBe("");
-    expect(component.nameSearchVisible).toBe(false);
-    expect(component.emailSearchVisible).toBe(false);
-    expect(component.commentSearchVisible).toBe(false);
+    expect(component.searchValue.name).toBe("");
+    expect(component.searchValue.email).toBe("");
+    expect(component.searchValue.comment).toBe("");
+    expect(component.searchVisible.name).toBe(false);
+    expect(component.searchVisible.email).toBe(false);
+    expect(component.searchVisible.comment).toBe(false);
     expect(component.listOfDisplayUser).toEqual([userA, userB]);
   });
 
@@ -406,21 +402,21 @@ describe("AdminUserComponent", () => {
     it("filters the display list by name case-insensitively over populated data", () => {
       component.userList = [userA, userB];
 
-      component.nameSearchValue = "ALI";
-      component.searchByName();
+      component.searchValue.name = "ALI";
+      component.searchByField("name");
 
       expect(component.listOfDisplayUser.length).toBe(1);
       expect(component.listOfDisplayUser[0].name).toBe("Alice");
-      expect(component.nameSearchVisible).toBe(false);
+      expect(component.searchVisible.name).toBe(false);
     });
 
     it("trims a null name search value down to an empty string", () => {
       component.userList = [userA];
 
-      component.nameSearchValue = null as any;
-      component.searchByName();
+      component.searchValue.name = null as any;
+      component.searchByField("name");
 
-      expect(component.nameSearchValue).toBe("");
+      expect(component.searchValue.name).toBe("");
       // empty query matches everything
       expect(component.listOfDisplayUser).toEqual([userA]);
     });
@@ -429,16 +425,16 @@ describe("AdminUserComponent", () => {
       const nullUser = mk({ uid: 3, name: null as any, email: null as any, comment: null as any });
       component.userList = [nullUser];
 
-      component.nameSearchValue = "";
-      component.searchByName();
+      component.searchValue.name = "";
+      component.searchByField("name");
       expect(component.listOfDisplayUser).toEqual([nullUser]);
 
-      component.emailSearchValue = "";
-      component.searchByEmail();
+      component.searchValue.email = "";
+      component.searchByField("email");
       expect(component.listOfDisplayUser).toEqual([nullUser]);
 
-      component.commentSearchValue = "";
-      component.searchByComment();
+      component.searchValue.comment = "";
+      component.searchByField("comment");
       expect(component.listOfDisplayUser).toEqual([nullUser]);
     });
   });

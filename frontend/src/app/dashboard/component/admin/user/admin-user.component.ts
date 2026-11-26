@@ -109,12 +109,8 @@ export class AdminUserComponent implements OnInit {
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
   editComment: string = "";
-  nameSearchValue: string = "";
-  emailSearchValue: string = "";
-  commentSearchValue: string = "";
-  nameSearchVisible = false;
-  emailSearchVisible = false;
-  commentSearchVisible = false;
+  searchValue: Record<AdminSearchField, string> = { name: "", email: "", comment: "" };
+  searchVisible: Record<AdminSearchField, boolean> = { name: false, email: false, comment: false };
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
   feedbackCounts = new Map<number, number>();
@@ -288,8 +284,8 @@ export class AdminUserComponent implements OnInit {
 
   reset(): void {
     for (const field of this.searchFields) {
-      this[`${field}SearchValue`] = "";
-      this[`${field}SearchVisible`] = false;
+      this.searchValue[field] = "";
+      this.searchVisible[field] = false;
     }
     this.listOfDisplayUser = [...this.userList];
   }
@@ -298,34 +294,14 @@ export class AdminUserComponent implements OnInit {
     return (value ?? "").trim();
   }
 
-  getSearchValue(field: AdminSearchField): string {
-    return this[`${field}SearchValue`];
-  }
-
-  setSearchValue(field: AdminSearchField, value: string): void {
-    this[`${field}SearchValue`] = value;
-  }
-
   searchByField(field: AdminSearchField): void {
-    this[`${field}SearchVisible`] = false;
-    const trimmed = this.trimSearchValue(this[`${field}SearchValue`]);
+    this.searchVisible[field] = false;
+    const trimmed = this.trimSearchValue(this.searchValue[field]);
     for (const candidate of this.searchFields) {
-      this[`${candidate}SearchValue`] = candidate === field ? trimmed : "";
+      this.searchValue[candidate] = candidate === field ? trimmed : "";
     }
     const query = trimmed.toLowerCase();
     this.listOfDisplayUser = this.userList.filter(user => (user[field] ?? "").toLowerCase().includes(query));
-  }
-
-  searchByName(): void {
-    this.searchByField("name");
-  }
-
-  searchByEmail(): void {
-    this.searchByField("email");
-  }
-
-  searchByComment(): void {
-    this.searchByField("comment");
   }
 
   clickToViewQuota(uid: number) {

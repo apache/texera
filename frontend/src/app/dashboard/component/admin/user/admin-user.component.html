@@ -47,8 +47,8 @@
         nzCustomFilter>
         Name
         <nz-filter-trigger
-          [(nzVisible)]="nameSearchVisible"
-          [nzActive]="nameSearchValue.length > 0"
+          [(nzVisible)]="searchVisible.name"
+          [nzActive]="searchValue.name.length > 0"
           [nzDropdownMenu]="nameMenu">
           <span
             nz-icon
@@ -61,8 +61,8 @@
         nzCustomFilter>
         Email
         <nz-filter-trigger
-          [(nzVisible)]="emailSearchVisible"
-          [nzActive]="emailSearchValue.length > 0"
+          [(nzVisible)]="searchVisible.email"
+          [nzActive]="searchValue.email.length > 0"
           [nzDropdownMenu]="emailMenu">
           <span
             nz-icon
@@ -85,8 +85,8 @@
         nzCustomFilter>
         Comment
         <nz-filter-trigger
-          [(nzVisible)]="commentSearchVisible"
-          [nzActive]="commentSearchValue.length > 0"
+          [(nzVisible)]="searchVisible.comment"
+          [nzActive]="searchValue.comment.length > 0"
           [nzDropdownMenu]="commentMenu">
           <span
             nz-icon
@@ -117,8 +117,7 @@
     <div class="ant-table-filter-dropdown">
       <div class="search-box">
         <input
-          [ngModel]="getSearchValue(field)"
-          (ngModelChange)="setSearchValue(field, $event)"
+          [(ngModel)]="$any(searchValue)[field]"
           nz-input
           [placeholder]="placeholder"
           type="text" />
