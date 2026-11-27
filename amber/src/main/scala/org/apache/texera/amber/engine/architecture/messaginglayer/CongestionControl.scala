@@ -76,10 +76,14 @@ class CongestionControl {
   }
 
   private def dequeueN[T](queue: mutable.Queue[T], n: Int): Seq[T] = {
-    var count = 0
-    queue.dequeueAll { _ =>
-      count += 1
-      count <= n
+    val count = math.min(n, queue.size)
+    if (count <= 0) {
+      List.empty
+    } else {
+      val messages = queue.iterator.take(count).toList
+      // Bulk removal lets the queue shrink its backing array after a large drain.
+      queue.remove(0, count)
+      messages
     }
   }
 
