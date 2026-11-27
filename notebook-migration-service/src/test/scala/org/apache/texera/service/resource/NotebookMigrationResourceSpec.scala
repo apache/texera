@@ -62,8 +62,7 @@ import scala.jdk.CollectionConverters._
 import java.sql.Timestamp
 import java.util.UUID
 
-class NotebookMigrationResourceSpec
-    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true) {
+class NotebookMigrationResourceSpec extends DatabaseFlatSpec(cleanupAfterEach = true) {
 
   // Randomise the seeded wid so a parallel run of unrelated specs that happen
   // to seed the same id wouldn't collide on the embedded postgres.
@@ -95,7 +94,6 @@ class NotebookMigrationResourceSpec
     userDao = new UserDao(cfg)
     workflowUserAccessDao = new WorkflowUserAccessDao(cfg)
     lastContentsRequest = None
-    cleanup()
 
     val workflow = new Workflow
     workflow.setWid(testWid)

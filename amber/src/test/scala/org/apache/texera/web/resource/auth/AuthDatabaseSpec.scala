@@ -41,6 +41,10 @@ abstract class AuthDatabaseSpec(protected val emailDomain: String = "")
   protected def userByEmail(localPart: String): User =
     userDao.fetchOneByEmail(localPart + emailDomain)
 
+  /** Counts case-insensitively, so a duplicate differing only in case is still counted. */
+  protected def userCountByEmail(localPart: String): Int =
+    getDSLContext.fetchCount(USER, DSL.lower(USER.EMAIL).eq(localPart + emailDomain))
+
   protected def providerIdOf(uid: Integer, providerType: ProviderTypeEnum): String =
     getDSLContext
       .select(AUTH_PROVIDER.PROVIDER_ID)
@@ -50,6 +54,7 @@ abstract class AuthDatabaseSpec(protected val emailDomain: String = "")
       .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
 
   protected def deleteUsersByEmailDomain(caseInsensitive: Boolean = false): Unit = {
+    require(emailDomain.nonEmpty, "deleteUsersByEmailDomain needs a non-empty emailDomain")
     val cond =
       if (caseInsensitive) DSL.lower(USER.EMAIL).like("%" + emailDomain)
       else USER.EMAIL.like("%" + emailDomain)

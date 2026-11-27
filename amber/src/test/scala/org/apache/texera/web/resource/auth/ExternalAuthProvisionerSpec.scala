@@ -19,10 +19,9 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.Tables.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.jooq.impl.DSL
 
 /**
   * Integration spec for [[ExternalAuthProvisioner]] against embedded Postgres
@@ -96,10 +95,6 @@ class ExternalAuthProvisionerSpec extends AuthDatabaseSpec("@provisioner-test.co
 
   private def providerRowCount(uid: Integer): Int =
     getDSLContext.fetchCount(AUTH_PROVIDER, AUTH_PROVIDER.UID.eq(uid))
-
-  /** Counts case-insensitively, so a duplicate differing only in case is still counted. */
-  private def userCountByEmail(localPart: String): Int =
-    getDSLContext.fetchCount(USER, DSL.lower(USER.EMAIL).eq(localPart + emailDomain))
 
   // ---- new-identity provisioning -------------------------------------------
 

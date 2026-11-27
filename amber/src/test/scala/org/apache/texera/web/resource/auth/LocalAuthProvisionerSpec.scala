@@ -19,10 +19,9 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.Tables.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.jooq.impl.DSL
 
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.Response
@@ -77,9 +76,6 @@ class LocalAuthProvisionerSpec extends AuthDatabaseSpec("@local-provisioner-test
     userDao.insert(user)
     user
   }
-
-  private def userCountByEmail(localPart: String): Int =
-    getDSLContext.fetchCount(USER, DSL.lower(USER.EMAIL).eq(localPart + emailDomain))
 
   private def conflictFrom(body: => Unit): WebApplicationException = {
     val thrown = intercept[WebApplicationException](body)
