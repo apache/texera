@@ -30,4 +30,7 @@ case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: Acto
 
   override def allReceivers: Seq[ActorVirtualIdentity] =
     Seq(partitioning.channels.filter(_.fromWorkerId == actorId).head.toWorkerId)
+
+  // The whole batch goes to the single receiver; no per-row split.
+  override def columnarSplits: Boolean = false
 }

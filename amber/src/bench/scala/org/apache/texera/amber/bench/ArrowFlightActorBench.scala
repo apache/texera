@@ -331,7 +331,8 @@ object ArrowFlightActorBench {
             // batch_size = cfg.batchSize keeps the Python-side partitioning
             // buffer aligned with our send size — one Java DataFrame in maps
             // to exactly one Python DataFrame out.
-            OneToOnePartitioning(batchSize = cfg.batchSize, channels = Seq(dataChannelOut))
+            OneToOnePartitioning(batchSize = cfg.batchSize, channels = Seq(dataChannelOut)),
+            columnar = false
           ),
           ctx,
           4L
