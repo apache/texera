@@ -172,6 +172,11 @@ def java_hash_bytes(bytes: Iterator[int], init: int, salt: int):
     return h
 
 
+def java_hash_string(value: str, salt: int):
+    units = (unit[0] for unit in struct.iter_unpack(">H", value.encode("utf-16-be")))
+    return java_hash_bytes(units, 0, salt)
+
+
 class Tuple:
     """
     Lazy-Tuple implementation.
@@ -476,6 +481,7 @@ class Tuple:
             AttributeType.BINARY: lambda f: java_hash_bytes(
                 (b if b < 128 else b - 256 for b in f), 1, salt
             ),
+            AttributeType.LARGE_BINARY: lambda f: salt + java_hash_string(f.uri, salt),
         }
 
         for name, field in self.as_key_value_pairs():

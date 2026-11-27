@@ -275,6 +275,27 @@ class TestHashBasedShufflePartitioner:
         for _, batch in p.receivers:
             assert len(batch) < p.batch_size
 
+    @pytest.mark.parametrize("uri", ["s3://bucket/object", "s3://bucket/\U0001f600"])
+    def test_large_binary_key_routes_to_same_receiver(self, uri):
+        from core.models.type.large_binary import largebinary
+
+        schema = Schema(raw_schema={"k": "LARGE_BINARY", "v": "STRING"})
+        p = self._partitioner(batch_size=1)
+        first = Tuple({"k": largebinary(uri), "v": "first"}, schema)
+        second = Tuple({"k": largebinary(uri), "v": "second"}, schema)
+
+        first_route = [
+            (receiver, list(batch)) for receiver, batch in p.add_tuple_to_batch(first)
+        ]
+        second_route = [
+            (receiver, list(batch)) for receiver, batch in p.add_tuple_to_batch(second)
+        ]
+
+        assert len(first_route) == len(second_route) == 1
+        assert first_route[0][0] == second_route[0][0]
+        assert first_route[0][1] == [first]
+        assert second_route[0][1] == [second]
+
     def test_no_hash_attribute_names_falls_back_to_whole_tuple(self):
         p = self._partitioner(hash_keys=())
         list(p.add_tuple_to_batch(_hashable_tuple(k=1, v="a")))
