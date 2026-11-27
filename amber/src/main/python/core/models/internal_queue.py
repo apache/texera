@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
 from typing import Tuple, TypeVar, Set
 
-from core.models.payload import DataPayload
+from core.models.payload import DataFrame, DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
@@ -55,13 +56,24 @@ class ECMElement(InternalQueueElement):
 T = TypeVar("T", bound=InternalQueueElement)
 
 
+def _in_mem_size(item) -> int:
+    """
+    Bytes an item holds while queued. The total is reported to the JVM as
+    queued credit for flow control, so a data frame counts its Arrow buffers
+    rather than the few bytes of its Python wrapper.
+    """
+    if isinstance(item, DataElement) and isinstance(item.payload, DataFrame):
+        return item.payload.frame.get_total_buffer_size()
+    return sys.getsizeof(item)
+
+
 class InternalQueue(IQueue):
     class DisableType(Enum):
         DISABLE_BY_PAUSE = 1
         DISABLE_BY_BACKPRESSURE = 2
 
     def __init__(self):
-        self._queue = LinkedBlockingMultiQueue()
+        self._queue = LinkedBlockingMultiQueue(size_of=_in_mem_size)
         self._queue.add_sub_queue("SYSTEM", 0)
         self._queue_ids: Set[ChannelIdentity] = set()
         self._queue_state: Set[InternalQueue.DisableType] = set()
