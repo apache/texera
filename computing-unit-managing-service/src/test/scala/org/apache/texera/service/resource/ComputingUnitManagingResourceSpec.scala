@@ -665,19 +665,23 @@ class ComputingUnitManagingResourceSpec
     requiredEnvNames.foreach(name => thrown.getMessage should include(name))
   }
 
-  "optionalComputingUnitEnv" should "forward an override that is set" in {
-    ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some("2048")) shouldBe
-      Map(payloadSize -> "2048")
+  // Spelled out rather than taken from EnvironmentalVariable, so changing the name the constant
+  // holds (the one application.conf reads) fails here.
+  private val stateCleanup = "WEB_SERVER_WORKFLOW_STATE_CLEANUP_IN_SECONDS"
+
+  "optionalComputingUnitEnv" should "forward every override that is set" in {
+    val set = Map(payloadSize -> "2048", stateCleanup -> "3600")
+    ComputingUnitManagingResource.optionalComputingUnitEnv(set.get) shouldBe set
   }
 
   // HOCON refuses " 2048" as an int, and the unit then dies at startup naming nothing.
   it should "trim what it forwards" in {
     ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some(" 2048\n")) shouldBe
-      Map(payloadSize -> "2048")
+      Map(payloadSize -> "2048", stateCleanup -> "2048")
   }
 
-  // application.conf already defaults this to 1024; forwarding "" would override the default
-  // with a value HOCON cannot read as an int.
+  // application.conf defaults both; forwarding "" would override a default with a value HOCON
+  // cannot read as an int.
   it should "forward nothing when unset or blank" in {
     ComputingUnitManagingResource.optionalComputingUnitEnv(_ => None) shouldBe empty
     ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some("  ")) shouldBe empty

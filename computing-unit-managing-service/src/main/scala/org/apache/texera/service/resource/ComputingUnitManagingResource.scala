@@ -309,13 +309,14 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_AUTH_JWT_SECRET
   )
 
-  // Overrides, forwarded only when set: application.conf defaults the payload size to 1024,
-  // so its absence is not an error. USER_SYS_ENABLED and
+  // Overrides, forwarded only when set: application.conf defaults both, so their absence is not
+  // an error. USER_SYS_ENABLED and
   // SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR are absent from both lists --
   // their conf keys went away with #3831 and #3542, so nothing reads them.
   // TODO: use AmberConfig here; it is only accessible in workflow-executing-service
   private val optionalComputingUnitEnvNames: Seq[String] = Seq(
-    EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB
+    EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB,
+    EnvironmentalVariable.ENV_WEB_SERVER_WORKFLOW_STATE_CLEANUP_IN_SECONDS
   )
 
   /**
