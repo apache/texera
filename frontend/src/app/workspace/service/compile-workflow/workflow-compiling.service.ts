@@ -338,7 +338,11 @@ export class WorkflowCompilingService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    const getAttrNames = (attrName: string, v: CustomJSONSchema7): string[] | undefined => {
+    const getAttrNames = (
+      attrName: string,
+      v: CustomJSONSchema7,
+      ownerSchema: CustomJSONSchema7
+    ): string[] | undefined => {
       const i = v.autofillAttributeOnPort;
       if (i === undefined || i === null || !Number.isInteger(i)) {
         return undefined;
@@ -359,7 +363,7 @@ export class WorkflowCompilingService {
       // https://github.com/ajv-validator/ajv/issues/1471
       // the null -> "" change is done by Ajv.validate() with useDefault set to true.
       // It is converted during the property editor form initialization and workflow validation, instead of during schema propagation.
-      if (!operatorSchema.jsonSchema.required?.includes(attrName)) {
+      if (!ownerSchema.required?.includes(attrName)) {
         if (v.default) {
           if (typeof v.default !== "string") {
             throw new Error("default value must be a string");
@@ -377,10 +381,10 @@ export class WorkflowCompilingService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeName",
-      (attrName, old) => ({
+      (attrName, old, ownerSchema) => ({
         ...old,
         type: "string",
-        enum: getAttrNames(attrName, old),
+        enum: getAttrNames(attrName, old, ownerSchema),
         uniqueItems: true,
       })
     );
@@ -388,14 +392,14 @@ export class WorkflowCompilingService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeNameList",
-      (attrName, old) => ({
+      (attrName, old, ownerSchema) => ({
         ...old,
         type: "array",
         uniqueItems: true,
         items: {
           ...(old.items as CustomJSONSchema7),
           type: "string",
-          enum: getAttrNames(attrName, old),
+          enum: getAttrNames(attrName, old, ownerSchema),
         },
       })
     );
