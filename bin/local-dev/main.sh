@@ -105,6 +105,7 @@
 #   workflow-compiling-service     :9090  JVM (sbt WorkflowCompilingService)
 #   computing-unit-managing-service :8082 JVM (sbt ComputingUnitManagingService)
 #   notebook-migration-service     :9098  JVM (sbt NotebookMigrationService)
+#   result-service                 :9102  JVM (sbt ResultService)
 #   texera-web                     :8080  JVM (sbt WorkflowExecutionService, amber)
 #   computing-unit-master          :8085  JVM (rides amber dist; no own sbt project)
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
@@ -886,6 +887,7 @@ SERVICES=(
     computing-unit-master
     computing-unit-managing-service
     notebook-migration-service
+    result-service
     texera-web
     agent-service
     frontend
@@ -949,6 +951,15 @@ amap_set SVC_CWD        notebook-migration-service "."
 amap_set SVC_ZIP_GLOB   notebook-migration-service "notebook-migration-service/target/universal/notebook-migration-service-*.zip"
 amap_set SVC_UNZIP_DEST notebook-migration-service "target/"
 amap_set SVC_HEALTH     notebook-migration-service "/api/healthcheck"
+
+amap_set SVC_TYPE       result-service jvm
+amap_set SVC_PORT       result-service 9102
+amap_set SVC_SBT        result-service ResultService
+amap_set SVC_LAUNCHER   result-service "target/result-service-${TEXERA_VERSION}/bin/result-service"
+amap_set SVC_CWD        result-service "."
+amap_set SVC_ZIP_GLOB   result-service "result-service/target/universal/result-service-*.zip"
+amap_set SVC_UNZIP_DEST result-service "target/"
+amap_set SVC_HEALTH     result-service "/api/healthcheck"
 
 amap_set SVC_TYPE       computing-unit-managing-service jvm
 amap_set SVC_PORT       computing-unit-managing-service 8082
