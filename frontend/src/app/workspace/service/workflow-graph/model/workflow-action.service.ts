@@ -72,6 +72,20 @@ export const DEFAULT_WORKFLOW = {
   readonly: false,
 };
 
+/** How close (px, edge to edge) a dropped comment box has to be to an operator to anchor to it. */
+export const COMMENT_BOX_SNAP_DISTANCE = 40;
+/** How far (px, edge to edge) an anchored comment box has to be dropped from its operator to detach. */
+export const COMMENT_BOX_DETACH_DISTANCE = 160;
+/** The gap between an operator and a comment box added to it. */
+const COMMENT_BOX_GAP = 12;
+
+/** The shortest distance between two boxes, 0 when they touch or overlap. */
+function distanceBetween(a: joint.g.Rect, b: joint.g.Rect): number {
+  const dx = Math.max(0, a.x - (b.x + b.width), b.x - (a.x + a.width));
+  const dy = Math.max(0, a.y - (b.y + b.height), b.y - (a.y + a.height));
+  return Math.hypot(dx, dy);
+}
+
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of Texera,
@@ -333,6 +347,10 @@ export class WorkflowActionService implements OnDestroy {
         .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID)
         .forEach(link => this.deleteLinkWithID(link.linkID));
       this.texeraGraph.assertOperatorExists(operatorID);
+      // Comments outlive the operator they annotate; they go back to floating where they are.
+      this.texeraGraph
+        .getCommentBoxesAnchoredTo(operatorID)
+        .forEach(commentBoxID => this.texeraGraph.setCommentBoxAnchor(commentBoxID, undefined));
       this.texeraGraph.deleteOperator(operatorID);
       if (this.texeraGraph.sharedModel.elementPositionMap.has(operatorID))
         this.texeraGraph.sharedModel.elementPositionMap.delete(operatorID);
@@ -436,7 +454,154 @@ export class WorkflowActionService implements OnDestroy {
    */
   public deleteCommentBox(commentBoxID: string): void {
     this.texeraGraph.assertCommentBoxExists(commentBoxID);
-    this.texeraGraph.deleteCommentBox(commentBoxID);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.deleteCommentBox(commentBoxID);
+      // As for operators: a stale entry would outlive the box, and a reload re-adds it under the same
+      // ID, so an undo could move it back to where it was before the reload.
+      this.texeraGraph.sharedModel.elementPositionMap.delete(commentBoxID);
+    });
+  }
+
+  /**
+   * Anchors a comment box to an operator, so that it keeps its current offset from the operator
+   * whenever the operator is dragged or auto-layout moves it. Replaces any previous anchor.
+   * @param commentBoxID
+   * @param operatorID
+   */
+  public anchorCommentBox(commentBoxID: string, operatorID: string): void {
+    this.texeraGraph.setCommentBoxAnchor(commentBoxID, operatorID);
+  }
+
+  /**
+   * Detaches a comment box from the operator it is anchored to, so it floats again. A no-op on a
+   * comment box that already floats.
+   * @param commentBoxID
+   */
+  public detachCommentBox(commentBoxID: string): void {
+    this.texeraGraph.setCommentBoxAnchor(commentBoxID, undefined);
+  }
+
+  /**
+   * The operator a comment box would anchor to if it were dropped where it is now: the nearest
+   * operator within <code>COMMENT_BOX_SNAP_DISTANCE</code> of it, or undefined if none is that close.
+   * The operator it is anchored to wins while it is within that distance, even if another is nearer,
+   * so a nudge does not flip its anchor; among equally near others, the one whose center is nearest.
+   * @param commentBoxID
+   */
+  public findCommentBoxAnchorTarget(commentBoxID: string): string | undefined {
+    const commentBoxBBox = this.getElementBBox(commentBoxID);
+    const anchoredOperatorID = this.texeraGraph.getCommentBoxAnchor(commentBoxID);
+    // Runs on every pointermove of a drag, so it reads only the operator IDs, not each operator's JSON.
+    const candidates = this.texeraGraph
+      .getAllOperatorIDs()
+      .map(operatorID => {
+        const operatorBBox = this.getElementBBox(operatorID);
+        return {
+          operatorID,
+          distance: distanceBetween(commentBoxBBox, operatorBBox),
+          isAnchor: operatorID === anchoredOperatorID,
+          centerDistance: commentBoxBBox.center().distance(operatorBBox.center()),
+        };
+      })
+      .filter(candidate => candidate.distance <= COMMENT_BOX_SNAP_DISTANCE);
+    candidates.sort(
+      (a, b) =>
+        Number(b.isAnchor) - Number(a.isAnchor) || a.distance - b.distance || a.centerDistance - b.centerDistance
+    );
+    return candidates[0]?.operatorID;
+  }
+
+  /**
+   * Settles a comment box's anchor after the user drops it: dropped next to an operator, it anchors to
+   * that operator; dropped beyond <code>COMMENT_BOX_DETACH_DISTANCE</code> of the operator it is anchored
+   * to, it detaches. In between it keeps whatever anchor it had, so a small nudge changes nothing.
+   * A box already beyond that distance when the drag began (left there by a group drag, the agent's
+   * layout or an older build) does not detach on the drop either; the menu detaches it.
+   * @param commentBoxID
+   * @param startedWithinReach whether the box was within <code>COMMENT_BOX_DETACH_DISTANCE</code> of
+   *  its operator when the drag began
+   */
+  public anchorCommentBoxOnDrop(commentBoxID: string, startedWithinReach: boolean = true): void {
+    const targetOperatorID = this.findCommentBoxAnchorTarget(commentBoxID);
+    const anchoredOperatorID = this.texeraGraph.getCommentBoxAnchor(commentBoxID);
+    if (targetOperatorID !== undefined) {
+      if (targetOperatorID !== anchoredOperatorID) {
+        this.anchorCommentBox(commentBoxID, targetOperatorID);
+      }
+    } else if (
+      anchoredOperatorID !== undefined &&
+      (!this.texeraGraph.hasOperator(anchoredOperatorID) ||
+        (startedWithinReach &&
+          distanceBetween(this.getElementBBox(commentBoxID), this.getElementBBox(anchoredOperatorID)) >
+            COMMENT_BOX_DETACH_DISTANCE))
+    ) {
+      this.detachCommentBox(commentBoxID);
+    }
+  }
+
+  /**
+   * Whether a comment box is close enough to an operator to stay anchored to it: anchored from farther
+   * than <code>COMMENT_BOX_DETACH_DISTANCE</code>, its next drop would detach it again. False when either
+   * is not on the canvas.
+   * @param commentBoxID
+   * @param operatorID
+   */
+  public isCommentBoxWithinAnchorReach(commentBoxID: string, operatorID: string): boolean {
+    return (
+      this.jointGraph.getCell(commentBoxID) !== undefined &&
+      this.jointGraph.getCell(operatorID) !== undefined &&
+      distanceBetween(this.getElementBBox(commentBoxID), this.getElementBBox(operatorID)) <= COMMENT_BOX_DETACH_DISTANCE
+    );
+  }
+
+  /**
+   * Adds a new comment box beside an operator, already anchored to it, as a single undoable action.
+   * @param operatorID
+   * @returns the ID of the new comment box
+   */
+  public addCommentBoxToOperator(operatorID: string): string {
+    this.texeraGraph.assertOperatorExists(operatorID);
+    const operatorPosition = this.jointGraphWrapper.getElementPosition(operatorID);
+    // Off the operator's top-right corner, above its delete and chat buttons (which the right-click
+    // that opens the menu reveals) and clear of the links leaving its output ports on the right.
+    const position = new joint.g.Rect(
+      operatorPosition.x + JointUIService.DEFAULT_OPERATOR_WIDTH + COMMENT_BOX_GAP,
+      operatorPosition.y + JointUIService.OPERATOR_BUTTON_Y - COMMENT_BOX_GAP - JointUIService.DEFAULT_COMMENT_HEIGHT,
+      JointUIService.DEFAULT_COMMENT_WIDTH,
+      JointUIService.DEFAULT_COMMENT_HEIGHT
+    );
+    // Stepped up past any comment box already there, so a second one does not hide the first.
+    const commentBoxBBoxes = this.texeraGraph
+      .getAllCommentBoxes()
+      .filter(existing => this.jointGraph.getCell(existing.commentBoxID) !== undefined)
+      .map(existing => this.getElementBBox(existing.commentBoxID));
+    while (commentBoxBBoxes.some(bbox => bbox.intersect(position) !== null)) {
+      position.y -= JointUIService.DEFAULT_COMMENT_HEIGHT + COMMENT_BOX_GAP;
+    }
+    const commentBox: CommentBox = {
+      ...this.workflowUtilService.getNewCommentBox(),
+      commentBoxPosition: { x: position.x, y: position.y },
+    };
+    this.texeraGraph.bundleActions(() => {
+      this.addCommentBox(commentBox);
+      this.anchorCommentBox(commentBox.commentBoxID, operatorID);
+    });
+    return commentBox.commentBoxID;
+  }
+
+  private getElementBBox(elementID: string): joint.g.Rect {
+    return (this.jointGraph.getCell(elementID) as joint.dia.Element).getBBox();
+  }
+
+  /**
+   * Writes a comment box's current JointJS position to the shared model: <code>elementPositionMap</code>
+   * syncs it to co-editors, <code>commentBoxPosition</code> persists it.
+   * @param commentBoxID
+   */
+  private syncCommentBoxPosition(commentBoxID: string): void {
+    const position = this.jointGraphWrapper.getElementPosition(commentBoxID);
+    this.texeraGraph.sharedModel.elementPositionMap.set(commentBoxID, position);
+    this.texeraGraph.sharedModel.commentBoxMap.get(commentBoxID)?.set("commentBoxPosition", position);
   }
 
   /**
@@ -468,7 +633,24 @@ export class WorkflowActionService implements OnDestroy {
     // This also changes element positions, but we handle this separately.
     this.texeraGraph.bundleActions(() => {
       this.undoRedoService.setListenJointCommand(false);
-      this.jointGraphWrapper.autoLayoutJoint();
+      const anchoredCommentBoxIDs = new Map<string, string[]>();
+      for (const commentBox of this.texeraGraph.getAllCommentBoxes()) {
+        const operatorID = commentBox.anchoredOperatorID;
+        // An anchor to an operator that is gone (e.g. from an older save) is treated as floating.
+        if (operatorID !== undefined && this.texeraGraph.hasOperator(operatorID)) {
+          anchoredCommentBoxIDs.set(operatorID, [
+            ...(anchoredCommentBoxIDs.get(operatorID) ?? []),
+            commentBox.commentBoxID,
+          ]);
+        }
+      }
+      // Room is made only for boxes within reach: one far off would spread the operators across its gap.
+      const operatorOf = new Map(
+        Array.from(anchoredCommentBoxIDs).flatMap(([operatorID, ids]) => ids.map(id => [id, operatorID] as const))
+      );
+      this.jointGraphWrapper.autoLayoutJoint(anchoredCommentBoxIDs, commentBoxID =>
+        this.isCommentBoxWithinAnchorReach(commentBoxID, operatorOf.get(commentBoxID)!)
+      );
       for (const operator of this.texeraGraph.getAllOperators()) {
         const operatorID = operator.operatorID;
         const newPosition = this.jointGraphWrapper.getElementPosition(operatorID);
@@ -477,11 +659,7 @@ export class WorkflowActionService implements OnDestroy {
         }
       }
       for (const commentBox of this.texeraGraph.getAllCommentBoxes()) {
-        const commentBoxID = commentBox.commentBoxID;
-        const newPosition = this.jointGraphWrapper.getElementPosition(commentBoxID);
-        if (this.texeraGraph.sharedModel.elementPositionMap.get(commentBoxID) !== newPosition) {
-          this.texeraGraph.sharedModel.elementPositionMap.set(commentBoxID, newPosition);
-        }
+        this.syncCommentBoxPosition(commentBox.commentBoxID);
       }
       this.undoRedoService.setListenJointCommand(true);
     });
@@ -492,9 +670,10 @@ export class WorkflowActionService implements OnDestroy {
    */
   public calculateTopLeftOperatorPosition(): void {
     this.texeraGraph.bundleActions(() => {
-      this.undoRedoService.setListenJointCommand(false);
       const allOperators = this.getTexeraGraph().getAllOperators();
+      // Checked before listening is turned off, so returning early cannot leave it off.
       if (allOperators.length === 0) return;
+      this.undoRedoService.setListenJointCommand(false);
 
       let minX = Infinity;
       let minY = Infinity;
@@ -844,6 +1023,7 @@ export class WorkflowActionService implements OnDestroy {
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
+      this.getTexeraGraph().getCommentBoxAnchorChangedStream(),
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
@@ -1213,8 +1393,34 @@ export class WorkflowActionService implements OnDestroy {
             const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
             this.jointGraphWrapper.setListenPositionChange(false);
             this.undoRedoService.setListenJointCommand(false);
+            this.jointGraph.startBatch(JointGraphWrapper.MOVE_ALONG_BATCH);
+            try {
+              // Move other highlighted operators.
+              selectedElements
+                .filter(elementID => elementID !== movedElement.elementID)
+                .forEach(elementID => {
+                  this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY);
+                  this.texeraGraph.sharedModel.elementPositionMap.set(
+                    elementID,
+                    this.jointGraphWrapper.getElementPosition(elementID)
+                  );
+                });
+              // Comment boxes anchored to a moved operator follow it, unless selected (then moved above).
+              // The anchors are read once per move, not once per selected operator.
+              const anchoredCommentBoxIDs = this.texeraGraph.getAnchoredCommentBoxIDsByOperator();
+              selectedElements
+                .filter(elementID => this.texeraGraph.hasOperator(elementID))
+                .flatMap(operatorID => anchoredCommentBoxIDs.get(operatorID) ?? [])
+                .filter(commentBoxID => !selectedElements.includes(commentBoxID))
+                .forEach(commentBoxID => {
+                  this.jointGraphWrapper.setElementPosition(commentBoxID, offsetX, offsetY);
+                  this.syncCommentBoxPosition(commentBoxID);
+                });
+            } finally {
+              this.jointGraph.stopBatch(JointGraphWrapper.MOVE_ALONG_BATCH);
+            }
             // Persistence and shared-editing syncing for comment boxes have different interfaces.
-            // Setting positions inside commentBoxes here only for persistence.
+            // Setting positions inside commentBoxes here only for persistence, once every box has moved.
             // Syncing uses elementPositionMap.
             selectedElements
               .filter(elementID => elementID.includes("commentBox"))
@@ -1222,16 +1428,6 @@ export class WorkflowActionService implements OnDestroy {
                 this.texeraGraph.sharedModel.commentBoxMap
                   .get(elementID)
                   ?.set("commentBoxPosition", this.jointGraphWrapper.getElementPosition(elementID));
-              });
-            // Move other highlighted operators.
-            selectedElements
-              .filter(elementID => elementID !== movedElement.elementID)
-              .forEach(elementID => {
-                this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY);
-                this.texeraGraph.sharedModel.elementPositionMap.set(
-                  elementID,
-                  this.jointGraphWrapper.getElementPosition(elementID)
-                );
               });
             this.jointGraphWrapper.setListenPositionChange(true);
             this.undoRedoService.setListenJointCommand(true);

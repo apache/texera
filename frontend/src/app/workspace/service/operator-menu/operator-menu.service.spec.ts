@@ -414,6 +414,55 @@ describe("OperatorMenuService", () => {
       expect(texeraGraph.getAllCommentBoxes()[0].commentBoxID).not.toBe(mockCommentBox.commentBoxID);
     });
 
+    it("anchors a pasted comment box to the pasted copy of its operator, at the same offset", async () => {
+      const clipboard = {
+        operators: [mockScanPredicate],
+        operatorPositions: { [mockScanPredicate.operatorID]: { x: 100, y: 100 } },
+        links: [],
+        commentBoxes: [
+          {
+            ...mockCommentBox,
+            commentBoxPosition: { x: 170, y: 90 },
+            anchoredOperatorID: mockScanPredicate.operatorID,
+          },
+        ],
+      };
+      readText.mockResolvedValue(JSON.stringify(clipboard));
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      const wrapper = workflowActionService.getJointGraphWrapper();
+
+      service.performPasteOperation();
+      await flushAsync();
+
+      const [pastedOperator] = texeraGraph.getAllOperators();
+      const [pastedCommentBox] = texeraGraph.getAllCommentBoxes();
+      expect(pastedCommentBox.anchoredOperatorID).toEqual(pastedOperator.operatorID);
+      const operatorPosition = wrapper.getElementPosition(pastedOperator.operatorID);
+      expect(wrapper.getElementPosition(pastedCommentBox.commentBoxID)).toEqual({
+        x: operatorPosition.x + 70,
+        y: operatorPosition.y - 10,
+      });
+    });
+
+    it("pastes a comment box as floating when its operator was not copied with it", async () => {
+      // The operator is on the canvas, but only the comment box was copied.
+      workflowActionService.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      const clipboard = {
+        operators: [],
+        operatorPositions: {},
+        links: [],
+        commentBoxes: [{ ...mockCommentBox, anchoredOperatorID: mockScanPredicate.operatorID }],
+      };
+      readText.mockResolvedValue(JSON.stringify(clipboard));
+      const texeraGraph = workflowActionService.getTexeraGraph();
+
+      service.performPasteOperation();
+      await flushAsync();
+
+      const [pastedCommentBox] = texeraGraph.getAllCommentBoxes();
+      expect(pastedCommentBox.anchoredOperatorID).toBeUndefined();
+    });
+
     it("notifies the user when the clipboard holds no pasteable elements", async () => {
       readText.mockResolvedValue("{}");
       const notificationService = TestBed.inject(NotificationService);

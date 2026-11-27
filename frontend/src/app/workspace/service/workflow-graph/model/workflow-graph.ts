@@ -59,7 +59,8 @@ type restrictedMethods =
   | "commentBoxDeleteSubject"
   | "commentBoxAddCommentSubject"
   | "commentBoxDeleteCommentSubject"
-  | "commentBoxEditCommentSubject";
+  | "commentBoxEditCommentSubject"
+  | "commentBoxAnchorChangedSubject";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -145,6 +146,7 @@ export class WorkflowGraph {
   public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
+  public readonly commentBoxAnchorChangedSubject = new Subject<{ commentBox: CommentBox }>();
 
   public readonly portDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -376,6 +378,59 @@ export class WorkflowGraph {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.sharedModel.operatorIDMap.delete(operatorID);
+  }
+
+  /**
+   * Anchors the comment box to an operator, replacing any previous anchor, or detaches it (making it
+   * float) when <code>operatorID</code> is undefined.
+   * @param commentBoxID
+   * @param operatorID
+   */
+  public setCommentBoxAnchor(commentBoxID: string, operatorID: string | undefined): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
+    if (operatorID === undefined) {
+      if (commentBox.has("anchoredOperatorID")) {
+        (commentBox as unknown as Y.Map<unknown>).delete("anchoredOperatorID");
+      }
+      return;
+    }
+    this.assertOperatorExists(operatorID);
+    commentBox.set("anchoredOperatorID", new Y.Text(operatorID));
+  }
+
+  /**
+   * Returns the IDs of the comment boxes anchored to the given operator.
+   * @param operatorID
+   */
+  public getCommentBoxesAnchoredTo(operatorID: string): string[] {
+    return this.getAnchoredCommentBoxIDsByOperator().get(operatorID) ?? [];
+  }
+
+  /**
+   * Returns the IDs of the anchored comment boxes, by the ID of the operator each is anchored to. Reads
+   * only each box's anchor, not its JSON (comments included): drags call this on every pointermove.
+   */
+  public getAnchoredCommentBoxIDsByOperator(): Map<string, string[]> {
+    const byOperator = new Map<string, string[]>();
+    this.sharedModel.commentBoxMap.forEach((_, commentBoxID) => {
+      const operatorID = this.getCommentBoxAnchor(commentBoxID);
+      if (operatorID !== undefined) {
+        byOperator.set(operatorID, [...(byOperator.get(operatorID) ?? []), commentBoxID]);
+      }
+    });
+    return byOperator;
+  }
+
+  /**
+   * Returns the ID of the operator a comment box is anchored to, if any, reading only that field rather
+   * than the box's JSON (comments included), for paths that run on every pointermove.
+   * @param commentBoxID
+   */
+  public getCommentBoxAnchor(commentBoxID: string): string | undefined {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as unknown as Y.Map<unknown>;
+    return commentBox.get("anchoredOperatorID")?.toString();
   }
 
   /**
@@ -932,6 +987,14 @@ export class WorkflowGraph {
 
   public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
     return this.commentBoxEditCommentSubject.asObservable();
+  }
+
+  /**
+   * Emits when a comment box is anchored to an operator or detached, however the change came about:
+   * this editor, a co-editor, or undo and redo.
+   */
+  public getCommentBoxAnchorChangedStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxAnchorChangedSubject.asObservable();
   }
 
   public getViewResultOperatorsChangedStream(): Observable<{

@@ -95,13 +95,21 @@ export interface Point {
   readonly y: number;
 }
 
+export interface Comment {
+  readonly content: string;
+  readonly creationTime: string;
+  readonly creatorName: string;
+  readonly creatorID: number;
+}
+
+// Mirrors the frontend's CommentBox (workflow-common.interface.ts), the shape saved in workflow content.
 export interface CommentBox {
   readonly commentBoxID: string;
-  readonly comments: string;
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
+  readonly comments: Comment[];
+  readonly commentBoxPosition: Point;
+  // The operator this box is anchored to, if any: it keeps its offset from that operator when the
+  // operator moves. Without one, the box floats.
+  readonly anchoredOperatorID?: string;
 }
 
 export interface WorkflowSettings {
