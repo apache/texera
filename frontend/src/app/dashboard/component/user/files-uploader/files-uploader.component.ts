@@ -22,7 +22,6 @@ import { firstValueFrom } from "rxjs";
 import { NgxFileDropEntry, NgxFileDropModule } from "ngx-file-drop";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
-import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -73,8 +72,6 @@ export class FilesUploaderComponent implements OnInit {
   @Input() endpoint: FileResourceEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
 
   @Output() uploadedFiles = new EventEmitter<FileUploadItem[]>();
-
-  newUploadFileTreeNodes: DatasetFileNode[] = [];
 
   fileUploadingFinished: boolean = false;
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";

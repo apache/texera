@@ -18,36 +18,22 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient, HttpErrorResponse, HttpParams } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { map, switchMap } from "rxjs/operators";
 import { Contributor, Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import { EMPTY, Observable } from "rxjs";
+import { Observable } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
-import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { MultipartUploadProgress, MultipartUploadService } from "../file-resource/multipart-upload.service";
 import { StagedFileService } from "../file-resource/staged-file.service";
 import { DATASET_FILE_RESOURCE_ENDPOINT } from "../file-resource/file-resource-endpoint";
 
-export const DATASET_BASE_URL = "dataset";
-export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
-export const DATASET_UPDATE_BASE_URL = DATASET_BASE_URL + "/update";
-export const DATASET_UPDATE_NAME_URL = DATASET_UPDATE_BASE_URL + "/name";
-export const DATASET_UPDATE_DESCRIPTION_URL = DATASET_UPDATE_BASE_URL + "/description";
-export const DATASET_UPDATE_PUBLICITY_URL = "update/publicity";
-export const DATASET_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
-export const DATASET_LIST_URL = DATASET_BASE_URL + "/list";
-export const DATASET_SEARCH_URL = DATASET_BASE_URL + "/search";
-export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
+const DATASET_BASE_URL = "dataset";
 
-export const DATASET_VERSION_BASE_URL = "version";
-export const DATASET_VERSION_RETRIEVE_LIST_URL = DATASET_VERSION_BASE_URL + "/list";
-export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
+const DATASET_VERSION_BASE_URL = "version";
 export const DEFAULT_DATASET_NAME = "Untitled-dataset";
 
-export const DATASET_NAME_MAX_LENGTH = 128;
+const DATASET_NAME_MAX_LENGTH = 128;
 const DATASET_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 export function validateDatasetName(name: string): string | null {
@@ -68,12 +54,7 @@ function normalizeContributor(contributor: Contributor): Contributor {
   };
 }
 
-export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
-export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
-export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/user-dataset-owners";
-
-// Re-exported so existing importers keep resolving it from here.
-export type { MultipartUploadProgress };
+const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 
 @Injectable({
   providedIn: "root",
@@ -81,13 +62,11 @@ export type { MultipartUploadProgress };
 export class DatasetService {
   constructor(
     private http: HttpClient,
-    private config: GuiConfigService,
-    private multipartUploadService: MultipartUploadService,
     private stagedFileService: StagedFileService
   ) {}
 
   public createDataset(dataset: Dataset, contributors: Contributor[] = []): Observable<DashboardDataset> {
-    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, {
+    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/create`, {
       datasetName: dataset.name,
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
@@ -140,7 +119,7 @@ export class DatasetService {
   }
 
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_LIST_URL}`);
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/list`);
   }
 
   public createDatasetVersion(did: number, newVersion: string): Observable<DatasetVersion> {
@@ -160,63 +139,6 @@ export class DatasetService {
   }
 
   /**
-   * Multipart upload for large files. The engine lives in MultipartUploadService; this keeps the
-   * dataset-facing signature so existing callers are untouched.
-   */
-  public multipartUpload(
-    ownerEmail: string,
-    datasetName: string,
-    filePath: string,
-    file: File,
-    partSize: number,
-    concurrencyLimit: number,
-    restart: boolean
-  ): Observable<MultipartUploadProgress> {
-    return this.multipartUploadService.multipartUpload(
-      DATASET_FILE_RESOURCE_ENDPOINT,
-      ownerEmail,
-      datasetName,
-      filePath,
-      file,
-      partSize,
-      concurrencyLimit,
-      restart
-    );
-  }
-
-  public listMultipartUploads(ownerEmail: string, datasetName: string): Observable<string[]> {
-    return this.multipartUploadService.listMultipartUploads(DATASET_FILE_RESOURCE_ENDPOINT, ownerEmail, datasetName);
-  }
-
-  public findExistingUploadFiles(did: number, files: { path: string; sizeBytes: number }[]): Observable<string[]> {
-    return this.multipartUploadService.findExistingUploadFiles(DATASET_FILE_RESOURCE_ENDPOINT, did, files);
-  }
-
-  public finalizeMultipartUpload(
-    ownerEmail: string,
-    datasetName: string,
-    filePath: string,
-    isAbort: boolean
-  ): Observable<Response> {
-    return this.multipartUploadService.finalizeMultipartUpload(
-      DATASET_FILE_RESOURCE_ENDPOINT,
-      ownerEmail,
-      datasetName,
-      filePath,
-      isAbort
-    );
-  }
-
-  /**
-   * Resets a dataset file difference in LakeFS.
-   * @param did Dataset ID
-   * @param filePath File path to reset
-   */
-  public resetDatasetFileDiff(did: number, filePath: string): Observable<Response> {
-    return this.stagedFileService.resetFileDiff(DATASET_FILE_RESOURCE_ENDPOINT, did, filePath);
-  }
-
-  /**
    * Deletes a dataset file from LakeFS.
    * @param did Dataset ID
    * @param filePath File path to delete
@@ -226,22 +148,14 @@ export class DatasetService {
   }
 
   /**
-   * Retrieves the list of uncommitted dataset changes (diffs).
-   * @param did Dataset ID
-   */
-  public getDatasetDiff(did: number): Observable<DatasetStagedObject[]> {
-    return this.stagedFileService.getDiff(DATASET_FILE_RESOURCE_ENDPOINT, did);
-  }
-
-  /**
    * retrieve a list of versions of a dataset. The list is sorted so that the latest versions are at front.
    * @param did
    * @param isLogin
    */
   public retrieveDatasetVersionList(did: number, isLogin: boolean = true): Observable<DatasetVersion[]> {
     const apiEndPont = isLogin
-      ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`
-      : `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL}`;
+      ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/list`
+      : `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_PUBLIC_VERSION_BASE_URL}/list`;
     return this.http.get<DatasetVersion[]>(apiEndPont);
   }
 
@@ -254,7 +168,7 @@ export class DatasetService {
       .get<{
         datasetVersion: DatasetVersion;
         fileNodes: DatasetFileNode[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_LATEST_URL}`)
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/latest`)
       .pipe(
         map(response => {
           response.datasetVersion.fileNodes = response.fileNodes;
@@ -285,35 +199,32 @@ export class DatasetService {
   }
 
   public updateDatasetName(did: number, name: string): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_UPDATE_NAME_URL}`, {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/update/name`, {
       did: did,
       name: name,
     });
   }
 
   public updateDatasetDescription(did: number, description: string): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_UPDATE_DESCRIPTION_URL}`, {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/update/description`, {
       did: did,
       description: description,
     });
   }
 
   public updateDatasetPublicity(did: number): Observable<Response> {
-    return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_PUBLICITY_URL}`,
-      {}
-    );
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/update/publicity`, {});
   }
 
   public updateDatasetDownloadable(did: number): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_DOWNLOADABLE_URL}`,
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/update/downloadable`,
       {}
     );
   }
 
   public retrieveOwners(): Observable<string[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}`);
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/user-dataset-owners`);
   }
 
   public updateDatasetCoverImage(did: number, coverImage: string): Observable<Response> {
