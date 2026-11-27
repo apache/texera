@@ -29,6 +29,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   WorkflowFIFOMessagePayload,
   WorkflowMessage
 }
+import org.ehcache.sizeof.SizeOf
 import org.scalatest.flatspec.AnyFlatSpec
 
 class FlowControlSpec extends AnyFlatSpec {
@@ -208,6 +209,32 @@ class FlowControlSpec extends AnyFlatSpec {
     // marked overloaded as the out-of-credit branch would have done.
     assert(fc.getCredit == maxBytes)
     assert(!fc.isOverloaded)
+  }
+
+  // A data frame is charged the sum of its tuples' inMemSize, which is what a fresh
+  // SizeOf walk reports for each tuple. A frame that needs exactly the credit left
+  // goes out; with one byte less it has to wait in the stash.
+  it should "admit a frame of real tuples at exactly its credit and stash it one byte short" in {
+    val rows = Array.tabulate(3) { i =>
+      Tuple.builder(payloadSchema).add(payloadAttr, s"row-$i-雪" * (i + 1)).build()
+    }
+    val frameMsg = NetworkMessage(1L, WorkflowFIFOMessage(channelId, 1L, DataFrame(rows)))
+    val charge = WorkflowMessage.getInMemSize(frameMsg.internalMessage)
+    assert(charge == rows.map(row => SizeOf.newInstance().deepSizeOf(row)).sum)
+
+    val exact = new FlowControl()
+    exact.updateQueuedCredit(maxBytes - charge)
+    assert(exact.getCredit == charge)
+    assert(exact.getMessagesToSend(frameMsg).toList == List(frameMsg))
+    assert(exact.getCredit == 0L)
+    assert(!exact.isOverloaded)
+
+    val oneByteShort = new FlowControl()
+    oneByteShort.updateQueuedCredit(maxBytes - charge + 1)
+    assert(oneByteShort.getCredit == charge - 1)
+    assert(oneByteShort.getMessagesToSend(frameMsg).isEmpty)
+    assert(oneByteShort.isOverloaded)
+    assert(oneByteShort.getCredit == charge - 1) // a stashed frame is not charged yet
   }
 
   "FlowControl" should "eventually drain the stash across many ack cycles (multi-run)" in {

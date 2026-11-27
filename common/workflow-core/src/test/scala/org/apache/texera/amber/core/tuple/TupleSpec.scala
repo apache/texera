@@ -19,9 +19,28 @@
 
 package org.apache.texera.amber.core.tuple
 
+import org.ehcache.sizeof.SizeOf
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
+import java.util.concurrent.{Callable, Executors, TimeUnit}
+
+private[tuple] final class SizingTestAttribute(name: String)
+    extends Attribute(name, AttributeType.STRING) {
+  var extra: Array[Byte] = new Array[Byte](8)
+}
+
+private[tuple] final class SizingTestSchema(attrs: List[Attribute]) extends Schema(attrs) {
+  var extra: Array[Byte] = new Array[Byte](8)
+}
+
+private[tuple] final class SizingTestLazyPayload {
+  var evaluations = 0
+  lazy val value: String = {
+    evaluations += 1
+    "evaluated"
+  }
+}
 
 class TupleSpec extends AnyFlatSpec {
   val stringAttribute = new Attribute("col-string", AttributeType.STRING)
@@ -324,6 +343,161 @@ class TupleSpec extends AnyFlatSpec {
     val large = Tuple(schema, Array[Any]("a" * 10000))
     assert(small.inMemSize > 0)
     assert(large.inMemSize > small.inMemSize)
+  }
+
+  // A tuple's inMemSize is the byte charge flow control and statistics use. These tests
+  // compare it with what a brand-new SizeOf engine reports for the same tuple, so they
+  // do not depend on the JVM's object layout or the sizeof version.
+  private def freshCharge(tuple: Tuple): Long = SizeOf.newInstance().deepSizeOf(tuple)
+
+  private def assertFreshCharge(tuple: Tuple): Unit = {
+    val expected = freshCharge(tuple)
+    assert(
+      tuple.inMemSize == expected,
+      s"charged ${tuple.inMemSize} bytes, a fresh SizeOf walk reports $expected, " +
+        s"schema ${tuple.getSchema}"
+    )
+  }
+
+  it should "charge what a fresh SizeOf walk reports, for every attribute type" in {
+    val largeBinaryAttribute = new Attribute("col-large-binary", AttributeType.LARGE_BINARY)
+    val anyAttribute = new Attribute("col-any", AttributeType.ANY)
+    val schema = Schema()
+      .add(stringAttribute)
+      .add(integerAttribute)
+      .add(boolAttribute)
+      .add(longAttribute)
+      .add(doubleAttribute)
+      .add(timestampAttribute)
+      .add(binaryAttribute)
+      .add(largeBinaryAttribute)
+      .add(anyAttribute)
+    assert(schema.getAttributes.map(_.getType).toSet == AttributeType.values().toSet)
+
+    assertFreshCharge(
+      Tuple(
+        schema,
+        Array[Any](
+          "雪-😀 café",
+          Integer.valueOf(1000),
+          java.lang.Boolean.TRUE,
+          java.lang.Long.valueOf(Long.MaxValue),
+          java.lang.Double.valueOf(1.25),
+          new Timestamp(123456789L),
+          Array[Byte](0, 1, -1),
+          new LargeBinary("s3://bucket/key"),
+          List(1, 2, 3)
+        )
+      )
+    )
+    assertFreshCharge(Tuple(schema, Array.fill[Any](schema.getAttributes.size)(null)))
+    assertFreshCharge(Tuple(Schema(), Array.empty[Any]))
+    assertFreshCharge(Tuple(Schema().add(stringAttribute), Array[Any]("漢字🧪" * 20000)))
+    assertFreshCharge(Tuple(Schema().add(binaryAttribute), Array[Any](new Array[Byte](262145))))
+
+    // Displaying a Timestamp fills its cached calendar fields, which the size must include.
+    val displayed = new Timestamp(123456789L)
+    assert(displayed.toString.nonEmpty)
+    assertFreshCharge(Tuple(Schema().add(timestampAttribute), Array[Any](displayed)))
+  }
+
+  it should "count an object shared within a tuple once, and charge a rebuilt tuple the same" in {
+    // The column name doubles as a value, and one byte array fills two fields.
+    val name = new String("col-shared-雪".toCharArray)
+    val bytes = Array.fill[Byte](8193)(42)
+    val schema = Schema()
+      .add(new Attribute(name, AttributeType.STRING))
+      .add(binaryAttribute)
+      .add(new Attribute("col-binary-copy", AttributeType.BINARY))
+
+    val shared = Tuple(schema, Array[Any](name, bytes, bytes))
+    val copied = Tuple(schema, Array[Any](new String(name), bytes, bytes.clone()))
+    assertFreshCharge(shared)
+    assertFreshCharge(copied)
+    assert(shared.inMemSize < copied.inMemSize)
+
+    // Nothing one sizing walk sees may carry over into the next one.
+    val rebuilt = Tuple(schema, Array[Any](name, bytes, bytes))
+    assert(rebuilt.inMemSize == shared.inMemSize)
+  }
+
+  it should "size ANY values with cycles and nested tuples without evaluating lazy members" in {
+    val anyAttribute = new Attribute("col-any", AttributeType.ANY)
+    val schema = Schema().add(anyAttribute)
+
+    val cycle = new java.util.ArrayList[AnyRef]()
+    cycle.add(cycle)
+    cycle.add(schema)
+    assertFreshCharge(Tuple(schema, Array[Any](cycle)))
+
+    val nested = Tuple(Schema().add(stringAttribute), Array[Any]("nested"))
+    assertFreshCharge(Tuple(schema, Array[Any](nested)))
+
+    val payload = new SizingTestLazyPayload
+    assertFreshCharge(Tuple(schema, Array[Any](payload)))
+    assert(payload.evaluations == 0)
+  }
+
+  it should "keep the size charged at construction after its field array changes" in {
+    val fields = Array[Any](new Array[Byte](16))
+    val tuple = Tuple(Schema().add(binaryAttribute), fields)
+    // Walk the tuple before the change without reading inMemSize, so a charge computed
+    // later than construction would show up as a mismatch below.
+    val beforeChange = freshCharge(tuple)
+
+    fields(0) = new Array[Byte](16384)
+    assert(tuple.inMemSize == beforeChange)
+    assert(freshCharge(tuple) > beforeChange)
+    assertFreshCharge(Tuple(tuple.getSchema, fields))
+  }
+
+  it should "include state added by Attribute and Schema subclasses as of each construction" in {
+    val attribute = new SizingTestAttribute("col-sized")
+    val schema = Schema(List(attribute))
+    val before = Tuple(schema, Array[Any]("v"))
+    attribute.extra = new Array[Byte](16385)
+    val after = Tuple(schema, Array[Any]("v"))
+    assertFreshCharge(after)
+    assert(after.inMemSize > before.inMemSize)
+
+    val sizedSchema = new SizingTestSchema(List(stringAttribute))
+    val small = Tuple(sizedSchema, Array[Any]("v"))
+    sizedSchema.extra = new Array[Byte](32769)
+    val large = Tuple(sizedSchema, Array[Any]("v"))
+    assertFreshCharge(large)
+    assert(large.inMemSize > small.inMemSize)
+  }
+
+  it should "charge tuples built concurrently on many threads what a fresh SizeOf walk reports" in {
+    val sharedSchema = Schema().add(stringAttribute).add(binaryAttribute)
+    val threads = 8
+    val rowsPerThread = 200
+    val pool = Executors.newFixedThreadPool(threads)
+    try {
+      val jobs = (0 until threads).map { worker =>
+        pool.submit(new Callable[Seq[String]] {
+          override def call(): Seq[String] =
+            (0 until rowsPerThread).flatMap { row =>
+              // Even rows share one schema across threads; odd rows bring a new schema.
+              val tuple =
+                if (row % 2 == 0)
+                  Tuple(sharedSchema, Array[Any](s"w$worker-r$row-雪", new Array[Byte](row)))
+                else
+                  Tuple(
+                    Schema().add(s"col-$worker-$row", AttributeType.LONG),
+                    Array[Any](java.lang.Long.valueOf(row.toLong))
+                  )
+              val expected = freshCharge(tuple)
+              if (tuple.inMemSize == expected) None
+              else Some(s"worker $worker row $row: ${tuple.inMemSize} != $expected")
+            }
+        })
+      }
+      val mismatches = jobs.flatMap(_.get(30, TimeUnit.SECONDS))
+      assert(mismatches.isEmpty, mismatches.take(5).mkString("; "))
+    } finally {
+      pool.shutdownNow()
+    }
   }
 
   it should "name the missing attributes when the builder is incomplete" in {
