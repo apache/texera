@@ -520,3 +520,17 @@ class TestSmallGuards:
         queue.put("data", 1)
         queue.put("control", "s")
         assert len(queue) == queue.size() == 2
+
+    def test_sub_queues_registered_out_of_priority_order_are_served_by_priority(self):
+        # Register the lower-priority (higher number) queue first; priority must still win.
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("data", 1)
+        lbmq.add_sub_queue("control", 0)
+        assert [pg.priority for pg in lbmq.sub_queue_selection.priority_groups] == [
+            0,
+            1,
+        ]
+        lbmq.put("data", "d")
+        lbmq.put("control", "c")
+        assert lbmq.get() == "c"
+        assert lbmq.get() == "d"
