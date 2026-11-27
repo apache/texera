@@ -115,4 +115,76 @@ class ScheduleSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
     assert(order.indexOf(r2) < order.indexOf(r3))
   }
 
+  it should "place all skip regions at level 0 with no extra empty level when nothing else runs" in {
+    val skip0 = region(10, "s0").copy(skipped = true)
+    val skip1 = region(11, "s1").copy(skipped = true)
+    val plan = RegionPlan(Set(skip0, skip1), Set.empty)
+    val generator = new ScheduleGenerator(
+      new WorkflowContext(),
+      PhysicalPlan(Set.empty, Set.empty)
+    ) {
+      override def generate(): (Schedule, PhysicalPlan) = (Schedule(Map.empty), physicalPlan)
+    }
+
+    val schedule = generator.generateScheduleFromRegionPlan(plan)
+    assert(schedule.levelSets == Map(0 -> Set(skip0, skip1)))
+  }
+
+  it should "place all skip regions at level 0 ahead of topological active batches" in {
+    val r0 = region(0, "a")
+    val r1 = region(1, "b")
+    val r2 = region(2, "c")
+    val r3 = region(3, "d")
+    val skip0 = region(4, "s0").copy(skipped = true)
+    val skip1 = region(5, "s1").copy(skipped = true)
+    val plan = RegionPlan(
+      Set(r0, r1, r2, r3, skip0, skip1),
+      Set(
+        RegionLink(r0.id, r1.id),
+        RegionLink(r0.id, r2.id),
+        RegionLink(r1.id, r3.id),
+        RegionLink(r2.id, r3.id)
+      )
+    )
+    val generator = new ScheduleGenerator(
+      new WorkflowContext(),
+      PhysicalPlan(Set.empty, Set.empty)
+    ) {
+      override def generate(): (Schedule, PhysicalPlan) = (Schedule(Map.empty), physicalPlan)
+    }
+
+    val levels = generator.generateScheduleFromRegionPlan(plan).toList
+    assert(levels.head == Set(skip0, skip1))
+    val activeLevels = levels.tail
+    assert(activeLevels.forall(_.size <= ApplicationConfig.maxConcurrentRegions))
+    val activeOrder = activeLevels.flatten
+    assert(activeOrder.toSet == Set(r0, r1, r2, r3))
+    assert(activeOrder.indexOf(r0) < activeOrder.indexOf(r1))
+    assert(activeOrder.indexOf(r0) < activeOrder.indexOf(r2))
+    assert(activeOrder.indexOf(r1) < activeOrder.indexOf(r3))
+    assert(activeOrder.indexOf(r2) < activeOrder.indexOf(r3))
+  }
+
+  it should "reject a region plan whose regionLinks reference a skipped region" in {
+    val skipRegion = region(0, "s").copy(skipped = true)
+    val activeRegion = region(1, "a")
+    val generator = new ScheduleGenerator(
+      new WorkflowContext(),
+      PhysicalPlan(Set.empty, Set.empty)
+    ) {
+      override def generate(): (Schedule, PhysicalPlan) = (Schedule(Map.empty), physicalPlan)
+    }
+
+    assertThrows[IllegalArgumentException] {
+      generator.generateScheduleFromRegionPlan(
+        RegionPlan(Set(skipRegion, activeRegion), Set(RegionLink(skipRegion.id, activeRegion.id)))
+      )
+    }
+    assertThrows[IllegalArgumentException] {
+      generator.generateScheduleFromRegionPlan(
+        RegionPlan(Set(skipRegion, activeRegion), Set(RegionLink(activeRegion.id, skipRegion.id)))
+      )
+    }
+  }
+
 }

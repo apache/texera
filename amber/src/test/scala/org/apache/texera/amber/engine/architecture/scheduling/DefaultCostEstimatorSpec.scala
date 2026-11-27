@@ -363,4 +363,152 @@ class DefaultCostEstimatorSpec
     // The cost of the region plan should be the sum of region costs
     assert(searchResult.cost == groupByRegionCost + keywordRegionCost)
   }
+
+  "DefaultCostEstimator.withResourceAllocator" should "share loaded execution statistics without re-querying DB or storage" in {
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc, keywordOpDesc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc.operatorIdentifier,
+          PortIdentity(0),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(0)
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    seedExecutionRecord()
+
+    val headerlessCsvOpRuntimeStatistics = new Tuple(
+      ResultSchema.runtimeStatisticsSchema,
+      Array(
+        headerlessCsvOpDesc.operatorIdentifier.id,
+        new Timestamp(System.currentTimeMillis()),
+        0L,
+        0L,
+        0L,
+        0L,
+        100L,
+        100L,
+        0L,
+        1,
+        0
+      )
+    )
+    val keywordOpRuntimeStatistics = new Tuple(
+      ResultSchema.runtimeStatisticsSchema,
+      Array(
+        keywordOpDesc.operatorIdentifier.id,
+        new Timestamp(System.currentTimeMillis()),
+        0L,
+        0L,
+        0L,
+        0L,
+        300L,
+        300L,
+        0L,
+        1,
+        0
+      )
+    )
+
+    writer.putOne(headerlessCsvOpRuntimeStatistics)
+    writer.putOne(keywordOpRuntimeStatistics)
+    writer.close()
+
+    val firstAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
+    val costEstimator = new DefaultCostEstimator(
+      workflow.context,
+      firstAllocator,
+      COORDINATOR
+    )
+
+    // Delete the DB execution row so any re-query would fall back to 0.
+    workflowExecutionsDao.deleteById(Integer.valueOf(1))
+
+    val secondAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
+    val scopedEstimator = costEstimator.withResourceAllocator(secondAllocator)
+    assert(scopedEstimator.resourceAllocator eq secondAllocator)
+
+    val ports = workflow.physicalPlan.operators.flatMap(op =>
+      op.inputPorts.keys
+        .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+        .toSet ++ op.outputPorts.keys
+        .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+        .toSet
+    )
+    val region = Region(
+      id = RegionIdentity(0),
+      physicalOps = workflow.physicalPlan.operators,
+      physicalLinks = workflow.physicalPlan.links,
+      ports = ports
+    )
+
+    val (_, costOfRegion) = scopedEstimator.allocateResourcesAndEstimateCost(region, 1)
+    val expectedKeywordCost = (300L + 300L) / 1e9
+    assert(costOfRegion == expectedKeywordCost)
+  }
+
+  it should "keep fallback mode on withResourceAllocator when no past statistics existed at construction" in {
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc, keywordOpDesc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc.operatorIdentifier,
+          PortIdentity(0),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(0)
+        )
+      ),
+      new WorkflowContext()
+    )
+    val firstAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
+    val costEstimator = new DefaultCostEstimator(
+      workflow.context,
+      firstAllocator,
+      COORDINATOR
+    )
+
+    val secondAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
+    val scopedEstimator = costEstimator.withResourceAllocator(secondAllocator)
+    assert(scopedEstimator.resourceAllocator eq secondAllocator)
+
+    val ports = workflow.physicalPlan.operators.flatMap(op =>
+      op.inputPorts.keys
+        .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+        .toSet ++ op.outputPorts.keys
+        .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+        .toSet
+    )
+    val region = Region(
+      id = RegionIdentity(0),
+      physicalOps = workflow.physicalPlan.operators,
+      physicalLinks = workflow.physicalPlan.links,
+      ports = ports
+    )
+
+    val (_, costOfRegion) = scopedEstimator.allocateResourcesAndEstimateCost(region, 1)
+    assert(costOfRegion == 0)
+  }
 }
