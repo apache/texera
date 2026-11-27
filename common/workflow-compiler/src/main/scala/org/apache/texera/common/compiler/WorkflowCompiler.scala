@@ -36,7 +36,7 @@ import org.apache.texera.amber.core.state.StateReferencing.{
 }
 import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.tuple.Schema
-import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import org.apache.texera.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
@@ -261,6 +261,10 @@ class WorkflowCompiler(
     val logicalOpsNeedingStorage =
       (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
+    // The physical op that produces each output port of a logical op, recorded as ops are added,
+    // so wiring a link is one lookup instead of a walk over the plan built so far. An internal
+    // port is its own key, and if two physical ops expose the same port, the first one wins.
+    val producers = mutable.HashMap[(OperatorIdentity, PortIdentity), PhysicalOpIdentity]()
     val outputPortsNeedingStorage: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
@@ -287,11 +291,10 @@ class WorkflowCompiler(
               val externalLinks = upstreamLinks
                 .filter(link => physicalOp.inputPorts.contains(link.toPortId))
                 .flatMap { link =>
-                  physicalPlan
-                    .getPhysicalOpsOfLogicalOp(link.fromOpId)
-                    .find(_.outputPorts.contains(link.fromPortId))
-                    .map(fromOp =>
-                      PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+                  producers
+                    .get((link.fromOpId, link.fromPortId))
+                    .map(fromOpId =>
+                      PhysicalLink(fromOpId, link.fromPortId, physicalOp.id, link.toPortId)
                     )
                 }
 
@@ -299,6 +302,9 @@ class WorkflowCompiler(
 
               // Add the operator to the physical plan
               physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+              physicalOp.outputPorts.keys.foreach { portId =>
+                producers.getOrElseUpdate((physicalOp.id.logicalOpId, portId), physicalOp.id)
+              }
 
               // Add all the links to the physical plan
               physicalPlan = (externalLinks ++ internalLinks)
