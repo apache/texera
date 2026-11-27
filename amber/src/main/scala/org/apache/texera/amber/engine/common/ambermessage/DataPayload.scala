@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.common.ambermessage
 
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
@@ -36,6 +36,19 @@ sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
   */
 final case class StateFrame(frame: State, loopCounter: Long = 0L, loopStartId: String = "")
     extends DataPayload
+
+/**
+  * A batch of rows carried over the wire as Arrow IPC stream bytes (the columnar
+  * wire format), instead of as decoded `Tuple`s in a `DataFrame`. `rowCount` and
+  * the Texera `schema` describe the batch without decoding it. The receiver either
+  * consumes the bytes directly (a `ColumnarOperatorExecutor`) or decodes them back
+  * to tuples (`ArrowUtils.deserializeTuples`). Produced only when the columnar wire
+  * is enabled; off by default, so the default wire stays `DataFrame`.
+  */
+final case class VectorFrame(arrowIpcBytes: Array[Byte], rowCount: Int, schema: Schema)
+    extends DataPayload {
+  val inMemSize: Long = arrowIpcBytes.length.toLong
+}
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {

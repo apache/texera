@@ -21,7 +21,11 @@ package org.apache.texera.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import io.grpc.MethodDescriptor
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{
@@ -59,6 +63,7 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
+import org.apache.texera.amber.util.ArrowUtils
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -114,6 +119,98 @@ class DataProcessor(
     * process currentInputTuple through executor logic.
     * this function is only called by the DP thread.
     */
+  // Start processing one data batch: announce the worker is running, load the
+  // batch, and process its first tuple (the DP loop drains the rest). Shared by the
+  // DataFrame and VectorFrame input paths.
+  private[this] def startInputBatch(
+      channelId: ChannelIdentity,
+      tuples: Array[Tuple]
+  ): Unit = {
+    transitToRunning()
+    inputManager.initBatch(channelId, tuples)
+    processInputTuple(inputManager.getNextTuple)
+  }
+
+  // Announce the worker is running (READY -> RUNNING, once). Shared by the row and
+  // columnar input paths.
+  private[this] def transitToRunning(): Unit = {
+    stateManager.conditionalTransitTo(
+      READY,
+      RUNNING,
+      () => {
+        val (state, stateVersion) = stateManager.getStateWithVersion
+        asyncRPCClient.coordinatorInterface.workerStateUpdated(
+          WorkerStateUpdatedRequest(state, stateVersion),
+          asyncRPCClient.mkContext(COORDINATOR)
+        )
+      }
+    )
+  }
+
+  // Columnar wire: an Arrow batch arrived. If the executor can consume Arrow
+  // columns directly (a ColumnarOperatorExecutor), hand it the batch and route the
+  // result; otherwise, or if the executor declines the batch (Unsupported), decode
+  // to tuples and process it exactly as a DataFrame.
+  private[this] def processVectorFrame(
+      channelId: ChannelIdentity,
+      portId: PortIdentity,
+      arrowIpcBytes: Array[Byte],
+      rowCount: Int
+  ): Unit = {
+    val columnarExecutor = executor match {
+      case c: ColumnarOperatorExecutor => c
+      case _                           => null
+    }
+    if (columnarExecutor == null) {
+      startInputBatch(channelId, ArrowUtils.deserializeTuples(arrowIpcBytes))
+      return
+    }
+    transitToRunning()
+    inputManager.currentChannelId = channelId
+    // The executor sees data: bind its loop variables first (parity with the row path).
+    bindStateReferences()
+    try {
+      columnarExecutor.processColumnarBatch(arrowIpcBytes, portId.id) match {
+        case ColumnarResult.Unsupported =>
+          // The executor declined this batch: fall back to the row path.
+          startInputBatch(channelId, ArrowUtils.deserializeTuples(arrowIpcBytes))
+        case consumed =>
+          // Consumed natively: no per-tuple input remains for the DP loop to drain.
+          // Report the whole batch's input statistics in one call.
+          inputManager.initBatch(channelId, Array.empty)
+          statisticsManager.increaseInputStatistics(
+            portId,
+            rowCount.toLong,
+            arrowIpcBytes.length.toLong
+          )
+          consumed match {
+            case ColumnarResult.EmitRows(rows) =>
+              outputManager.outputIterator.setTupleOutput(rows)
+            case ColumnarResult.Emit(root) =>
+              try {
+                val rowCount = root.getRowCount
+                // No round-trip: on an eligible (one-to-one, no-storage, columnar)
+                // edge, ship the Arrow batch straight downstream. Otherwise
+                // materialize it to output tuples (the row output path) and let the
+                // network buffer handle it.
+                outputManager.tryEmitColumnarBatch(root, None) match {
+                  case Some((portId, byteCount)) =>
+                    statisticsManager.increaseOutputStatistics(portId, rowCount.toLong, byteCount)
+                  case None =>
+                    val tuples = ArrowUtils.tuplesOfRoot(root)
+                    outputManager.outputIterator.setTupleOutput(
+                      tuples.iterator.map(t => (t: TupleLike, None: Option[PortIdentity]))
+                    )
+                }
+              } finally root.close()
+            case _ => // Consumed: a blocking operator accumulated the batch, nothing to emit now
+          }
+      }
+    } catch safely {
+      case e => handleExecutorException(e)
+    }
+  }
+
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
       val portIdentity: PortIdentity =
@@ -243,19 +340,13 @@ class DataProcessor(
     val portId = this.inputGateway.getChannel(channelId).getPortId
     dataPayload match {
       case DataFrame(tuples) =>
-        stateManager.conditionalTransitTo(
-          READY,
-          RUNNING,
-          () => {
-            val (state, stateVersion) = stateManager.getStateWithVersion
-            asyncRPCClient.coordinatorInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(state, stateVersion),
-              asyncRPCClient.mkContext(COORDINATOR)
-            )
-          }
-        )
-        inputManager.initBatch(channelId, tuples)
-        processInputTuple(inputManager.getNextTuple)
+        startInputBatch(channelId, tuples)
+      case VectorFrame(arrowIpcBytes, rowCount, _) =>
+        // Columnar wire: the batch arrived as Arrow IPC bytes. A
+        // ColumnarOperatorExecutor consumes the Arrow columns directly (no per-row
+        // decode); any other operator, or one that declines the batch, decodes it
+        // back to tuples and processes it exactly as a DataFrame.
+        processVectorFrame(channelId, portId, arrowIpcBytes, rowCount)
       case StateFrame(state, loopCounter, loopStartId) =>
         processInputState(state, portId.id, loopCounter, loopStartId)
     }
