@@ -77,6 +77,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
+import { extractErrorMessage } from "../../../../common/util/error";
 
 // What each language accepts, and where the modal takes it, so a mismatch can name the right place.
 const MIGRATION_INPUTS: Record<
@@ -864,9 +865,17 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
 
   public handleConfirmDeleteSelectedWorkflows(): void {
     const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
+    // Only the owner can delete a workflow; the ones shared with the user stay in the list.
+    const ownedEntries = checkedEntries.filter(entry => entry.workflow.isOwner);
+    const skipped = checkedEntries.length - ownedEntries.length;
+    if (skipped > 0) {
+      this.notificationService.warning(
+        `Only the owner can delete a workflow, so ${skipped} shared workflow${skipped > 1 ? "s were" : " was"} not deleted.`
+      );
+    }
     let targetWids: number[] = [];
 
-    for (const entry of checkedEntries) {
+    for (const entry of ownedEntries) {
       const wid = entry.workflow.workflow.wid;
       if (wid) {
         targetWids.push(wid);
@@ -888,8 +897,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
             });
             this.cleanupNotebookFiles(targetWids);
           },
-          // TODO: fix this with notification component
-          error: (err: unknown) => alert(err),
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to delete the selected workflows: ${extractErrorMessage(err)}`),
         });
     }
   }

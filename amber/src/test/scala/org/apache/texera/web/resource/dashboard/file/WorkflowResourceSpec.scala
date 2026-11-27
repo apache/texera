@@ -193,20 +193,24 @@ class WorkflowResourceSpec
     // Clean up environment after each test case if necessary
     // delete all workflows in the database
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
-    workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(
-        WorkflowIDs(List(workflow.workflow.getWid)),
-        sessionUser1
+    workflows
+      .filter(_.isOwner)
+      .foreach(workflow =>
+        workflowResource.deleteWorkflow(
+          WorkflowIDs(List(workflow.workflow.getWid)),
+          sessionUser1
+        )
       )
-    )
 
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
-    workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(
-        WorkflowIDs(List(workflow.workflow.getWid)),
-        sessionUser2
+    workflows
+      .filter(_.isOwner)
+      .foreach(workflow =>
+        workflowResource.deleteWorkflow(
+          WorkflowIDs(List(workflow.workflow.getWid)),
+          sessionUser2
+        )
       )
-    )
   }
 
   override protected def afterAll(): Unit = {
@@ -1258,6 +1262,30 @@ class WorkflowResourceSpec
 
     assert(thrown.getClass == classOf[WebApplicationException])
     assert(thrown.getCause.isInstanceOf[NullPointerException])
+  }
+
+  it should "delete nothing and refuse when one of the workflows is not the user's own (issue #9434)" in {
+    val ownBefore = seedWorkflow(sessionUser1, "own-before").workflow.getWid
+    val shared = seedWorkflow(sessionUser2, "shared-with-user1").workflow.getWid
+    val ownAfter = seedWorkflow(sessionUser1, "own-after").workflow.getWid
+    grantAccess(shared, testUser, PrivilegeEnum.WRITE)
+
+    assertThrows[ForbiddenException](
+      workflowResource.deleteWorkflow(WorkflowIDs(List(ownBefore, shared, ownAfter)), sessionUser1)
+    )
+
+    assert(
+      workflowNamesOf(sessionUser1).sorted == List("own-after", "own-before", "shared-with-user1")
+    )
+  }
+
+  it should "delete all of the user's own workflows in one request" in {
+    val first = seedWorkflow(sessionUser1, "own-1").workflow.getWid
+    val second = seedWorkflow(sessionUser1, "own-2").workflow.getWid
+
+    workflowResource.deleteWorkflow(WorkflowIDs(List(first, second)), sessionUser1)
+
+    assert(workflowNamesOf(sessionUser1).isEmpty)
   }
 
   // What this pins, and what it does not. It DOES pin that a URI which cannot be decoded is

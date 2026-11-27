@@ -21,6 +21,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpErrorResponse } from "@angular/common/http";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UserWorkflowComponent } from "./user-workflow.component";
 import {
@@ -1333,6 +1334,40 @@ describe("SavedWorkflowSectionComponent", () => {
         expect(cleanup.mock.calls.map(c => c[0])).toEqual([1, 2]);
       });
 
+      it("deletes only the owned workflows and keeps the shared ones listed (issue #9434)", () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.deleteWorkflow = vi.fn().mockReturnValue(of(null));
+        const warningSpy = vi.spyOn(TestBed.inject(NotificationService), "warning").mockImplementation(() => {});
+        const cleanup = vi
+          .spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow")
+          .mockResolvedValue(undefined);
+        const shared = makeEntry(2, "shared", true);
+        shared.workflow.isOwner = false;
+        setEntries([makeEntry(1, "mine 1", true), shared, makeEntry(3, "mine 2", true)]);
+
+        component.handleConfirmDeleteSelectedWorkflows();
+
+        expect(persist.deleteWorkflow).toHaveBeenCalledWith([1, 3]);
+        expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["shared"]);
+        expect(cleanup.mock.calls.map(c => c[0])).toEqual([1, 3]);
+        expect(warningSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("sends no request when every selected workflow is shared", () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.deleteWorkflow = vi.fn();
+        const warningSpy = vi.spyOn(TestBed.inject(NotificationService), "warning").mockImplementation(() => {});
+        const shared = makeEntry(2, "shared", true);
+        shared.workflow.isOwner = false;
+        setEntries([shared]);
+
+        component.handleConfirmDeleteSelectedWorkflows();
+
+        expect(persist.deleteWorkflow).not.toHaveBeenCalled();
+        expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["shared"]);
+        expect(warningSpy).toHaveBeenCalledTimes(1);
+      });
+
       it("early-returns when a checked entry has no wid", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn();
@@ -1343,16 +1378,21 @@ describe("SavedWorkflowSectionComponent", () => {
         expect(persist.deleteWorkflow).not.toHaveBeenCalled();
       });
 
-      it("alerts on a deletion error and does not touch the pod", () => {
+      it("shows the backend's message on a deletion error and does not touch the pod", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
-        persist.deleteWorkflow = vi.fn().mockReturnValue(throwError(() => "delfail"));
-        const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+        persist.deleteWorkflow = vi
+          .fn()
+          .mockReturnValue(
+            throwError(() => new HttpErrorResponse({ status: 403, error: { message: "You do not own workflow 1" } }))
+          );
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
         const cleanup = vi.spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow");
         setEntries([makeEntry(1, "a", true)]);
 
         component.handleConfirmDeleteSelectedWorkflows();
 
-        expect(alertSpy).toHaveBeenCalledWith("delfail");
+        expect(errorSpy).toHaveBeenCalledWith("Failed to delete the selected workflows: You do not own workflow 1");
+        expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["a"]);
         // The backend delete failed, so the pod file must be left in place.
         expect(cleanup).not.toHaveBeenCalled();
       });
