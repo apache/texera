@@ -59,6 +59,7 @@ object State {
   def loopStartIdFrom(row: Tuple): String = row.getField[String](LoopStartId)
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
+  private val DictValue = "dict"
   private val PayloadMarker = "payload"
 
   val schema: Schema = new Schema(
@@ -68,14 +69,10 @@ object State {
   )
 
   def fromJson(payload: String): State =
-    State(
-      objectMapper
-        .readTree(payload)
-        .fields()
-        .asScala
-        .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
-        .toMap
-    )
+    fromJsonValue(objectMapper.readTree(payload)) match {
+      case values: Map[?, ?] => State(values.asInstanceOf[Map[String, Any]])
+      case _                 => throw new IllegalArgumentException("State JSON must contain an object")
+    }
 
   def fromTuple(row: Tuple): State = fromJson(row.getField[String](Content))
 
@@ -85,7 +82,10 @@ object State {
       case bytes: Array[Byte] =>
         Map(BytesTypeMarker -> BytesValue, PayloadMarker -> Base64.getEncoder.encodeToString(bytes))
       case map: Map[?, ?] =>
-        map.iterator.map { case (k, v) => k -> toJsonValue(v) }.toMap
+        val encoded = map.iterator.map { case (k, v) => k -> toJsonValue(v) }.toMap
+        if (map.keysIterator.exists(_ == BytesTypeMarker))
+          Map(BytesTypeMarker -> DictValue, PayloadMarker -> encoded)
+        else encoded
       case iterable: Iterable[_] =>
         iterable.map(toJsonValue).toList
       case other => other
@@ -96,9 +96,20 @@ object State {
       null
     } else if (node.isObject) {
       val fields = node.fields().asScala.map(entry => entry.getKey -> entry.getValue).toMap
+      val exactEnvelope = fields.keySet == Set(BytesTypeMarker, PayloadMarker)
       fields.get(BytesTypeMarker) match {
-        case Some(typeNode) if typeNode.isTextual && typeNode.asText() == BytesValue =>
+        case Some(typeNode)
+            if exactEnvelope && typeNode.isTextual && typeNode.asText() == BytesValue =>
+          require(fields(PayloadMarker).isTextual, "State bytes payload must be a string")
           Base64.getDecoder.decode(fields(PayloadMarker).asText())
+        case Some(typeNode)
+            if exactEnvelope && typeNode.isTextual && typeNode.asText() == DictValue =>
+          require(fields(PayloadMarker).isObject, "State dictionary payload must be an object")
+          fields(PayloadMarker)
+            .fields()
+            .asScala
+            .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
+            .toMap
         case _ =>
           fields.view.mapValues(fromJsonValue).toMap
       }

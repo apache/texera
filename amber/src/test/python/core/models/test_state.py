@@ -67,6 +67,19 @@ class TestState:
         decoded = State.from_json(original.to_json())
         assert decoded == original
 
+    @pytest.mark.parametrize(
+        "user_value",
+        [
+            {"__texera_type__": "bytes", "payload": "aGVsbG8="},
+            {"__texera_type__": "bytes", "payload": "aGVsbG8=", "owner": "user"},
+            {"__texera_type__": "dict", "payload": {"nested": 1}},
+        ],
+    )
+    def test_json_round_trip_preserves_user_type_markers(self, user_value):
+        original = State({"config": user_value})
+
+        assert State.from_json(original.to_json()) == original
+
     def test_json_round_trip_list_of_mixed_values(self):
         original = State({"items": [1, "two", 3.0, True, None]})
         decoded = State.from_json(original.to_json())
