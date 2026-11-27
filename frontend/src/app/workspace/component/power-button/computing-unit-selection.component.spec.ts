@@ -1585,13 +1585,13 @@ describe("PowerButtonComponent", () => {
     });
 
     it("still falls back when forgetting the stale unit throws", () => {
-      // Only the component's one removeItem call throws; the storage keeps working for the
-      // afterEach clean-up and the tests that follow.
       const { emit, selectSpy } = bootWithMetaStream({
         remembered: "77",
         units: [makeComputingUnit({ cuid: 55, status: "Running" })],
         latest: { cuId: 55 },
       });
+      // Only the component's one removeItem call throws; the storage keeps working for the
+      // afterEach clean-up and the tests that follow.
       const removeSpy = vi.spyOn(Storage.prototype, "removeItem").mockImplementationOnce(() => {
         throw new Error("storage unavailable");
       });
@@ -1640,8 +1640,9 @@ describe("PowerButtonComponent", () => {
     });
 
     it("does not carry a remembered unit across workflows", () => {
+      // Remembered for workflow 100; the emit below opens workflow 101.
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
       const { emit, selectSpy } = bootWithMetaStream({
-        remembered: "77",
         units: [makeComputingUnit({ cuid: 77, status: "Running" }), makeComputingUnit({ cuid: 55, status: "Running" })],
         latest: { cuId: 55 },
       });
