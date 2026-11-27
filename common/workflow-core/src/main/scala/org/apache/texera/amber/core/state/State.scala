@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.state
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.NullNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -33,11 +34,12 @@ final case class State(values: Map[String, Any]) {
 
   def toTuple(
       loopCounter: Long = 0L,
-      loopStartId: String = ""
+      loopStartId: String = "",
+      messageId: String = ""
   ): Tuple =
     Tuple
       .builder(State.schema)
-      .addSequentially(Array(toJson, Long.box(loopCounter), loopStartId))
+      .addSequentially(Array(toJson, Long.box(loopCounter), loopStartId, messageId))
       .build()
 }
 
@@ -51,12 +53,17 @@ object State {
   // extractors below read them back off a materialized/transported row.
   private val LoopCounter = "loop_counter"
   private val LoopStartId = "loop_start_id"
+  // The id a state message is issued with, kept by all of its copies.
+  private val MessageId = "message_id"
 
   /** Read the loop-envelope counter off a State row (see `toTuple`). */
   def loopCounterFrom(row: Tuple): Long = row.getField[java.lang.Long](LoopCounter).longValue()
 
   /** Read the loop-envelope LoopStart id off a State row (see `toTuple`). */
   def loopStartIdFrom(row: Tuple): String = row.getField[String](LoopStartId)
+
+  /** Read the message id off a State row (see `toTuple`). */
+  def messageIdFrom(row: Tuple): String = row.getField[String](MessageId)
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
   private val PayloadMarker = "payload"
@@ -64,7 +71,8 @@ object State {
   val schema: Schema = new Schema(
     new Attribute(Content, AttributeType.STRING),
     new Attribute(LoopCounter, AttributeType.LONG),
-    new Attribute(LoopStartId, AttributeType.STRING)
+    new Attribute(LoopStartId, AttributeType.STRING),
+    new Attribute(MessageId, AttributeType.STRING)
   )
 
   def fromJson(payload: String): State =
@@ -81,7 +89,9 @@ object State {
 
   private def toJsonValue(value: Any): Any =
     value match {
-      case null => null
+      // A JSON null, not a Java null, which the shared mapper drops from a map (`NON_NULL`): a
+      // variable set to Python's None must keep its name, as Python's serializer keeps it.
+      case null => NullNode.getInstance()
       case bytes: Array[Byte] =>
         Map(BytesTypeMarker -> BytesValue, PayloadMarker -> Base64.getEncoder.encodeToString(bytes))
       case map: Map[?, ?] =>

@@ -40,6 +40,7 @@ import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import java.net.URI
+import java.util.UUID
 import scala.collection.mutable
 
 object OutputManager {
@@ -198,10 +199,18 @@ class OutputManager(
     * alongside the State (see `StateFrame`); a JVM hop inside a loop body
     * passes the incoming envelope through unchanged, while a Scala-originated
     * state (start/end-channel handlers) uses the "no loop" defaults.
+    * `messageId` is the same on every copy sent and stored; a new message gets
+    * a fresh one here, before the fan-out, and a forwarded message passes the
+    * id it arrived with.
     */
-  def emitState(state: State, loopCounter: Long = 0L, loopStartId: String = ""): Unit = {
-    networkOutputBuffers.foreach(kv => kv._2.sendState(state, loopCounter, loopStartId))
-    saveStateToStorageIfNeeded(state, loopCounter, loopStartId)
+  def emitState(
+      state: State,
+      loopCounter: Long = 0L,
+      loopStartId: String = "",
+      messageId: String = UUID.randomUUID().toString
+  ): Unit = {
+    networkOutputBuffers.foreach(kv => kv._2.sendState(state, loopCounter, loopStartId, messageId))
+    saveStateToStorageIfNeeded(state, loopCounter, loopStartId, messageId)
   }
 
   def addPort(portId: PortIdentity, schema: Schema, storageURIBaseOption: Option[URI]): Unit = {
@@ -246,7 +255,8 @@ class OutputManager(
   private def saveStateToStorageIfNeeded(
       state: State,
       loopCounter: Long,
-      loopStartId: String
+      loopStartId: String,
+      messageId: String
   ): Unit = {
     // The same state row is fanned out to every output port's state
     // table. This mirrors the broadcast-to-all-workers behavior on the
@@ -254,7 +264,9 @@ class OutputManager(
     // downstream operator (and every worker reading the materialization)
     // needs the full set. The loop envelope is materialized as its own
     // columns so the downstream reader can rebuild it.
-    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple(loopCounter, loopStartId))))
+    stateWriterThreads.values.foreach(
+      _.queue.put(Left(state.toTuple(loopCounter, loopStartId, messageId)))
+    )
   }
 
   /**
@@ -296,7 +308,8 @@ class OutputManager(
   }
 
   /**
-    * This method is only used for ensuring correct region execution. Some operators may have input port dependency
+    * This method is used for ensuring correct region execution, and by `DataProcessor.processInputState`, which
+    * records no state message id while it is true. Some operators may have input port dependency
     * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionManager`
     * for details.)
     * This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.

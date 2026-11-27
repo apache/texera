@@ -186,6 +186,50 @@ class TestLoopStartProduceStateOnFinish:
         assert "loop_counter" not in produced
         assert "table" not in produced
 
+    def test_imports_functions_and_classes_stay_out_of_the_produced_state(self):
+        # The initialization may import a module or define a function or a
+        # class for the output expression to use, but none of them is a loop
+        # variable: the state Loop Start sends carries the values only, so it
+        # serializes (reviewer feedback on #9366, #discussion_r4520689432).
+        op = _StubLoopStart(
+            initialization=(
+                "import math\n"
+                "from math import floor\n"
+                "def pick(rows, at):\n"
+                "    return rows.iloc[[at]]\n"
+                "class Box:\n"
+                "    pass\n"
+                "i = 0\n"
+                "root = math.sqrt(4)"
+            ),
+            output_expr="pick(table, i)",
+        )
+        op.open()
+        list(op.process_tuple(Tuple({"v": 1}), port=0))
+        list(op.process_tuple(Tuple({"v": 2}), port=0))
+        (out,) = [o for o in op.on_finish(port=0) if o is not None]
+        assert list(out["v"]) == [1], "the output expression still calls pick"
+
+        produced = op.produce_state_on_finish(port=0)
+
+        assert produced == State({"i": 0, "root": 2.0})
+        produced.to_tuple(0)  # must not raise
+
+    def test_names_python_binds_itself_stay_out_of_the_produced_state(self):
+        # A docstring makes Python bind __doc__, and an annotated assignment
+        # __annotations__, a dict of classes. Neither is a loop variable, so
+        # the state Loop Start sends carries the values only, and serializes.
+        op = _StubLoopStart(
+            initialization='"""Walk the rows."""\ni: int = 0\nlimit: int = 2',
+            output_expr="table.iloc[[i]]",
+        )
+        op.open()
+
+        produced = op.produce_state_on_finish(port=0)
+
+        assert produced == State({"i": 0, "limit": 2})
+        produced.to_tuple(0)  # must not raise
+
 
 # ---------------------------------------------------------------------------
 # LoopEndOperator — base class behaviour
@@ -285,6 +329,90 @@ class TestLoopEndMatchingBranch:
         # table (the clear in run_update is what this pins).
         with pytest.raises(RuntimeError, match="not attached"):
             op.process_state(State({"i": 3}), port=0)
+
+    def test_run_update_records_the_names_it_binds_at_top_level(self):
+        # A name the update binds when it runs, at top level, is one of the
+        # loop's own variables, so the runtime saves it for the next iteration
+        # even when only the loop body's change carried it
+        # (MainLoop._next_iteration_state). Every way a top-level name gets
+        # bound counts: also rebinding it to the very object it held
+        # (`best = max(best, score)` while best is larger), a walrus target in
+        # a comprehension, a global that a called function sets, a `for`
+        # target and an import. A name bound only inside a generator
+        # expression, a comprehension or a function does not, and neither does
+        # one in a branch that did not run, nor one the update only reads or
+        # deletes (reviewer feedback on #9366, #discussion_r4520689430).
+        op = _StubLoopEnd(
+            update=(
+                "best = max(best, score)\n"
+                "i += 1\n"
+                'total = sum(score for score in table["v"])\n'
+                "squares = [score * score for score in seen]\n"
+                "[found := v for v in seen if v > best]\n"
+                "def keep():\n"
+                "    global kept\n"
+                "    inner = best\n"
+                "    kept = inner\n"
+                "keep()\n"
+                "for step in range(2):\n"
+                "    pass\n"
+                "if i > 100:\n"
+                "    never = 1\n"
+                "import os.path\n"
+                "from math import floor as round_down\n"
+                "del stale"
+            )
+        )
+        assert op.bound_names == frozenset()
+        op.attach_loop_table(_one_row_table())
+
+        op.process_state(
+            State({"best": 7, "score": 3, "i": 0, "seen": [2, 9], "stale": 0}), port=0
+        )
+
+        assert op.bound_names == {
+            "best",
+            "i",
+            "total",
+            "squares",
+            "found",
+            "keep",
+            "kept",
+            "step",
+            "os",
+            "round_down",
+        }
+        assert op.state["score"] == 3, "the generator's score is its own"
+
+    def test_run_update_records_a_name_it_rebinds_from_itself(self):
+        # The counterpart to the generator expression in the reviewer's case:
+        # `score` assigned at top level is bound, `score` read in it is not.
+        op = _StubLoopEnd(update="score = score * 2")
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"score": 3, "i": 0}), port=0)
+        assert op.bound_names == {"score"}
+        assert op.state == State({"score": 6, "i": 0})
+
+    def test_update_and_condition_use_what_the_update_imports_and_defines(self):
+        # An import, a function or a class the update defines stays usable for
+        # the condition; the runtime leaves it out of what it saves for the
+        # next iteration (MainLoop._next_iteration_state), as it is no loop
+        # variable.
+        op = _StubLoopEnd(
+            update=(
+                "import math\n"
+                "def double(v):\n"
+                "    return 2 * v\n"
+                "class Box:\n"
+                "    pass\n"
+                "i = double(i) + 1\n"
+                "root = math.sqrt(4)"
+            ),
+            condition_expr="math.floor(root) == 2 and isinstance(Box(), Box) and i == 1",
+        )
+        op.attach_loop_table(_one_row_table())
+        op.process_state(State({"i": 0}), port=0)
+        assert op.condition() is True
 
 
 # ---------------------------------------------------------------------------

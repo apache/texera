@@ -33,11 +33,15 @@ import scala.util.Try
 /**
   * Writes the loop variables each state message carries into one executor's setting, the
   * descriptor it holds, in place, at the placeholders its `stateReferences` sidecar names. Each
-  * value is coerced to the placeholder's JSON type. A message from a more deeply nested loop (a
-  * smaller `loopCounter`) replaces an outer one's value, so an inner loop's variable shadows an
-  * outer one of the same name. Messages from the same loop are copies, from several upstream
-  * workers or branches, so a different value is an error, bound or not. A value that cannot be
-  * written leaves the property as it was and is reported by `bind`, unless a deeper one can be.
+  * value is coerced to the placeholder's JSON type. Until the setting is bound, a later message's
+  * value replaces an earlier one's from the same loop. Once it has its output ports, the worker
+  * drops the copies of a message it has processed, and an operator that changes a loop's message
+  * sends the message on unchanged before the change, so a copy arriving after the change on another
+  * path is dropped instead of undoing it. A message from a more deeply nested loop (a smaller
+  * `loopCounter`) replaces an outer one's value, and an outer one never replaces it, so an inner
+  * loop's variable shadows an outer one of the same name. Once bound, the setting keeps its values.
+  * A value that cannot be written leaves the property as it was and is reported by `bind`, unless a
+  * later or deeper one can be.
   *
   * @param className the executor's class, named in the errors.
   */
@@ -53,26 +57,22 @@ private[executor] final class StateReferenceBinding(
       pointer -> s"property $pointer refers to loop variable $name, but no state message carried it"
   })
 
-  /** Each referenced variable's value so far, and the `loopCounter` of the message carrying it. */
-  private val values = mutable.Map.empty[String, (Long, Any)]
+  /** The `loopCounter` of the message each referenced variable's value so far came in. */
+  private val depths = mutable.Map.empty[String, Long]
 
-  /** Set once bound: a later message is still checked, but no longer written. */
+  /** Set once bound: a later message is no longer written. */
   private var bound = false
 
   /** Writes each referenced variable `state` carries into the setting, in pointer order. */
   def write(state: State, loopCounter: Long): Unit = {
-    val carried =
-      references.values.toSeq.distinct.sorted.flatMap(n => state.values.get(n).map(n -> _))
-    for ((name, value) <- carried; (depth, earlier) <- values.get(name))
-      if (depth == loopCounter && earlier != value)
-        throw new IllegalStateException(
-          s"loop variable $name got two different values in one iteration, $earlier and " +
-            s"$value: a loop's variables must not change inside its body"
-        )
     val replacing =
       if (bound) Map.empty[String, Any]
-      else carried.filter { case (name, _) => values.get(name).forall(_._1 > loopCounter) }.toMap
-    replacing.foreach { case (name, value) => values(name) = (loopCounter, value) }
+      else
+        references.values.toSeq.distinct
+          .flatMap(n => state.values.get(n).map(n -> _))
+          .filter { case (name, _) => depths.get(name).forall(_ >= loopCounter) }
+          .toMap
+    replacing.keys.foreach(depths(_) = loopCounter)
     for ((pointer, name) <- references.toSeq.sorted; value <- replacing.get(name))
       try {
         writeAt(pointer, name, value)

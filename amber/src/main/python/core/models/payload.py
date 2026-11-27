@@ -42,3 +42,8 @@ class StateFrame(DataPayload):
     # output, consumed by the matching LoopEnd. Empty for non-loop /
     # not-yet-stamped state.
     loop_start_id: str = ""
+    # The id this message was issued with, kept by every copy of it (one per
+    # downstream channel, edge or stored row), so a worker that has its output
+    # ports processes a message once however many copies reach it. Empty for a
+    # state nobody issued.
+    message_id: str = ""

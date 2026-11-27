@@ -189,6 +189,16 @@ class NetworkOutputBufferSpec extends AnyFlatSpec {
     assert(cap.messages.head.payload == StateFrame(state, 2L, "outer-loop"))
   }
 
+  it should "put the caller's message id on the sent StateFrame" in {
+    // The id is issued once per message before the fan-out (OutputManager.emitState), so every
+    // buffer must send exactly the id it is given rather than make up its own.
+    val (buf, cap) = newBuffer()
+    val state = State(Map("k" -> "v"))
+    buf.sendState(state, loopCounter = 2L, loopStartId = "outer-loop", messageId = "issued-A")
+    assert(cap.messages.size == 1)
+    assert(cap.messages.head.payload == StateFrame(state, 2L, "outer-loop", "issued-A"))
+  }
+
   it should "leave the tuple buffer empty after sendState (trailing flush no-op)" in {
     // sendState calls flush() AFTER sending the state too. Pin that the
     // trailing flush doesn't double-send and that subsequent addTuple
