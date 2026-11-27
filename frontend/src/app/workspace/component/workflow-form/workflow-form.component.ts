@@ -243,6 +243,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   /** Chart height per result (0 compact / 1 default / 2 tall). Per operator so one does not resize
    *  the others, and in memory only -- a viewing preference, not part of the workflow. */
   private zoomByResult = new Map<string, number>();
+  /** The result whose card is full screen, if any. */
+  private fullScreenResult?: string;
   /** Bumped when a result changes, used as the chart's *ngFor identity so the frame is rebuilt, not
    *  reused: the chart reads its content once at creation, so a stale frame showed "undefined". */
   private resultVersion = new Map<string, number>();
@@ -1530,6 +1532,39 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // Let the new card height land, then have the chart redraw into it -- growing the frame alone
     // leaves the picture at its old size until something asks it to re-measure.
     this.cdr.detectChanges();
+    this.later(() => this.fitVisualisations(), 60);
+  }
+
+  public isFullScreen(operatorID: string): boolean {
+    return this.fullScreenResult === operatorID;
+  }
+
+  /** False on iPhone Safari (no Fullscreen API outside video) or in a frame without
+   *  allow="fullscreen"; the button is then left out rather than offered dead. */
+  public get canFullScreen(): boolean {
+    return !!document.fullscreenEnabled;
+  }
+
+  /** The card goes full screen, not its iframe, so it keeps its head (zoom, and the way back). */
+  public toggleFullScreen(card: HTMLElement): void {
+    // Either request can be refused; the state follows the fullscreenchange event regardless.
+    if (document.fullscreenElement === card) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      card.requestFullscreen().catch(() => {});
+    }
+  }
+
+  /** Esc and the browser's own controls leave full screen too, so the state follows the document's
+   *  event. markForCheck, not detectChanges, so an unrelated NG0100 cannot skip the re-fit below. */
+  @HostListener("document:fullscreenchange")
+  public onFullScreenChange(): void {
+    const element = document.fullscreenElement;
+    this.fullScreenResult =
+      element instanceof HTMLElement && this.host.nativeElement.contains(element)
+        ? element.dataset.resultId
+        : undefined;
+    this.cdr.markForCheck();
     this.later(() => this.fitVisualisations(), 60);
   }
 

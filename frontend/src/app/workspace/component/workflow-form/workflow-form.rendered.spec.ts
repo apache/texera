@@ -39,6 +39,8 @@ import {
   MinusOutline,
   PlusOutline,
   UpOutline,
+  FullscreenOutline,
+  FullscreenExitOutline,
 } from "@ant-design/icons-angular/icons";
 import { EMPTY, of, Subject } from "rxjs";
 
@@ -289,6 +291,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
             MinusOutline,
             PlusOutline,
             UpOutline,
+            FullscreenOutline,
+            FullscreenExitOutline,
           ],
         },
         DatePipe,
@@ -839,6 +843,47 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".results-empty")).toBeNull();
     expect(el(".result .result-head")).not.toBeNull();
     expect(el(".result .result-body")).not.toBeNull();
+  });
+
+  it("offers a drawn result full screen, on its own card, only where the browser can", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    const wrs: any = TestBed.inject(WorkflowResultService);
+    wrs.hasNonEmptyResult = () => true;
+    wrs.getResultService = () => ({ getCurrentResultSnapshot: () => [{ "html-content": "<div></div>" }] });
+    const toggle = vi.spyOn(c, "toggleFullScreen").mockImplementation(() => {});
+    const fullScreenButton = () => el('.result-zoom button[aria-label="Full screen"]');
+    c.shownResultIds = ["op-1"];
+    try {
+      // No full screen to give (as on an iPhone): the zoom controls show, a dead button does not.
+      // Set explicitly rather than left to jsdom, so this checks the page and not the environment.
+      Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: false });
+      fixture.detectChanges();
+      expect(el(".result-zoom")).not.toBeNull();
+      expect(fullScreenButton()).toBeNull();
+
+      // With one, the button sends its own card, the element that carries the step's id.
+      Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: true });
+      fixture.detectChanges();
+      const card = el(".result")!;
+      expect(card.dataset.resultId).toBe("op-1");
+      fullScreenButton()!.click();
+      expect(toggle).toHaveBeenCalledWith(card);
+
+      // Once that card is full screen, the same button offers the way back.
+      vi.spyOn(c as any, "fitVisualisations").mockImplementation(() => {});
+      Object.defineProperty(document, "fullscreenElement", { configurable: true, value: card });
+      c.onFullScreenChange();
+      fixture.detectChanges();
+      expect(fullScreenButton()).toBeNull();
+      const exitButton = el('.result-zoom button[aria-label="Exit full screen"]');
+      expect(exitButton).not.toBeNull();
+      expect(exitButton!.querySelector("i")!.classList).toContain("anticon-fullscreen-exit");
+    } finally {
+      delete (document as any).fullscreenEnabled;
+      delete (document as any).fullscreenElement;
+    }
   });
 
   it("keeps the picker between the preview and the results", () => {
