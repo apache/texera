@@ -40,28 +40,18 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.auth.JwtAuth
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{OPERATOR_PORT_EXECUTIONS, WORKFLOW_EXECUTIONS}
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowComputingUnitDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
+import org.apache.texera.dao.DatabaseFlatSpec
+import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_PORT_EXECUTIONS
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User,
-  Workflow,
   WorkflowComputingUnit,
   WorkflowExecutions,
   WorkflowVersion
 }
+import org.apache.texera.web.ExecutionDatabaseTestSupport
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.PrivateMethodTester
 
 import java.io.{
   ByteArrayInputStream,
@@ -72,7 +62,6 @@ import java.io.{
 }
 import java.net.{InetSocketAddress, URI, URL}
 import java.nio.charset.StandardCharsets
-import java.sql.Timestamp
 import java.util.UUID
 import java.util.zip.{ZipException, ZipInputStream}
 import javax.ws.rs.WebApplicationException
@@ -108,12 +97,9 @@ import scala.collection.mutable.ArrayBuffer
   * bearer token that authenticates the exporting user to the file service.
   */
 class ResultExportServiceSpec
-    extends AnyFlatSpec
-    with Matchers
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true)
     with PrivateMethodTester
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    with ExecutionDatabaseTestSupport {
 
   private val service = new ResultExportService(WorkflowIdentity(1L), computingUnitId = 0)
 
@@ -402,62 +388,19 @@ class ResultExportServiceSpec
   private var testUser: User = _
   private var testVersion: WorkflowVersion = _
   private var testComputingUnit: WorkflowComputingUnit = _
-  private var workflowExecutionsDao: WorkflowExecutionsDao = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit = {
 
-    testUser = new User
-    testUser.setUid(testUserId)
-    testUser.setName("export_user")
-    testUser.setEmail("export@example.com")
-    new UserDao(getDSLContext.configuration()).insert(testUser)
-
-    val workflow = new Workflow
-    workflow.setWid(testWorkflowWid)
-    workflow.setName("wf-" + UUID.randomUUID().toString.substring(0, 8))
-    workflow.setContent("{}")
-    workflow.setDescription("")
-    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
-
-    testVersion = new WorkflowVersion
-    testVersion.setWid(testWorkflowWid)
-    testVersion.setContent("{}")
-    testVersion.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    new WorkflowVersionDao(getDSLContext.configuration()).insert(testVersion)
-
-    testComputingUnit = new WorkflowComputingUnit
-    testComputingUnit.setUid(testUserId)
-    testComputingUnit.setName("export-unit")
-    testComputingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    testComputingUnit.setType(WorkflowComputingUnitTypeEnum.local)
-    testComputingUnit.setUri("local://test")
-    testComputingUnit.setResource("{}")
-    new WorkflowComputingUnitDao(getDSLContext.configuration()).insert(testComputingUnit)
-
-    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+    testUser = insertUser(testUserId, "export_user", "export@example.com")
+    insertWorkflow(testWorkflowWid, "wf-" + UUID.randomUUID().toString.substring(0, 8))
+    testVersion = insertWorkflowVersion(testWorkflowWid)
+    testComputingUnit = insertComputingUnit(testUserId, "export-unit")
   }
 
   // Executions are per-test state: several cases below distinguish "no
   // execution at all" from "an execution with no stored result URI".
-  override protected def afterEach(): Unit = {
-    val eids = getDSLContext
-      .select(WORKFLOW_EXECUTIONS.EID)
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.VID.eq(testVersion.getVid))
-    getDSLContext
-      .deleteFrom(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(eids))
-      .execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.VID.eq(testVersion.getVid))
-      .execute()
-  }
-
-  override protected def afterAll(): Unit = closeConnectionPool()
+  override protected def cleanup(): Unit =
+    cleanupExecutionsForVersion(testVersion.getVid, includePortExecutions = true)
 
   // The service under test, bound to the seeded workflow and computing unit so
   // that getLatestExecutionId resolves against the rows this spec inserts.
@@ -481,21 +424,15 @@ class ResultExportServiceSpec
       computingUnitId = testComputingUnit.getCuid
     )
 
-  private def insertExecution(): WorkflowExecutions = {
-    val execution = new WorkflowExecutions
-    execution.setVid(testVersion.getVid)
-    execution.setUid(testUser.getUid)
-    execution.setStatus(0.toByte)
-    execution.setResult("")
-    execution.setLogLocation("")
-    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
-    execution.setBookmarked(false)
-    execution.setName("export-execution")
-    execution.setEnvironmentVersion("test-env-1.0")
-    execution.setCuid(testComputingUnit.getCuid)
-    workflowExecutionsDao.insert(execution)
-    execution
-  }
+  private def insertExecution(): WorkflowExecutions =
+    insertWorkflowExecution(
+      vid = testVersion.getVid,
+      uid = testUser.getUid,
+      cuidOpt = Some(testComputingUnit.getCuid),
+      logLocation = Some(""),
+      name = "export-execution",
+      envVersion = "test-env-1.0"
+    )
 
   private def insertResultUri(eid: Integer, resultUri: String): Unit =
     getDSLContext

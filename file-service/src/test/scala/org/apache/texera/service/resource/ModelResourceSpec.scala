@@ -21,38 +21,14 @@ package org.apache.texera.service.resource
 
 import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{ModelDao, UserDao}
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.tables.daos.ModelDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, User}
-import org.apache.texera.service.MockLakeFS
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-class ModelResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockTexeraDB
-    with MockLakeFS
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+class ModelResourceSpec extends ModelResourceTestSupport("model_user") {
 
-  private val ownerUser: User = {
-    val user = new User
-    user.setName("model_user")
-    user.setEmail("model_user@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
-  }
-
-  private val otherUser: User = {
-    val user = new User
-    user.setName("model_user2")
-    user.setEmail("model_user2@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
-  }
+  private val otherUser: User = mkUser("model_user2")
+  override protected def extraUsers: Seq[User] = Seq(otherUser)
 
   private val baseModel: Model = {
     val model = new Model
@@ -67,9 +43,6 @@ class ModelResourceSpec
 
   private lazy val modelDao = new ModelDao(getDSLContext.configuration())
 
-  lazy val modelResource = new ModelResource()
-
-  lazy val sessionUser = new SessionUser(ownerUser)
   lazy val sessionUser2 = new SessionUser(otherUser)
 
   private def assertStatus(ex: WebApplicationException, status: Int): Unit =
@@ -77,20 +50,8 @@ class ModelResourceSpec
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-
-    initializeDBAndReplaceDSLContext()
-
-    val userDao = new UserDao(getDSLContext.configuration())
-    userDao.insert(ownerUser)
-    userDao.insert(otherUser)
-
     baseModel.setOwnerUid(ownerUser.getUid)
     modelDao.insert(baseModel)
-  }
-
-  override protected def afterAll(): Unit = {
-    try shutdownDB()
-    finally super.afterAll()
   }
 
   // ===========================================================================
@@ -196,15 +157,7 @@ class ModelResourceSpec
   // getModel / listModels
   // ===========================================================================
   "getModel" should "return the dashboard model including its LakeFS repository size" in {
-    val request = ModelResource.CreateModelRequest(
-      modelName = "get-model",
-      modelDescription = "for get",
-      isModelPublic = false,
-      isModelDownloadable = true,
-      framework = "pytorch",
-      format = null
-    )
-    val created = modelResource.createModel(request, sessionUser)
+    val created = createModelFixture("get-model", "for get")
 
     val dashboard = modelResource.getModel(created.model.getMid, sessionUser)
     dashboard.model.getMid shouldEqual created.model.getMid
@@ -212,15 +165,7 @@ class ModelResourceSpec
   }
 
   it should "forbid a stranger from getting a private model" in {
-    val request = ModelResource.CreateModelRequest(
-      modelName = "private-get-model",
-      modelDescription = "private",
-      isModelPublic = false,
-      isModelDownloadable = true,
-      framework = "pytorch",
-      format = null
-    )
-    val created = modelResource.createModel(request, sessionUser)
+    val created = createModelFixture("private-get-model", "private", isPublic = false)
 
     assertThrows[ForbiddenException] {
       modelResource.getModel(created.model.getMid, sessionUser2)
@@ -228,15 +173,7 @@ class ModelResourceSpec
   }
 
   "listModels" should "include models the user owns" in {
-    val request = ModelResource.CreateModelRequest(
-      modelName = "listed-model",
-      modelDescription = "for list",
-      isModelPublic = false,
-      isModelDownloadable = true,
-      framework = "pytorch",
-      format = null
-    )
-    val created = modelResource.createModel(request, sessionUser)
+    val created = createModelFixture("listed-model", "for list")
 
     val listed = modelResource.listModels(sessionUser)
     listed.map(_.model.getMid) should contain(created.model.getMid)
@@ -246,15 +183,7 @@ class ModelResourceSpec
   // deleteModel
   // ===========================================================================
   "deleteModel" should "delete a model successfully if the user owns it" in {
-    val request = ModelResource.CreateModelRequest(
-      modelName = "delete-model",
-      modelDescription = "for delete",
-      isModelPublic = false,
-      isModelDownloadable = true,
-      framework = "pytorch",
-      format = null
-    )
-    val created = modelResource.createModel(request, sessionUser)
+    val created = createModelFixture("delete-model", "for delete")
 
     val response = modelResource.deleteModel(created.model.getMid, sessionUser)
     response.getStatus shouldEqual 200
@@ -262,15 +191,8 @@ class ModelResourceSpec
   }
 
   it should "refuse to delete a model not owned by the user" in {
-    val request = ModelResource.CreateModelRequest(
-      modelName = "forbidden-delete-model",
-      modelDescription = "for forbidden delete",
-      isModelPublic = true,
-      isModelDownloadable = true,
-      framework = "pytorch",
-      format = null
-    )
-    val created = modelResource.createModel(request, sessionUser)
+    val created =
+      createModelFixture("forbidden-delete-model", "for forbidden delete", isPublic = true)
 
     assertThrows[ForbiddenException] {
       modelResource.deleteModel(created.model.getMid, sessionUser2)
@@ -300,17 +222,7 @@ class ModelResourceSpec
   // update name / description / publicity / downloadable
   // ===========================================================================
   "updateModelName" should "rename a model the user can write to" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "rename-me",
-        modelDescription = "d",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("rename-me", "d")
 
     val response = modelResource.updateModelName(
       ModelResource.ModelNameModification(created.model.getMid, "renamed"),
@@ -321,17 +233,7 @@ class ModelResourceSpec
   }
 
   "updateModelDescription" should "update the description of a model the user can write to" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "describe-me",
-        modelDescription = "old",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("describe-me", "old")
 
     val response = modelResource.updateModelDescription(
       ModelResource.ModelDescriptionModification(created.model.getMid, "new description"),
@@ -342,34 +244,14 @@ class ModelResourceSpec
   }
 
   "toggleModelPublicity" should "flip the public flag for a writer" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "publicity-model",
-        modelDescription = "d",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("publicity-model", "d", isPublic = false)
 
     modelResource.toggleModelPublicity(created.model.getMid, sessionUser).getStatus shouldEqual 200
     modelDao.fetchOneByMid(created.model.getMid).getIsPublic shouldBe true
   }
 
   "toggleModelDownloadable" should "flip the downloadable flag for the owner" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "downloadable-model",
-        modelDescription = "d",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("downloadable-model", "d", isDownloadable = true)
 
     modelResource
       .toggleModelDownloadable(created.model.getMid, sessionUser)
@@ -378,17 +260,7 @@ class ModelResourceSpec
   }
 
   it should "forbid a non-owner from toggling downloadable" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "downloadable-forbidden-model",
-        modelDescription = "d",
-        isModelPublic = true,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("downloadable-forbidden-model", "d", isPublic = true)
 
     assertThrows[ForbiddenException] {
       modelResource.toggleModelDownloadable(created.model.getMid, sessionUser2)
@@ -396,28 +268,8 @@ class ModelResourceSpec
   }
 
   it should "refuse to rename a model to a name the owner already uses" in {
-    modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "dup-target",
-        modelDescription = "d",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
-    val second = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "dup-source",
-        modelDescription = "d",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    createModelFixture("dup-target", "d")
+    val second = createModelFixture("dup-source", "d")
 
     assertThrows[BadRequestException] {
       modelResource.updateModelName(
@@ -428,17 +280,7 @@ class ModelResourceSpec
   }
 
   it should "forbid a user without write access from renaming or re-describing a model" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "no-write-updates",
-        modelDescription = "d",
-        isModelPublic = true,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("no-write-updates", "d", isPublic = true)
 
     assertThrows[ForbiddenException] {
       modelResource.updateModelName(
@@ -458,34 +300,14 @@ class ModelResourceSpec
   // getPublicModel / listModels public merge
   // ===========================================================================
   "getPublicModel" should "return a public model without authentication" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "public-get-model",
-        modelDescription = "d",
-        isModelPublic = true,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("public-get-model", "d", isPublic = true)
 
     val dashboard = modelResource.getPublicModel(created.model.getMid)
     dashboard.model.getMid shouldEqual created.model.getMid
   }
 
   it should "forbid access to a private model" in {
-    val created = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "public-get-private-model",
-        modelDescription = "d",
-        isModelPublic = false,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser
-    )
+    val created = createModelFixture("public-get-private-model", "d", isPublic = false)
 
     assertThrows[ForbiddenException] {
       modelResource.getPublicModel(created.model.getMid)
@@ -493,17 +315,8 @@ class ModelResourceSpec
   }
 
   "listModels" should "omit public models owned by another user" in {
-    val othersPublic = modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = "others-public-model",
-        modelDescription = "d",
-        isModelPublic = true,
-        isModelDownloadable = true,
-        framework = "pytorch",
-        format = null
-      ),
-      sessionUser2
-    )
+    val othersPublic =
+      createModelFixture("others-public-model", "d", isPublic = true, user = sessionUser2)
 
     // /model/list backs the "Your Work" page, so it lists only what the caller was granted.
     // Public models are discovered through the hub and fetched with getPublicModel.

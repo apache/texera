@@ -22,6 +22,7 @@ import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { ExecutionMode } from "../../common/type/workflow";
+import { makeDashboardComputingUnit } from "../../common/testing/computing-unit-test-fixtures";
 
 const workflowFixture: DashboardWorkflow = {
   isOwner: true,
@@ -68,34 +69,25 @@ const datasetFixture: DashboardDataset = {
   size: 2048,
 };
 
-const computingUnitFixture: DashboardWorkflowComputingUnit = {
+const computingUnitFixture: DashboardWorkflowComputingUnit = makeDashboardComputingUnit({
   computingUnit: {
     cuid: 9,
     uid: 10,
     name: "My Computing Unit",
     creationTime: 1700000000000,
-    terminateTime: undefined,
     type: "kubernetes",
     uri: "urn:texera:cu:9",
     resource: {
       cpuLimit: "2",
       memoryLimit: "4Gi",
-      gpuLimit: "0",
       jvmMemorySize: "2G",
       shmSize: "64Mi",
       nodeAddresses: ["10.0.0.1"],
     },
   },
-  status: "Running",
-  metrics: {
-    cpuUsage: "0.5",
-    memoryUsage: "1Gi",
-  },
-  isOwner: true,
-  accessPrivilege: "WRITE",
-  ownerAvatar: "",
+  metrics: { cpuUsage: "0.5", memoryUsage: "1Gi" },
   ownerName: "Alice",
-};
+});
 
 describe("isDashboardWorkflow", () => {
   it("should return true for a realistic DashboardWorkflow", () => {

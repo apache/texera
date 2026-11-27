@@ -86,103 +86,29 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text into corresponding output tuples" in {
-    val inputString: String = readFileIntoString(TestOperators.TestTextFilePath)
-    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
-    textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.fileScanLimit = Option(5)
-    val textScanSourceOpExec =
-      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
-      .produceTuple()
-      .map(tupleLike =>
-        tupleLike
-          .asInstanceOf[SchemaEnforceable]
-          .enforceSchema(textInputSourceOpDesc.sourceSchema())
-      )
-
-    assert(processedTuple.next().getField("line").equals("line1"))
-    assert(processedTuple.next().getField("line").equals("line2"))
-    assert(processedTuple.next().getField("line").equals("line3"))
-    assert(processedTuple.next().getField("line").equals("line4"))
-    assert(processedTuple.next().getField("line").equals("line5"))
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    assert(linesFrom(limit = Some(5)) == Seq("line1", "line2", "line3", "line4", "line5"))
   }
 
   it should "read first 5 lines of the input text with CRLF separators into corresponding output tuples" in {
-    val inputString: String = readFileIntoString(TestOperators.TestCRLFTextFilePath)
-    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
-    textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.fileScanLimit = Option(5)
-    val textScanSourceOpExec =
-      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
-      .produceTuple()
-      .map(tupleLike =>
-        tupleLike
-          .asInstanceOf[SchemaEnforceable]
-          .enforceSchema(textInputSourceOpDesc.sourceSchema())
-      )
-
-    assert(processedTuple.next().getField("line").equals("line1"))
-    assert(processedTuple.next().getField("line").equals("line2"))
-    assert(processedTuple.next().getField("line").equals("line3"))
-    assert(processedTuple.next().getField("line").equals("line4"))
-    assert(processedTuple.next().getField("line").equals("line5"))
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    assert(
+      linesFrom(limit = Some(5), path = TestOperators.TestCRLFTextFilePath) ==
+        Seq("line1", "line2", "line3", "line4", "line5")
+    )
   }
 
-  it should "read first 5 lines of the input text into a single output tuple" in {
-    val inputString: String = readFileIntoString(TestOperators.TestTextFilePath)
-    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
-    textInputSourceOpDesc.textInput = inputString
-    val textScanSourceOpExec =
-      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
-      .produceTuple()
-      .map(tupleLike =>
-        tupleLike
-          .asInstanceOf[SchemaEnforceable]
-          .enforceSchema(textInputSourceOpDesc.sourceSchema())
-      )
-
+  it should "read the whole input text into a single output tuple" in {
     assert(
-      processedTuple
-        .next()
-        .getField[String]("line")
-        .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
+      linesFrom(attributeType = FileAttributeType.SINGLE_STRING) ==
+        Seq("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
     )
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    val inputString: String = readFileIntoString(TestOperators.TestNumbersFilePath)
     textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
-    textInputSourceOpDesc.textInput = inputString
+    textInputSourceOpDesc.textInput = readFileIntoString(TestOperators.TestNumbersFilePath)
     textInputSourceOpDesc.fileScanLimit = Option(5)
-    val textScanSourceOpExec =
-      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
-      .produceTuple()
-      .map(tupleLike =>
-        tupleLike
-          .asInstanceOf[SchemaEnforceable]
-          .enforceSchema(textInputSourceOpDesc.sourceSchema())
-      )
 
-    assert(processedTuple.next().getField[Int]("line") == 1)
-    assert(processedTuple.next().getField[Int]("line") == 2)
-    assert(processedTuple.next().getField[Int]("line") == 3)
-    assert(processedTuple.next().getField[Int]("line") == 4)
-    assert(processedTuple.next().getField[Int]("line") == 5)
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    assert(tuplesFromEngine().map(_.getField[Int]("line")) == List(1, 2, 3, 4, 5))
   }
 
   it should "read all lines after the offset when no limit is specified" in {
@@ -230,52 +156,27 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "ignore the offset when reading the input text into a single output tuple" in {
-    val inputString: String = readFileIntoString(TestOperators.TestTextFilePath)
-    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
-    textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.fileScanOffset = Option(5)
-    val textScanSourceOpExec =
-      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
-      .produceTuple()
-      .map(tupleLike =>
-        tupleLike
-          .asInstanceOf[SchemaEnforceable]
-          .enforceSchema(textInputSourceOpDesc.sourceSchema())
-      )
-
     assert(
-      processedTuple
-        .next()
-        .getField[String]("line")
-        .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
+      linesFrom(offset = Some(5), attributeType = FileAttributeType.SINGLE_STRING) ==
+        Seq("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
     )
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
   }
 
   /**
     * Helper function collecting the "line" field of every tuple produced for
-    * the STRING attribute type with the given offset and limit.
+    * the text in `path`, read as `attributeType` with the given offset and limit.
     */
-  private def linesFrom(offset: Option[Int] = None, limit: Option[Int] = None): Seq[String] = {
-    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
-    textInputSourceOpDesc.textInput = readFileIntoString(TestOperators.TestTextFilePath)
+  private def linesFrom(
+      offset: Option[Int] = None,
+      limit: Option[Int] = None,
+      path: String = TestOperators.TestTextFilePath,
+      attributeType: FileAttributeType = FileAttributeType.STRING
+  ): Seq[String] = {
+    textInputSourceOpDesc.attributeType = attributeType
+    textInputSourceOpDesc.textInput = readFileIntoString(path)
     textInputSourceOpDesc.fileScanOffset = offset
     textInputSourceOpDesc.fileScanLimit = limit
-    val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    exec.open()
-    try {
-      exec
-        .produceTuple()
-        .map(
-          _.asInstanceOf[SchemaEnforceable]
-            .enforceSchema(textInputSourceOpDesc.sourceSchema())
-            .getField[String]("line")
-        )
-        .toSeq
-    } finally exec.close()
+    linesFromEngine()
   }
 
   /**
@@ -302,7 +203,9 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeType = FileAttributeType.BOOLEAN
     textInputSourceOpDesc.textInput = "true\nyes"
 
-    assertThrows[AttributeTypeUtils.AttributeTypeException](booleansFromEngine())
+    assertThrows[AttributeTypeUtils.AttributeTypeException](
+      tuplesFromEngine().map(_.getField[Boolean]("line"))
+    )
     val (exitCode, out) = runStandalone(python)
     withClue(s"python said:\n$out\n") {
       assert(exitCode != 0)
@@ -411,21 +314,8 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     } yield {
       textInputSourceOpDesc.attributeType = attrType
       textInputSourceOpDesc.textInput = line
-      val engine = Try {
-        val exec =
-          new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-        exec.open()
-        try {
-          exec
-            .produceTuple()
-            .map(
-              _.asInstanceOf[SchemaEnforceable]
-                .enforceSchema(textInputSourceOpDesc.sourceSchema())
-                .getField[Any]("line")
-            )
-            .toList
-        } finally exec.close()
-      }.toOption.flatMap(_.headOption)
+      val engine =
+        Try(tuplesFromEngine().map(_.getField[Any]("line"))).toOption.flatMap(_.headOption)
       val code = (textInputSourceOpDesc.standaloneHelpers() :+
         textInputSourceOpDesc.generateStandaloneCode()).mkString("\n\n")
       (s"$attrType ${line.map(c => f"\\u${c.toInt}%04x").mkString}", engine, code)
@@ -470,37 +360,20 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
-  /** The configured text read as STRING lines by the executor the engine runs. */
-  private def linesFromEngine(): Seq[String] = {
+  /** Every tuple produced for the configured text by the executor the engine runs. */
+  private def tuplesFromEngine(): List[Tuple] = {
     val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
     exec.open()
     try {
       exec
         .produceTuple()
-        .map(
-          _.asInstanceOf[SchemaEnforceable]
-            .enforceSchema(textInputSourceOpDesc.sourceSchema())
-            .getField[String]("line")
-        )
-        .toSeq
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(textInputSourceOpDesc.sourceSchema()))
+        .toList
     } finally exec.close()
   }
 
-  /** The configured text read as booleans by the executor the engine runs. */
-  private def booleansFromEngine(): Seq[Boolean] = {
-    val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
-    exec.open()
-    try {
-      exec
-        .produceTuple()
-        .map(
-          _.asInstanceOf[SchemaEnforceable]
-            .enforceSchema(textInputSourceOpDesc.sourceSchema())
-            .getField[Boolean]("line")
-        )
-        .toSeq
-    } finally exec.close()
-  }
+  /** The configured text read by the executor the engine runs, one String per tuple. */
+  private def linesFromEngine(): Seq[String] = tuplesFromEngine().map(_.getField[String]("line"))
 
   /**
     * The configured operator's exported script, run, printing its one column.

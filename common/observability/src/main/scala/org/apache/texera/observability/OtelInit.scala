@@ -75,7 +75,7 @@ object OtelInit extends LazyLogging {
   private[observability] val DefaultMetricIntervalMs: Long = 30L * 1000L
 
   // Idempotency guard: init() is a no-op after the first call.
-  @volatile private var initialized: Option[OpenTelemetry] = None
+  @volatile private var initialized: Option[OpenTelemetrySdk] = None
 
   /**
     * Initialize the SDK for the given service name. Returns Some on
@@ -164,12 +164,10 @@ object OtelInit extends LazyLogging {
     */
   private[observability] def resetForTest(): Unit =
     synchronized {
-      initialized.foreach {
-        case sdk: OpenTelemetrySdk =>
-          Try(sdk.getSdkTracerProvider.close())
-          Try(sdk.getSdkLoggerProvider.close())
-          Try(sdk.getSdkMeterProvider.close())
-        case _ => ()
+      initialized.foreach { sdk =>
+        Try(sdk.getSdkTracerProvider.close())
+        Try(sdk.getSdkLoggerProvider.close())
+        Try(sdk.getSdkMeterProvider.close())
       }
       initialized = None
     }

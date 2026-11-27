@@ -17,7 +17,8 @@
  * under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController, TestRequest } from "@angular/common/http/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../testing/http-service-test-utils";
 import { TestBed } from "@angular/core/testing";
 import { firstValueFrom, Observable } from "rxjs";
 import { JwtHelperService } from "@auth0/angular-jwt";
@@ -28,6 +29,8 @@ import { AuthService, TOKEN_KEY } from "./auth.service";
 import { NotificationService } from "../notification/notification.service";
 import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
+
+type FlushBody = Parameters<TestRequest["flush"]>[0];
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -52,6 +55,89 @@ describe("AuthService", () => {
     comment: "c",
     joiningReason: "r",
   };
+  const emaillessClaims = (role: Role = Role.REGULAR) => ({ ...claims, email: null, role });
+
+  function seed(decoded: Record<string, unknown> = claims, inviteOnly?: boolean): void {
+    AuthService.setAccessToken("tok");
+    if (inviteOnly !== undefined) config.env.inviteOnly = inviteOnly;
+    jwt.decodeToken.mockReturnValue(decoded);
+  }
+
+  function expectReq(
+    endpoint: string,
+    body: unknown,
+    method = "POST",
+    response: FlushBody = { accessToken: "t" },
+    contentType?: string
+  ): void {
+    flushHttpRequest(httpMock, `${api}/${endpoint}`, method, response, { body, contentType });
+  }
+
+  async function expectRejected(
+    endpoint: string,
+    status: number,
+    statusText: string,
+    message: string,
+    accepted = openPrompt()
+  ): Promise<void> {
+    httpMock.expectOne(`${api}/${endpoint}`).flush({ message }, { status, statusText });
+    expect(await accepted).toBe(false);
+    expect(notification.error).toHaveBeenCalledWith(message);
+  }
+
+  async function expectInvalidEmail(endpoint: string, accepted: Promise<boolean>): Promise<void> {
+    expect(await accepted).toBe(false);
+    expect(notification.error).toHaveBeenCalledWith("Email format is invalid.");
+    httpMock.expectNone(`${api}/${endpoint}`);
+  }
+
+  function expectProbe(reply: boolean, checkGet = false): void {
+    const req = httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`);
+    if (checkGet) expect(req.request.method).toEqual("GET");
+    expect(req.request.params.get("uid")).toEqual("5");
+    req.flush(reply);
+  }
+
+  function stubModal(values: Record<string, string>, modalTitle = "t", updateConfig = vi.fn()): void {
+    modal.create.mockReturnValue({
+      getContentComponent: () => ({ modalTitle, getValues: () => values }),
+      updateConfig,
+    });
+  }
+
+  function confirmModal(): Promise<boolean> {
+    return modal.create.mock.calls[0][0].nzOnOk();
+  }
+
+  function openPrompt(role: Role = Role.REGULAR): Promise<boolean> {
+    seed(emaillessClaims(role));
+    service.loginWithExistingToken();
+    return confirmModal();
+  }
+
+  function cancelPrompt(): void {
+    seed(emaillessClaims());
+    service.loginWithExistingToken();
+    modal.create.mock.calls[0][0].nzOnCancel();
+  }
+
+  function expectPending(inviteOnly: boolean): void {
+    seed({ ...claims, role: Role.INACTIVE }, inviteOnly);
+    expect(service.loginWithExistingToken()).toBeUndefined();
+    expectProbe(false, inviteOnly);
+    expect(modal.info).toHaveBeenCalledTimes(1);
+    expect(AuthService.getAccessToken()).toBeNull();
+  }
+
+  function scheduleAutoLogout(expired: boolean, expiryMs?: number) {
+    vi.useFakeTimers();
+    seed();
+    jwt.isTokenExpired.mockReturnValue(expired);
+    if (expiryMs !== undefined) jwt.getTokenExpirationDate.mockReturnValue(new Date(Date.now() + expiryMs));
+    const spy = vi.spyOn(service, "logout");
+    (service as any).registerAutoLogout();
+    return spy;
+  }
 
   beforeEach(() => {
     localStorage.clear();
@@ -64,19 +150,13 @@ describe("AuthService", () => {
     config = { env: { inviteOnly: false, emailVerification: false } };
     modal = { info: vi.fn(), create: vi.fn() };
 
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        AuthService,
-        { provide: JwtHelperService, useValue: jwt },
-        { provide: NotificationService, useValue: notification },
-        { provide: GmailService, useValue: {} },
-        { provide: GuiConfigService, useValue: config },
-        { provide: NzModalService, useValue: modal },
-      ],
-    });
-    service = TestBed.inject(AuthService);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service, httpMock } = setupHttpServiceTest(AuthService, [
+      { provide: JwtHelperService, useValue: jwt },
+      { provide: NotificationService, useValue: notification },
+      { provide: GmailService, useValue: {} },
+      { provide: GuiConfigService, useValue: config },
+      { provide: NzModalService, useValue: modal },
+    ]));
   });
 
   afterEach(() => {
@@ -107,36 +187,22 @@ describe("AuthService", () => {
   describe("HTTP auth endpoints", () => {
     it("register() POSTs username/email/password to the register endpoint", () => {
       service.register("alice", "alice@example.com", "pw").subscribe();
-      const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ username: "alice", email: "alice@example.com", password: "pw" });
-      req.flush({ accessToken: "t" });
+      expectReq(AuthService.REGISTER_ENDPOINT, { username: "alice", email: "alice@example.com", password: "pw" });
     });
 
     it("auth() POSTs username/password to the login endpoint", () => {
       service.auth("alice", "pw").subscribe();
-      const req = httpMock.expectOne(`${api}/${AuthService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ username: "alice", password: "pw" });
-      req.flush({ accessToken: "t" });
+      expectReq(AuthService.LOGIN_ENDPOINT, { username: "alice", password: "pw" });
     });
 
     it("orcidAuth() POSTs the raw authorization code with a text/plain content type", () => {
       service.orcidAuth("auth-code").subscribe();
-      const req = httpMock.expectOne(`${api}/${AuthService.ORCID_LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual("auth-code");
-      expect(req.request.headers.get("Content-Type")).toEqual("text/plain");
-      req.flush({ accessToken: "t" });
+      expectReq(AuthService.ORCID_LOGIN_ENDPOINT, "auth-code", "POST", { accessToken: "t" }, "text/plain");
     });
 
     it("googleAuth() POSTs the raw credential with a text/plain content type", () => {
       service.googleAuth("cred").subscribe();
-      const req = httpMock.expectOne(`${api}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual("cred");
-      expect(req.request.headers.get("Content-Type")).toEqual("text/plain");
-      req.flush({ accessToken: "t" });
+      expectReq(AuthService.GOOGLE_LOGIN_ENDPOINT, "cred", "POST", { accessToken: "t" }, "text/plain");
     });
 
     // Annotated because the calls return differently-shaped observables (a registration result vs a
@@ -208,47 +274,24 @@ describe("AuthService", () => {
     });
 
     it("reads the avatar from a pre-rename googleAvatar claim", () => {
-      AuthService.setAccessToken("tok");
       const { avatar, ...legacyClaims } = claims;
-      jwt.decodeToken.mockReturnValue({ ...legacyClaims, googleAvatar: "legacy-a" });
+      seed({ ...legacyClaims, googleAvatar: "legacy-a" });
 
       expect(service.loginWithExistingToken()?.avatar).toEqual("legacy-a");
     });
 
     it("in invite-only mode, an inactive user is logged out and registration is checked", () => {
-      AuthService.setAccessToken("tok");
-      config.env.inviteOnly = true;
-      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
-
-      const result = service.loginWithExistingToken();
-
-      expect(result).toBeUndefined();
-      const req = httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`);
-      expect(req.request.params.get("uid")).toEqual("5");
-      req.flush(false);
-
-      expect(modal.info).toHaveBeenCalledTimes(1);
-      expect(AuthService.getAccessToken()).toBeNull();
+      expectPending(true);
     });
 
     // Admins can turn invite-only off while accounts are still waiting. Those accounts stay
     // INACTIVE and every request they make is refused, so they keep the pending screen.
     it("treats an inactive user as pending even while invite-only is off", () => {
-      AuthService.setAccessToken("tok");
-      config.env.inviteOnly = false;
-      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
-
-      const result = service.loginWithExistingToken();
-
-      expect(result).toBeUndefined();
-      httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`).flush(false);
-      expect(modal.info).toHaveBeenCalledTimes(1);
-      expect(AuthService.getAccessToken()).toBeNull();
+      expectPending(false);
     });
 
     it("signs in an account that is not inactive, whatever invite-only says", () => {
-      AuthService.setAccessToken("tok");
-      config.env.inviteOnly = true;
+      seed(claims, true);
 
       expect(service.loginWithExistingToken()?.role).toEqual(Role.REGULAR);
       httpMock.expectNone(r => r.url === `${api}/user/joining-reason/required`);
@@ -260,20 +303,14 @@ describe("AuthService", () => {
   // creating credentialed accounts. The contract under test: such a token yields no `User` at all,
   // rather than one with the field blank.
   describe("the missing-email prompt", () => {
-    const emaillessClaims = (role: Role = Role.REGULAR) => ({ ...claims, email: null, role });
-
     beforeEach(() => {
-      modal.create.mockReturnValue({
-        getContentComponent: () => ({ modalTitle: "t", getValues: () => ({ email: "typed@x.com" }) }),
-        updateConfig: vi.fn(),
-      });
+      stubModal({ email: "typed@x.com" });
     });
 
     // The load-bearing assertion: no User escapes while the account has no address, so nothing
     // downstream ever sees `User.email` absent and the type stays honest.
     it("hands out no user and opens the prompt when the token carries no email", () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      seed(emaillessClaims());
 
       const result = service.loginWithExistingToken();
 
@@ -295,8 +332,7 @@ describe("AuthService", () => {
     // loginWithExistingToken runs on every token refresh; a second dialog stacked on the one still
     // waiting for an answer would be unanswerable.
     it("does not stack a second prompt while one is open", () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
+      seed(emaillessClaims());
 
       service.loginWithExistingToken();
       service.loginWithExistingToken();
@@ -307,9 +343,7 @@ describe("AuthService", () => {
     // The address has to be collected before the invite-only branch, not after: that branch mails
     // the admin the account's address, and /gmail/notify-unauthorized rejects a null one.
     it("asks for an address instead of making the invite-only request", () => {
-      AuthService.setAccessToken("tok");
-      config.env.inviteOnly = true;
-      jwt.decodeToken.mockReturnValue(emaillessClaims(Role.INACTIVE));
+      seed(emaillessClaims(Role.INACTIVE), true);
 
       expect(service.loginWithExistingToken()).toBeUndefined();
 
@@ -318,28 +352,19 @@ describe("AuthService", () => {
     });
 
     it("still runs the invite-only request for an inactive user that has an address", () => {
-      AuthService.setAccessToken("tok");
-      config.env.inviteOnly = true;
-      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
+      seed({ ...claims, role: Role.INACTIVE }, true);
 
       service.loginWithExistingToken();
 
       expect(modal.create).not.toHaveBeenCalled();
-      httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`).flush(false);
+      expectProbe(false);
     });
 
     it("stores the reissued token and announces it once the address is saved", async () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
       const announced = firstValueFrom(service.sessionChanged());
+      const accepted = openPrompt();
 
-      service.loginWithExistingToken();
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-
-      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
-      expect(req.request.method).toEqual("PUT");
-      expect(req.request.body).toEqual({ email: "typed@x.com" });
-      req.flush({ accessToken: "fresh-token" });
+      expectReq(AuthService.SET_EMAIL_ENDPOINT, { email: "typed@x.com" }, "PUT", { accessToken: "fresh-token" });
 
       expect(await accepted).toBe(true);
       expect(AuthService.getAccessToken()).toEqual("fresh-token");
@@ -349,11 +374,7 @@ describe("AuthService", () => {
     // The reissued token carries an address, so the very next pass produces a real user — which is
     // what turns the prompt into a way through rather than a dead end.
     it("hands out a user once the reissued token carries an address", async () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
-
-      service.loginWithExistingToken();
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
+      const accepted = openPrompt();
       httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`).flush({ accessToken: "fresh-token" });
       await accepted;
 
@@ -362,47 +383,24 @@ describe("AuthService", () => {
     });
 
     it("keeps the dialog open and reports why when the address is refused", async () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
-
-      service.loginWithExistingToken();
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-
-      httpMock
-        .expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`)
-        .flush(
-          { message: "That email address already belongs to an account." },
-          { status: 409, statusText: "Conflict" }
-        );
-
-      expect(await accepted).toBe(false);
-      expect(notification.error).toHaveBeenCalledWith("That email address already belongs to an account.");
+      await expectRejected(
+        AuthService.SET_EMAIL_ENDPOINT,
+        409,
+        "Conflict",
+        "That email address already belongs to an account."
+      );
       // The old token is untouched, so the user can try another address.
       expect(AuthService.getAccessToken()).toEqual("tok");
     });
 
     it("rejects a malformed address without calling the backend", async () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
-      modal.create.mockReturnValue({
-        getContentComponent: () => ({ modalTitle: "t", getValues: () => ({ email: "not-an-address" }) }),
-        updateConfig: vi.fn(),
-      });
-
-      service.loginWithExistingToken();
-
-      expect(await modal.create.mock.calls[0][0].nzOnOk()).toBe(false);
-      expect(notification.error).toHaveBeenCalledWith("Email format is invalid.");
-      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
+      stubModal({ email: "not-an-address" });
+      await expectInvalidEmail(AuthService.SET_EMAIL_ENDPOINT, openPrompt());
     });
 
     it("signs out and announces the change when the prompt is cancelled", async () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
       const announced = firstValueFrom(service.sessionChanged());
-
-      service.loginWithExistingToken();
-      modal.create.mock.calls[0][0].nzOnCancel();
+      cancelPrompt();
 
       expect(AuthService.getAccessToken()).toBeNull();
       await expect(announced).resolves.toBeUndefined();
@@ -411,11 +409,7 @@ describe("AuthService", () => {
     // A second prompt has to be possible after a cancel, or a user who dismissed it once could
     // never be asked again for the life of the tab.
     it("can prompt again after a cancel", () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
-
-      service.loginWithExistingToken();
-      modal.create.mock.calls[0][0].nzOnCancel();
+      cancelPrompt();
       AuthService.setAccessToken("tok");
       service.loginWithExistingToken();
 
@@ -427,7 +421,6 @@ describe("AuthService", () => {
   // and the second presents it. Nothing is stored server-side in between, so the address has to
   // travel with the code on the second call.
   describe("the missing-email prompt with verification on", () => {
-    const emaillessClaims = () => ({ ...claims, email: null });
     let content: { modalTitle: string; step: string; getValues: () => { email: string; code: string } };
     let updateConfig: ReturnType<typeof vi.fn>;
 
@@ -442,22 +435,14 @@ describe("AuthService", () => {
       modal.create.mockReturnValue({ getContentComponent: () => content, updateConfig });
     });
 
-    const openPrompt = () => {
-      AuthService.setAccessToken("tok");
-      jwt.decodeToken.mockReturnValue(emaillessClaims());
-      service.loginWithExistingToken();
-    };
-
     it("mails a code on the first confirm, then sends it with the address on the second", async () => {
-      openPrompt();
+      seed(emaillessClaims());
+      service.loginWithExistingToken();
       expect(modal.create.mock.calls[0][0].nzOkText).toBe("Send code");
 
       // First confirm: a code goes out and the dialog stays open on the code step.
-      const first = modal.create.mock.calls[0][0].nzOnOk();
-      const codeReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
-      expect(codeReq.request.method).toEqual("POST");
-      expect(codeReq.request.body).toEqual({ email: "typed@x.com" });
-      codeReq.flush(null);
+      const first = confirmModal();
+      expectReq(AuthService.SET_EMAIL_CODE_ENDPOINT, { email: "typed@x.com" }, "POST", null);
 
       // False keeps the modal open; the address is not written yet.
       expect(await first).toBe(false);
@@ -465,78 +450,56 @@ describe("AuthService", () => {
       expect(updateConfig).toHaveBeenCalledWith({ nzOkText: "Verify" });
 
       // Second confirm: the address travels with the code, not a server-side pending row.
-      const second = modal.create.mock.calls[0][0].nzOnOk();
-      const setReq = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`);
-      expect(setReq.request.method).toEqual("PUT");
-      expect(setReq.request.body).toEqual({ email: "typed@x.com", code: "123456" });
-      setReq.flush({ accessToken: "fresh-token" });
+      const second = confirmModal();
+      expectReq(AuthService.SET_EMAIL_ENDPOINT, { email: "typed@x.com", code: "123456" }, "PUT", {
+        accessToken: "fresh-token",
+      });
 
       expect(await second).toBe(true);
       expect(AuthService.getAccessToken()).toEqual("fresh-token");
     });
 
     it("keeps the dialog on the address step and reports why when the code cannot be sent", async () => {
-      openPrompt();
-
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-      httpMock
-        .expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`)
-        .flush({ message: "A code was just sent." }, { status: 429, statusText: "Too Many Requests" });
-
-      expect(await accepted).toBe(false);
+      await expectRejected(AuthService.SET_EMAIL_CODE_ENDPOINT, 429, "Too Many Requests", "A code was just sent.");
       expect(content.step).toBe("address");
-      expect(notification.error).toHaveBeenCalledWith("A code was just sent.");
     });
 
     it("rejects a malformed address before asking for a code", async () => {
-      openPrompt();
+      seed(emaillessClaims());
+      service.loginWithExistingToken();
       content.getValues = () => ({ email: "nope", code: "" });
-
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-
-      expect(await accepted).toBe(false);
-      expect(notification.error).toHaveBeenCalledWith("Email format is invalid.");
-      httpMock.expectNone(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
+      await expectInvalidEmail(AuthService.SET_EMAIL_CODE_ENDPOINT, confirmModal());
     });
 
     it("reports a refused code and keeps the dialog open", async () => {
-      openPrompt();
-      const first = modal.create.mock.calls[0][0].nzOnOk();
+      const first = openPrompt();
       httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`).flush(null);
       await first;
 
-      const accepted = modal.create.mock.calls[0][0].nzOnOk();
-      httpMock
-        .expectOne(`${api}/${AuthService.SET_EMAIL_ENDPOINT}`)
-        .flush({ message: "That code is not valid or has expired." }, { status: 406, statusText: "Not Acceptable" });
-
-      expect(await accepted).toBe(false);
-      expect(notification.error).toHaveBeenCalledWith("That code is not valid or has expired.");
+      await expectRejected(
+        AuthService.SET_EMAIL_ENDPOINT,
+        406,
+        "Not Acceptable",
+        "That code is not valid or has expired.",
+        confirmModal()
+      );
     });
   });
 
   describe("registration endpoints", () => {
     it("registerVerify() POSTs the same fields plus the code", () => {
       service.registerVerify("alice", "alice@example.com", "pw", "123456").subscribe();
-
-      const req = httpMock.expectOne(`${api}/${AuthService.REGISTER_VERIFY_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({
+      expectReq(AuthService.REGISTER_VERIFY_ENDPOINT, {
         username: "alice",
         email: "alice@example.com",
         password: "pw",
         code: "123456",
       });
-      req.flush({ accessToken: "tok" });
     });
 
     it("requestEmailCode() POSTs the address to the code endpoint", () => {
       service.requestEmailCode("a@b.com").subscribe();
-
-      const req = httpMock.expectOne(`${api}/${AuthService.SET_EMAIL_CODE_ENDPOINT}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({ email: "a@b.com" });
-      req.flush(null);
+      expectReq(AuthService.SET_EMAIL_CODE_ENDPOINT, { email: "a@b.com" }, "POST", null);
     });
   });
 
@@ -547,14 +510,7 @@ describe("AuthService", () => {
     });
 
     it("schedules a logout that fires once the token expiry elapses", () => {
-      vi.useFakeTimers();
-      AuthService.setAccessToken("tok");
-      jwt.isTokenExpired.mockReturnValue(false);
-      // Expiry one second into the (frozen) fake clock.
-      jwt.getTokenExpirationDate.mockReturnValue(new Date(Date.now() + 1000));
-      const logoutSpy = vi.spyOn(service, "logout");
-
-      (service as any).registerAutoLogout();
+      const logoutSpy = scheduleAutoLogout(false, 1000);
       expect(logoutSpy).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(1000);
@@ -562,14 +518,8 @@ describe("AuthService", () => {
     });
 
     it("does not schedule a logout when the token is already expired", () => {
-      vi.useFakeTimers();
-      AuthService.setAccessToken("tok");
-      jwt.isTokenExpired.mockReturnValue(true);
-      const logoutSpy = vi.spyOn(service, "logout");
-
-      (service as any).registerAutoLogout();
+      const logoutSpy = scheduleAutoLogout(true);
       vi.advanceTimersByTime(1_000_000);
-
       expect(logoutSpy).not.toHaveBeenCalled();
     });
   });
@@ -579,26 +529,15 @@ describe("AuthService", () => {
     // answers the registration-required probe with `true`, which is what makes
     // openRegistrationModal run.
     const openModalViaInactiveLogin = (): void => {
-      AuthService.setAccessToken("tok");
-      config.env.inviteOnly = true;
-      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
+      seed({ ...claims, role: Role.INACTIVE }, true);
 
       expect(service.loginWithExistingToken()).toBeUndefined();
 
-      const req = httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`);
-      expect(req.request.method).toEqual("GET");
-      expect(req.request.params.get("uid")).toEqual("5");
-      req.flush(true);
+      expectProbe(true, true);
     };
 
     it("opens the registration modal when registration is required", () => {
-      modal.create.mockReturnValue({
-        getContentComponent: () => ({
-          modalTitle: "Request Access",
-          getValues: () => ({ affiliation: "", reason: "" }),
-        }),
-        updateConfig: vi.fn(),
-      });
+      stubModal({ affiliation: "", reason: "" }, "Request Access");
 
       openModalViaInactiveLogin();
 
@@ -614,23 +553,13 @@ describe("AuthService", () => {
     it("submitRegistration PUTs the affiliation/reason when the modal is confirmed", async () => {
       const gmail = TestBed.inject(GmailService) as unknown as { notifyUnauthorizedLogin: ReturnType<typeof vi.fn> };
       gmail.notifyUnauthorizedLogin = vi.fn();
-      modal.create.mockReturnValue({
-        getContentComponent: () => ({
-          modalTitle: "Request Access",
-          getValues: () => ({ affiliation: "Texera", reason: "research" }),
-        }),
-        updateConfig: vi.fn(),
-      });
+      stubModal({ affiliation: "Texera", reason: "research" }, "Request Access");
 
       openModalViaInactiveLogin();
 
-      const okHandler = modal.create.mock.calls[0][0].nzOnOk as () => Promise<boolean>;
-      const okPromise = okHandler();
+      const okPromise = confirmModal();
 
-      const req = httpMock.expectOne(`${api}/user/joining-reason`);
-      expect(req.request.method).toEqual("PUT");
-      expect(req.request.body).toEqual({ uid: 5, affiliation: "Texera", joiningReason: "research" });
-      req.flush(null);
+      expectReq("user/joining-reason", { uid: 5, affiliation: "Texera", joiningReason: "research" }, "PUT", null);
 
       await expect(okPromise).resolves.toBe(true);
       expect(gmail.notifyUnauthorizedLogin).toHaveBeenCalledWith("u@x.com", "Texera", "research");

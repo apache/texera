@@ -20,14 +20,11 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow}
 import org.jooq.exception.DataAccessException
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import java.time.OffsetDateTime
 
@@ -38,11 +35,7 @@ import java.time.OffsetDateTime
   * today keeps behaving as it does, a private one can never carry part of a frozen copy, and the two
   * endpoints that take a whole Workflow from the request body cannot seed one.
   */
-class PublishedCopySchemaSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+class PublishedCopySchemaSpec extends DatabaseFlatSpec(cleanupBeforeEach = false) {
 
   private var workflowDao: WorkflowDao = _
   private var userDao: UserDao = _
@@ -59,14 +52,11 @@ class PublishedCopySchemaSpec
     user
   }
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit = {
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(owner)
   }
-
-  override protected def afterAll(): Unit = shutdownDB()
 
   /** A workflow POJO the resource layer can take, with nothing frozen on it. */
   private def newWorkflow(name: String, isPublic: Boolean): Workflow = {
@@ -85,6 +75,22 @@ class PublishedCopySchemaSpec
     workflowDao.fetchOneByWid(workflow.getWid)
   }
 
+  private def assertUnpinned(stored: Workflow): Unit = {
+    stored.getPublishedContent shouldBe null
+    stored.getPublishedName shouldBe null
+    stored.getPublishedDescription shouldBe null
+    stored.getPublishedVersionId shouldBe null
+    stored.getPublishedDefaultView shouldBe null
+  }
+
+  private def supplyPublishedCopy(workflow: Workflow): Unit = {
+    workflow.setPublishedContent("""{"operators":[],"note":"injected"}""")
+    workflow.setPublishedName("injected_name")
+    workflow.setPublishedDescription("injected_description")
+    workflow.setPublishedVersionId(1)
+    workflow.setPublishedDefaultView(DefaultViewEnum.FORM)
+  }
+
   behavior of "the published-copy columns"
 
   it should "leave every workflow following the author's latest" in {
@@ -93,11 +99,7 @@ class PublishedCopySchemaSpec
     // "following".
     val stored = insertWorkflow("migration_changes_nothing", isPublic = true)
 
-    stored.getPublishedContent shouldBe null
-    stored.getPublishedName shouldBe null
-    stored.getPublishedDescription shouldBe null
-    stored.getPublishedVersionId shouldBe null
-    stored.getPublishedDefaultView shouldBe null
+    assertUnpinned(stored)
   }
 
   it should "let a public workflow carry a frozen copy" in {
@@ -116,11 +118,7 @@ class PublishedCopySchemaSpec
     // The columns are part of the generated POJO, and `POST /workflow/create` takes one whole. A
     // client must not be able to seed a published copy of its own choosing before anything can pin.
     val workflow = newWorkflow("create_cannot_inject", isPublic = false)
-    workflow.setPublishedContent("""{"operators":[],"note":"injected"}""")
-    workflow.setPublishedName("injected_name")
-    workflow.setPublishedDescription("injected_description")
-    workflow.setPublishedVersionId(1)
-    workflow.setPublishedDefaultView(DefaultViewEnum.FORM)
+    supplyPublishedCopy(workflow)
 
     val wid = new WorkflowResource()
       .createWorkflow(workflow, new SessionUser(owner))
@@ -128,11 +126,7 @@ class PublishedCopySchemaSpec
       .getWid
 
     val stored = workflowDao.fetchOneByWid(wid)
-    stored.getPublishedContent shouldBe null
-    stored.getPublishedName shouldBe null
-    stored.getPublishedDescription shouldBe null
-    stored.getPublishedVersionId shouldBe null
-    stored.getPublishedDefaultView shouldBe null
+    assertUnpinned(stored)
   }
 
   it should "refuse a pinned copy with no default view" in {
@@ -184,19 +178,11 @@ class PublishedCopySchemaSpec
       .getWid
 
     val tampered = workflowDao.fetchOneByWid(wid)
-    tampered.setPublishedContent("""{"operators":[],"note":"injected"}""")
-    tampered.setPublishedName("injected_name")
-    tampered.setPublishedDescription("injected_description")
-    tampered.setPublishedVersionId(1)
-    tampered.setPublishedDefaultView(DefaultViewEnum.FORM)
+    supplyPublishedCopy(tampered)
     new WorkflowResource().persistWorkflow(tampered, new SessionUser(owner))
 
     val stored = workflowDao.fetchOneByWid(wid)
-    stored.getPublishedContent shouldBe null
-    stored.getPublishedName shouldBe null
-    stored.getPublishedDescription shouldBe null
-    stored.getPublishedVersionId shouldBe null
-    stored.getPublishedDefaultView shouldBe null
+    assertUnpinned(stored)
   }
 
 }

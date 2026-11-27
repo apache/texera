@@ -17,7 +17,6 @@
 
 import sbt._
 import sbt.Keys._
-import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 
 /**
  * Generates per-module LICENSE files for jar META-INF and dist zip top level.

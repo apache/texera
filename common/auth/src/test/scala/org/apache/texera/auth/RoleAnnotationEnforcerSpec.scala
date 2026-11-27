@@ -29,98 +29,76 @@ import org.slf4j.LoggerFactory
 
 class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
 
+  import RoleAnnotationEnforcerSpec._
+
+  // The endpoints among `resources` that carry no security annotation.
+  private def findUnannotated(resources: Class[_]*): Seq[String] =
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(resources)
+
   "findUnannotatedEndpoints" should "return nothing when every HTTP method is annotated" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.FullyAnnotatedResource])
-    ) shouldBe empty
+    findUnannotated(classOf[FullyAnnotatedResource]) shouldBe empty
   }
 
   it should "flag an HTTP method with no security annotation" in {
-    val violations =
-      RoleAnnotationEnforcer.findUnannotatedEndpoints(
-        Seq(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource])
-      )
+    val violations = findUnannotated(classOf[PartiallyAnnotatedResource])
     violations should have size 1
     violations.head should endWith("#openEndpoint")
   }
 
   it should "treat a class-level annotation as covering every method" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.ClassLevelResource])
-    ) shouldBe empty
+    findUnannotated(classOf[ClassLevelResource]) shouldBe empty
   }
 
   it should "accept @PermitAll and @DenyAll, not only @RolesAllowed" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.PermitAndDenyResource])
-    ) shouldBe empty
+    findUnannotated(classOf[PermitAndDenyResource]) shouldBe empty
   }
 
   it should "ignore methods that are not HTTP-mapped" in {
     // helper has no @RolesAllowed but is not a JAX-RS endpoint, so it is not a hole
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.NonEndpointMethodResource])
-    ) shouldBe empty
+    findUnannotated(classOf[NonEndpointMethodResource]) shouldBe empty
   }
 
   it should "return nothing when given no resources" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(Seq.empty) shouldBe empty
+    findUnannotated() shouldBe empty
   }
 
   it should "report every hole across multiple resources as fully-qualified Class#method" in {
-    val violations = RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(
-        classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource],
-        classOf[RoleAnnotationEnforcerSpec.MultiHoleResource]
-      )
-    )
+    val violations =
+      findUnannotated(classOf[PartiallyAnnotatedResource], classOf[MultiHoleResource])
     violations should contain allOf (
-      s"${classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource].getName}#openEndpoint",
-      s"${classOf[RoleAnnotationEnforcerSpec.MultiHoleResource].getName}#put",
-      s"${classOf[RoleAnnotationEnforcerSpec.MultiHoleResource].getName}#patch"
+      s"${classOf[PartiallyAnnotatedResource].getName}#openEndpoint",
+      s"${classOf[MultiHoleResource].getName}#put",
+      s"${classOf[MultiHoleResource].getName}#patch"
     )
   }
 
   it should "detect verbs beyond GET/POST/DELETE via the @HttpMethod meta-annotation" in {
-    val violations = RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.AllVerbsUnannotatedResource])
-    )
+    val violations = findUnannotated(classOf[AllVerbsUnannotatedResource])
     violations.map(_.split("#").last) should contain theSameElementsAs
       Seq("put", "patch", "head", "options")
   }
 
   it should "treat a security annotation inherited from a superclass method as covering it" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.InheritsAnnotatedEndpoint])
-    ) shouldBe empty
+    findUnannotated(classOf[InheritsAnnotatedEndpoint]) shouldBe empty
   }
 
   it should "let a subclass class-level annotation cover an inherited unannotated endpoint" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.SecuredSubclass])
-    ) shouldBe empty
+    findUnannotated(classOf[SecuredSubclass]) shouldBe empty
   }
 
   it should "flag an inherited unannotated endpoint against the scanned subclass" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[RoleAnnotationEnforcerSpec.UnsecuredSubclass])
-    ) should contain(
-      s"${classOf[RoleAnnotationEnforcerSpec.UnsecuredSubclass].getName}#inheritedWrite"
+    findUnannotated(classOf[UnsecuredSubclass]) should contain(
+      s"${classOf[UnsecuredSubclass].getName}#inheritedWrite"
     )
   }
 
   it should "deduplicate when the same resource is scanned more than once" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq.fill(3)(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource])
-    ) should have size 1
+    findUnannotated(Seq.fill(3)(classOf[PartiallyAnnotatedResource]): _*) should have size 1
   }
 
   "enforce" should "throw when an endpoint is unannotated" in {
     val ex = intercept[IllegalStateException] {
-      RoleAnnotationEnforcer.enforce(
-        Seq(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource]),
-        "TestService"
-      )
+      RoleAnnotationEnforcer.enforce(Seq(classOf[PartiallyAnnotatedResource]), "TestService")
     }
     ex.getMessage should include("TestService")
     ex.getMessage should include("openEndpoint")
@@ -128,17 +106,14 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
 
   "enforce" should "not throw when every endpoint is annotated" in {
     noException should be thrownBy RoleAnnotationEnforcer.enforce(
-      Seq(classOf[RoleAnnotationEnforcerSpec.FullyAnnotatedResource]),
+      Seq(classOf[FullyAnnotatedResource]),
       "TestService"
     )
   }
 
   it should "list every offending endpoint in the thrown message" in {
     val ex = intercept[IllegalStateException] {
-      RoleAnnotationEnforcer.enforce(
-        Seq(classOf[RoleAnnotationEnforcerSpec.MultiHoleResource]),
-        "TestService"
-      )
+      RoleAnnotationEnforcer.enforce(Seq(classOf[MultiHoleResource]), "TestService")
     }
     ex.getMessage should include("#put")
     ex.getMessage should include("#patch")
@@ -150,13 +125,13 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
 
   "enforce(ResourceConfig)" should "pass when every registered resource is annotated" in {
     val resourceConfig = new ResourceConfig()
-    resourceConfig.register(classOf[RoleAnnotationEnforcerSpec.FullyAnnotatedResource])
+    resourceConfig.register(classOf[FullyAnnotatedResource])
     noException should be thrownBy RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
   }
 
   it should "throw when a registered resource class has an unannotated endpoint" in {
     val resourceConfig = new ResourceConfig()
-    resourceConfig.register(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource])
+    resourceConfig.register(classOf[PartiallyAnnotatedResource])
     val ex = intercept[IllegalStateException] {
       RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
     }
@@ -166,7 +141,7 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
 
   it should "throw when a resource registered as an instance has an unannotated endpoint" in {
     val resourceConfig = new ResourceConfig()
-    resourceConfig.register(new RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource)
+    resourceConfig.register(new PartiallyAnnotatedResource)
     an[IllegalStateException] should be thrownBy
       RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
   }
@@ -181,10 +156,7 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
     backendLogger.setLevel(Level.OFF)
     try {
       an[IllegalStateException] should be thrownBy
-        RoleAnnotationEnforcer.enforce(
-          Seq(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource]),
-          "TestService"
-        )
+        RoleAnnotationEnforcer.enforce(Seq(classOf[PartiallyAnnotatedResource]), "TestService")
     } finally {
       backendLogger.setLevel(previousLevel)
     }

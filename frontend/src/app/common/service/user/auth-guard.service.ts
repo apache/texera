@@ -19,7 +19,6 @@
 
 import { Injectable } from "@angular/core";
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from "@angular/router";
-import { GuiConfigService } from "../gui-config.service";
 import { UserService } from "./user.service";
 import { LOGIN } from "../../../app-routing.constant";
 
@@ -31,8 +30,7 @@ import { LOGIN } from "../../../app-routing.constant";
 export class AuthGuardService implements CanActivate {
   constructor(
     private userService: UserService,
-    private router: Router,
-    private config: GuiConfigService
+    private router: Router
   ) {}
   canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
     if (this.userService.isLogin()) {

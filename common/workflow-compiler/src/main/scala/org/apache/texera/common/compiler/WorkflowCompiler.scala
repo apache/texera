@@ -46,7 +46,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
 
@@ -307,10 +307,12 @@ class WorkflowCompiler(
               // **Check for Python-based operator errors during code generation**
               if (physicalOp.isPythonBased) {
                 val code = physicalOp.getCode
-                val exceptionPattern = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
+                // A failed generation leaves the marker at the very start of the code; everything
+                // after it, across all lines, is the failure message.
+                val marker = PythonOperatorDescriptor.CodeGenerationFailureMarker
 
-                exceptionPattern.findFirstMatchIn(code).foreach { matchResult =>
-                  val errorMessage = matchResult.group(1).trim
+                if (code.startsWith(marker)) {
+                  val errorMessage = code.drop(marker.length).trim
                   val error =
                     new RuntimeException(s"Operator is not configured properly: $errorMessage")
 

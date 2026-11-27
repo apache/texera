@@ -112,14 +112,14 @@ class ProxyServer(FlightServerBase):
         if port is None:
             port = get_free_local_port()
         location = f"{scheme}://{host}:{port}"
-        super(ProxyServer, self).__init__(location)
+        super().__init__(location)
         logger.debug(f"Serving on {location}")
 
         self._port_number = port
 
         # action name to callable map, will contain registered actions,
         # identified by action name.
-        self._procedures: Dict[str, Tuple[Callable, str]] = dict()
+        self._procedures: Dict[str, Tuple[Callable, str]] = {}
 
         # register heartbeat, this is the default action for the client to
         # check the aliveness of the server.
@@ -149,23 +149,13 @@ class ProxyServer(FlightServerBase):
             description="Process the actor message",
         )
 
-        # the data message handler for each data message, needs to be
-        # implemented during runtime.
-        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(
-            NotImplementedError
-        )
+        # The runtime installs the data, control, and actor handlers.
+        def unregistered_handler(*args, **kwargs):
+            raise NotImplementedError
 
-        # the control message handler for each control message, needs to be
-        # implemented during runtime.
-        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(
-            NotImplementedError
-        )
-
-        # the actor command message handler for each actor message, needs to be
-        # implemented during runtime.
-        self.process_actor = lambda *args, **kwargs: (_ for _ in ()).throw(
-            NotImplementedError
-        )
+        self.process_data = unregistered_handler
+        self.process_control = unregistered_handler
+        self.process_actor = unregistered_handler
 
     ###########################
     # Flights related methods #
@@ -213,7 +203,7 @@ class ProxyServer(FlightServerBase):
         :param context: server context, containing information of middlewares.
         :return: iterator of (action_name, action_description) pairs.
         """
-        return map(lambda x: (x[0], x[1][1]), self._procedures.items())
+        return ((k, v[1]) for k, v in self._procedures.items())
 
     @overrides(check_signature=False)
     def do_action(self, context: ServerCallContext, action: Action) -> Iterator[Result]:
@@ -230,31 +220,18 @@ class ProxyServer(FlightServerBase):
 
         action_name = action.type
         logger.debug(f"python getting a call on {action_name}")
-        # get action by name
-        if action_name in self._procedures:
-            procedure, _ = self._procedures.get(action_name)
-            if not action:
-                raise KeyError("Unknown action {!r}".format(action_name))
+        if action_name not in self._procedures:
+            raise KeyError(f"Unknown action {action_name!r}")
+        procedure, _ = self._procedures.get(action_name)
 
-            payload = action.body.to_pybytes()
-            # invoke the action
-            if payload:
-                result = procedure(payload)
-            else:
-                result = procedure()
+        payload = action.body.to_pybytes()
+        result = procedure(payload) if payload else procedure()
+        encoded = result if isinstance(result, bytes) else str(result).encode("utf-8")
+        yield Result(py_buffer(encoded))
 
-            # serialize the result
-            if isinstance(result, bytes):
-                encoded = result
-            else:
-                encoded = str(result).encode("utf-8")
-            yield Result(py_buffer(encoded))
-
-            # For "shutdown", tear the server down only after the Result has been yielded
-            if action_name == "shutdown":
-                threading.Thread(target=self.graceful_shutdown).start()
-        else:
-            raise KeyError("Unknown action {!r}".format(action_name))
+        # For "shutdown", tear the server down only after the Result has been yielded.
+        if action_name == "shutdown":
+            threading.Thread(target=self.graceful_shutdown).start()
 
     @logger.catch(reraise=True)
     def register(self, name: str, action: Callable, description: str = "") -> None:

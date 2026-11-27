@@ -98,7 +98,7 @@ export class ComputingUnitActionsService {
 
     // ng-zorro renders this string as HTML and any user can name their unit, so the name is escaped.
     const unitName = escapeHtml(unit.computingUnit.name);
-    const unitType = unit?.computingUnit.type || "kubernetes"; // fallback
+    const unitType = unit.computingUnit.type || "kubernetes"; // fallback
     const templates = unitTypeMessageTemplate[unitType];
 
     // Show confirmation modal

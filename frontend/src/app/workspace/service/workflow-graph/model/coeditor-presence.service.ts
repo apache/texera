@@ -50,7 +50,6 @@ export class CoeditorPresenceService {
   private coeditorOperatorHighlights = new Map<string, readonly string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorEditingCode = new Map<string, boolean>();
-  private coeditorStates = new Map<string, CoeditorState>();
   private currentlyEditingTimers = new Map<string, ReturnType<typeof setInterval>>();
 
   constructor(private workflowActionService: WorkflowActionService) {
@@ -154,7 +153,6 @@ export class CoeditorPresenceService {
     const coeditor = coeditorState.user;
     if (!this.hasCoeditor(coeditor.clientId) && coeditor.clientId) {
       this.coeditors.push(coeditor);
-      this.coeditorStates.set(coeditor.clientId, coeditorState);
       this.updateCoeditorState(coeditor.clientId, coeditorState);
     }
   }
@@ -178,7 +176,6 @@ export class CoeditorPresenceService {
         this.coeditors.splice(i);
       }
     }
-    this.coeditorStates.delete(clientId);
     if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === clientId) {
       this.stopShadowing();
     }
@@ -275,7 +272,7 @@ export class CoeditorPresenceService {
         previousIntervalId &&
         this.workflowActionService.getTexeraGraph().hasOperator(previousEditing)
       ) {
-        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing, previousIntervalId);
+        this.jointGraphWrapper.removeCurrentEditing(previousEditing, previousIntervalId);
         this.coeditorCurrentlyEditing.delete(clientId);
         this.currentlyEditingTimers.delete(clientId);
         if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
@@ -304,7 +301,7 @@ export class CoeditorPresenceService {
         this.jointGraphWrapper.setPropertyChanged(coeditorState.user, currentChanged);
         setTimeout(() => {
           this.coeditorOperatorPropertyChanged.delete(clientId);
-          this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
+          this.jointGraphWrapper.removePropertyChanged(currentChanged);
         }, 2000);
       }
     }

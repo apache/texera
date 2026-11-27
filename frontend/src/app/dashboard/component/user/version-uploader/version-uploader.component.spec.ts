@@ -23,11 +23,7 @@ import { By } from "@angular/platform-browser";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { concat, Observable, of, Subject, throwError } from "rxjs";
-import {
-  ABORT_RETRY_BACKOFF_BASE_MS,
-  ABORT_RETRY_MAX_ATTEMPTS,
-  VersionUploaderComponent,
-} from "./version-uploader.component";
+import { VersionUploaderComponent } from "./version-uploader.component";
 import {
   MultipartUploadProgress,
   MultipartUploadService,
@@ -50,6 +46,7 @@ describe("VersionUploaderComponent", () => {
   let uploadedPaths: string[];
   let multipartUploadSpy: ReturnType<typeof vi.fn>;
   let createVersionSpy: ReturnType<typeof vi.fn>;
+  let finalize: ReturnType<typeof vi.fn>;
   const asCreateVersion = (spy: ReturnType<typeof vi.fn>) => spy as unknown as (name: string) => Observable<unknown>;
 
   const makeFileItem = (name: string): FileUploadItem => ({
@@ -66,6 +63,34 @@ describe("VersionUploaderComponent", () => {
   const finishUpload = (index: number, filePath: string, totalTime = 1) =>
     uploadSubjects[index].next({ filePath, percentage: 100, status: "finished", totalTime });
 
+  function stageFile(filePath: string): void {
+    const index = uploadSubjects.length;
+    dropFiles(filePath);
+    finishUpload(index, filePath);
+  }
+
+  function mount(seed?: (c: VersionUploaderComponent) => void): void {
+    fixture = TestBed.createComponent(VersionUploaderComponent);
+    component = fixture.componentInstance;
+    component.resourceId = 1;
+    component.ownerEmail = "owner@texera.com";
+    component.resourceName = "test-dataset";
+    component.endpoint = DATASET_FILE_RESOURCE_ENDPOINT;
+    component.createVersion = asCreateVersion(createVersionSpy);
+    seed?.(component);
+    fixture.detectChanges();
+  }
+
+  function expectAbortRequest(path: string) {
+    expect(finalize).toHaveBeenCalledWith(
+      DATASET_FILE_RESOURCE_ENDPOINT,
+      "owner@texera.com",
+      "test-dataset",
+      path,
+      true
+    );
+  }
+
   beforeEach(() => {
     uploadSubjects = [];
     uploadedPaths = [];
@@ -76,6 +101,7 @@ describe("VersionUploaderComponent", () => {
       return progress.asObservable();
     });
     createVersionSpy = vi.fn(() => of({}));
+    finalize = vi.fn(() => of({}));
 
     TestBed.configureTestingModule({
       imports: [VersionUploaderComponent, ...commonTestImports],
@@ -85,7 +111,7 @@ describe("VersionUploaderComponent", () => {
           provide: MultipartUploadService,
           useValue: {
             multipartUpload: multipartUploadSpy,
-            finalizeMultipartUpload: vi.fn(() => of({})),
+            finalizeMultipartUpload: finalize,
             listMultipartUploads: vi.fn(() => of([])),
             findExistingUploadFiles: vi.fn(() => of([])),
           },
@@ -98,14 +124,7 @@ describe("VersionUploaderComponent", () => {
       ],
     });
 
-    fixture = TestBed.createComponent(VersionUploaderComponent);
-    component = fixture.componentInstance;
-    component.resourceId = 1;
-    component.ownerEmail = "owner@texera.com";
-    component.resourceName = "test-dataset";
-    component.endpoint = DATASET_FILE_RESOURCE_ENDPOINT;
-    component.createVersion = asCreateVersion(createVersionSpy);
-    fixture.detectChanges();
+    mount();
   });
 
   describe("a failed upload", () => {
@@ -234,11 +253,12 @@ describe("VersionUploaderComponent", () => {
    * and the caller's callback must fire exactly once down every one of those paths.
    */
   describe("aborting an upload", () => {
-    let finalize: ReturnType<typeof vi.fn>;
+    // The component's abort policy: up to ten retries after a 409, each waiting 100 ms times its number.
+    const ABORT_RETRY_BACKOFF_BASE_MS = 100;
+    const ABORT_RETRY_MAX_ATTEMPTS = 10;
 
     beforeEach(() => {
       vi.useFakeTimers();
-      finalize = TestBed.inject(MultipartUploadService).finalizeMultipartUpload as unknown as ReturnType<typeof vi.fn>;
     });
 
     afterEach(() => {
@@ -252,22 +272,20 @@ describe("VersionUploaderComponent", () => {
       return component.uploadTasks.find(t => t.filePath === name)!;
     }
 
+    function abortInFlight() {
+      const task = inFlight();
+      const onAborted = vi.fn();
+      component.onClickAbortUploadProgress(task as any, onAborted);
+      return onAborted;
+    }
+
     const conflict = () => throwError(() => ({ status: 409 }) as any);
     const gone = () => throwError(() => ({ status: 404 }) as any);
 
     it("marks the task aborted and tells the caller once", () => {
-      const task = inFlight();
-      const onAborted = vi.fn();
+      const onAborted = abortInFlight();
 
-      component.onClickAbortUploadProgress(task as any, onAborted);
-
-      expect(finalize).toHaveBeenCalledWith(
-        DATASET_FILE_RESOURCE_ENDPOINT,
-        "owner@texera.com",
-        "test-dataset",
-        "a.txt",
-        true
-      );
+      expectAbortRequest("a.txt");
       expect(component.uploadTasks.find(t => t.filePath === "a.txt")!.status).toBe("aborted");
       expect(onAborted).toHaveBeenCalledTimes(1);
 
@@ -290,10 +308,7 @@ describe("VersionUploaderComponent", () => {
 
     it("treats a 404 as already aborted rather than an error", () => {
       finalize.mockReturnValueOnce(gone());
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
+      const onAborted = abortInFlight();
 
       expect(onAborted).toHaveBeenCalledTimes(1);
       expect(finalize).toHaveBeenCalledTimes(1);
@@ -302,10 +317,7 @@ describe("VersionUploaderComponent", () => {
     it("retries a 409 after a backoff and finishes once the server catches up", () => {
       // The server is still finalizing the previous attempt; the abort has to wait it out.
       finalize.mockReturnValueOnce(conflict());
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
+      const onAborted = abortInFlight();
       expect(onAborted).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS);
@@ -335,10 +347,7 @@ describe("VersionUploaderComponent", () => {
     it("gives up after the attempt limit but still reports the abort", () => {
       // Without the bound this would retry forever against a permanently conflicted server.
       finalize.mockReturnValue(conflict());
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
+      const onAborted = abortInFlight();
       vi.advanceTimersByTime(ABORT_RETRY_BACKOFF_BASE_MS * ABORT_RETRY_MAX_ATTEMPTS * (ABORT_RETRY_MAX_ATTEMPTS + 1));
 
       expect(finalize).toHaveBeenCalledTimes(ABORT_RETRY_MAX_ATTEMPTS + 1);
@@ -347,10 +356,7 @@ describe("VersionUploaderComponent", () => {
 
     it("reports the abort once even on an error the retry does not cover", () => {
       finalize.mockReturnValueOnce(throwError(() => ({ status: 500 }) as any));
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
+      const onAborted = abortInFlight();
 
       expect(onAborted).toHaveBeenCalledTimes(1);
       expect(finalize).toHaveBeenCalledTimes(1);
@@ -375,13 +381,7 @@ describe("VersionUploaderComponent", () => {
 
       component.cancelExistingUpload("b.txt", onCanceled);
 
-      expect(finalize).toHaveBeenCalledWith(
-        DATASET_FILE_RESOURCE_ENDPOINT,
-        "owner@texera.com",
-        "test-dataset",
-        "b.txt",
-        true
-      );
+      expectAbortRequest("b.txt");
       expect(onCanceled).toHaveBeenCalledTimes(1);
     });
 
@@ -450,13 +450,7 @@ describe("VersionUploaderComponent", () => {
 
       component.cancelExistingUpload("b.txt", onCanceled);
 
-      expect(finalize).toHaveBeenCalledWith(
-        DATASET_FILE_RESOURCE_ENDPOINT,
-        "owner@texera.com",
-        "test-dataset",
-        "b.txt",
-        true
-      );
+      expectAbortRequest("b.txt");
       expect(component.uploadTasks.find(t => t.filePath === "b.txt")!.status).toBe("aborted");
       // The slot goes back to the queue instead of being held by an attempt that
       // is no longer running.
@@ -475,10 +469,7 @@ describe("VersionUploaderComponent", () => {
           throwError(() => ({ status: 500 }) as any)
         )
       );
-      const task = inFlight();
-      const onAborted = vi.fn();
-
-      component.onClickAbortUploadProgress(task as any, onAborted);
+      const onAborted = abortInFlight();
 
       expect(onAborted).toHaveBeenCalledTimes(1);
     });
@@ -489,13 +480,7 @@ describe("VersionUploaderComponent", () => {
 
       component.onClickAbortUploadProgress(task as any);
 
-      expect(finalize).toHaveBeenCalledWith(
-        DATASET_FILE_RESOURCE_ENDPOINT,
-        "owner@texera.com",
-        "test-dataset",
-        "a.txt",
-        true
-      );
+      expectAbortRequest("a.txt");
       // Writing "aborted" back at a missing index would leave a phantom "-1" property on
       // the array, which neither a throw nor `.length` would reveal.
       expect(component.uploadTasks).toEqual([]);
@@ -509,15 +494,7 @@ describe("VersionUploaderComponent", () => {
   /** Rebuilds the fixture so a per-test settings stub is in place before ngOnInit runs. */
   const rebuild = (seed?: (c: VersionUploaderComponent) => void): void => {
     fixture.destroy();
-    fixture = TestBed.createComponent(VersionUploaderComponent);
-    component = fixture.componentInstance;
-    component.resourceId = 1;
-    component.ownerEmail = "owner@texera.com";
-    component.resourceName = "test-dataset";
-    component.endpoint = DATASET_FILE_RESOURCE_ENDPOINT;
-    component.createVersion = asCreateVersion(createVersionSpy);
-    seed?.(component);
-    fixture.detectChanges();
+    mount(seed);
   };
 
   /** The panel is the only thing that knows which resource family it is addressing. */
@@ -533,12 +510,8 @@ describe("VersionUploaderComponent", () => {
     });
 
     it("reads its upload tuning from its own family's settings keys", () => {
-      const settings = TestBed.inject(AdminSettingsService) as unknown as {
-        getPublicSetting: ReturnType<typeof vi.fn>;
-      };
-
       // The last is the file picker's own per-file ceiling, which it reads off the same endpoint.
-      expect(settings.getPublicSetting.mock.calls.map(call => call[0])).toEqual([
+      expect(settingsStub().getPublicSetting.mock.calls.map(call => call[0])).toEqual([
         DATASET_FILE_RESOURCE_ENDPOINT.chunkSizeSettingKey,
         DATASET_FILE_RESOURCE_ENDPOINT.maxConcurrentChunksSettingKey,
         DATASET_FILE_RESOURCE_ENDPOINT.maxConcurrentFilesSettingKey,
@@ -659,8 +632,7 @@ describe("VersionUploaderComponent", () => {
     it("clears the staged state, tells the host to reload, and re-enables the button", () => {
       const versionCreated = vi.fn();
       component.versionCreated.subscribe(versionCreated);
-      dropFiles("a.csv");
-      finishUpload(0, "a.csv");
+      stageFile("a.csv");
       expect(component.pendingChangesCount).toBe(1);
 
       component.onClickCreateVersion();
@@ -675,8 +647,7 @@ describe("VersionUploaderComponent", () => {
       createVersionSpy.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 400 })));
       const versionCreated = vi.fn();
       component.versionCreated.subscribe(versionCreated);
-      dropFiles("a.csv");
-      finishUpload(0, "a.csv");
+      stageFile("a.csv");
 
       component.onClickCreateVersion();
 
@@ -859,8 +830,7 @@ describe("VersionUploaderComponent", () => {
   });
 
   it("does not double-count a finished upload already confirmed by a diff response", () => {
-    dropFiles("f1.txt");
-    finishUpload(0, "f1.txt");
+    stageFile("f1.txt");
     component.onStagedObjectsUpdated([{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
     expect(component.pendingChangesCount).toBe(1);
 
@@ -882,8 +852,7 @@ describe("VersionUploaderComponent", () => {
   });
 
   it("clears the Finished count when a version is created", () => {
-    dropFiles("f1.txt");
-    finishUpload(0, "f1.txt");
+    stageFile("f1.txt");
     expect(component.pendingChangesCount).toBe(1);
 
     component.versionName = "v1";
@@ -945,44 +914,41 @@ describe("VersionUploaderComponent", () => {
     expect(component.queuedFileNames).toEqual(["f5.txt"]);
   });
 
-  describe("rendered progress", () => {
-    /**
-     * Puts one task on the panel in the given state and opens it. The panel is gated on the
-     * separate activeUploads counter rather than on uploadTasks, and ng-zorro collapses it by
-     * default, so both have to be arranged before its body exists.
-     */
-    function withTask(over: Record<string, unknown>): HTMLElement {
-      (component as any).activeUploads = 1;
-      component.uploadTasks = [
-        {
-          filePath: "big.csv",
-          percentage: 40,
-          status: "uploading",
-          uploadSpeed: 1024,
-          totalTime: 12,
-          estimatedTimeRemaining: 30,
-          ...over,
-        } as any,
-      ];
-      fixture.detectChanges();
-      const el = fixture.nativeElement as HTMLElement;
-      const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
-        (h.textContent || "").includes("Uploading:")
-      );
-      header!.click();
-      fixture.detectChanges();
-      return el;
-    }
+  const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
 
+  /** Render the tasks after supplying the active count and opening the collapsed panel. */
+  function withTasks(...tasks: Array<Partial<VersionUploaderComponent["uploadTasks"][number]>>): HTMLElement {
+    component.uploadTasks = tasks.map(task => ({
+      filePath: "big.csv",
+      percentage: 40,
+      status: "uploading",
+      uploadSpeed: 1024,
+      totalTime: 12,
+      estimatedTimeRemaining: 30,
+      ...task,
+    }));
+    (component as unknown as { activeUploads: number }).activeUploads = tasks.length;
+    fixture.detectChanges();
+    const el = host();
+    const header = Array.from(el.querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
+      (h.textContent || "").includes("Uploading:")
+    );
+    expect(header, 'expected a collapse panel headed "Uploading:"').toBeDefined();
+    header!.click();
+    fixture.detectChanges();
+    return el;
+  }
+
+  describe("rendered progress", () => {
     it("shows no statistics while an upload is still initializing", () => {
       // There is nothing to report yet; showing a 0 B/s row reads as a stalled upload.
-      const el = withTask({ status: "initializing" });
+      const el = withTasks({ status: "initializing" });
 
       expect(el.querySelector(".upload-stats")).toBeNull();
     });
 
     it("reports speed and both timings while an upload runs", () => {
-      const el = withTask({ status: "uploading" });
+      const el = withTasks({ status: "uploading" });
 
       const stats = el.querySelector(".upload-stats")!;
       expect(stats.textContent).toContain("elapsed");
@@ -991,7 +957,7 @@ describe("VersionUploaderComponent", () => {
     });
 
     it("replaces the live figures with a total once the upload finishes", () => {
-      const el = withTask({ status: "finished" });
+      const el = withTasks({ status: "finished" });
 
       const stats = el.querySelector(".upload-stats")!;
       expect(stats.textContent).toContain("Upload time:");
@@ -999,15 +965,13 @@ describe("VersionUploaderComponent", () => {
     });
 
     it("reports a total for an aborted upload too", () => {
-      const el = withTask({ status: "aborted" });
+      const el = withTasks({ status: "aborted" });
 
       expect(el.querySelector(".upload-stats")!.textContent).toContain("Upload time:");
     });
   });
 
   describe("rendered panel", () => {
-    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
-
     const q = <E extends Element>(root: ParentNode, selector: string): E => {
       const el = root.querySelector(selector);
       expect(el, `expected to find "${selector}"`).not.toBeNull();
@@ -1015,16 +979,6 @@ describe("VersionUploaderComponent", () => {
     };
 
     const text = (el: Element | null | undefined): string => (el?.textContent ?? "").replace(/\s+/g, " ").trim();
-
-    /** ng-zorro collapses every status panel by default, so its body has to be opened first. */
-    const openPanel = (header: string): void => {
-      const found = Array.from(host().querySelectorAll<HTMLElement>(".ant-collapse-header")).find(h =>
-        (h.textContent || "").includes(header)
-      );
-      expect(found, `expected a collapse panel headed "${header}"`).toBeDefined();
-      found!.click();
-      fixture.detectChanges();
-    };
 
     describe("upload panel", () => {
       it("starts an upload for a file the uploader hands over", () => {
@@ -1053,22 +1007,6 @@ describe("VersionUploaderComponent", () => {
         expect(text(el)).toContain("Uploading: 1 file(s)");
       });
 
-      /** Renders the given in-flight tasks and expands the "Uploading" panel. */
-      const withTasks = (...tasks: Array<Record<string, unknown>>): HTMLElement => {
-        component.uploadTasks = tasks.map(t => ({
-          percentage: 40,
-          status: "uploading",
-          uploadSpeed: 1024,
-          totalTime: 12,
-          estimatedTimeRemaining: 30,
-          ...t,
-        })) as never;
-        (component as unknown as { activeUploads: number }).activeUploads = tasks.length;
-        fixture.detectChanges();
-        openPanel("Uploading:");
-        return host();
-      };
-
       it("aborts the upload whose own row button was clicked", () => {
         withTasks({ filePath: "first.csv" }, { filePath: "second.csv" });
 
@@ -1088,17 +1026,8 @@ describe("VersionUploaderComponent", () => {
         abort.nativeElement.click();
         fixture.detectChanges();
 
-        const finalize = TestBed.inject(MultipartUploadService).finalizeMultipartUpload as unknown as ReturnType<
-          typeof vi.fn
-        >;
         expect(finalize).toHaveBeenCalledTimes(1);
-        expect(finalize).toHaveBeenCalledWith(
-          DATASET_FILE_RESOURCE_ENDPOINT,
-          "owner@texera.com",
-          "test-dataset",
-          "second.csv",
-          true
-        );
+        expectAbortRequest("second.csv");
       });
 
       it("reports the elapsed time, the time remaining and the speed in their own slots", () => {

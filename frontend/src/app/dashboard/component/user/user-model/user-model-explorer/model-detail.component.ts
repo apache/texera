@@ -20,7 +20,7 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { catchError, map, switchMap } from "rxjs/operators";
+import { catchError, filter, map, switchMap, tap } from "rxjs/operators";
 import { Observable, of } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -30,13 +30,9 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 import {
   MODEL_FORMATS,
@@ -61,6 +57,7 @@ import {
 } from "../../../../../common/type/datasetVersionFileTree";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
+import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
 @UntilDestroy()
 @Component({
@@ -77,17 +74,14 @@ import { VersionsFilesBrowserComponent } from "../../versions-files-browser/vers
     NzTagComponent,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
-    NzButtonComponent,
-    NzWaveDirective,
     NzSelectComponent,
     NzOptionComponent,
     NzTabsComponent,
     NzTabComponent,
     NzDividerComponent,
-    NzInputDirective,
-    NzSwitchComponent,
     MarkdownDescriptionComponent,
     VersionsFilesBrowserComponent,
+    ResourceDetailSettingsComponent,
   ],
 })
 export class ModelDetailComponent implements OnInit {
@@ -145,7 +139,17 @@ export class ModelDetailComponent implements OnInit {
   // blocks it until the panel is idle.
   public uploadsInFlight = false;
 
-  formatSize = formatSize;
+  protected get overviewStatistics() {
+    return [
+      { label: "Created", value: this.modelCreationTime },
+      { label: "Last updated", value: this.latestVersionCreationTime || "—" },
+      { label: "Versions", value: this.versions.length },
+      { label: "Framework", value: this.modelFramework || "—" },
+      { label: "Format", value: this.modelFormat || "—" },
+      { label: "Latest version file", value: this.latestVersionFileName || "—" },
+      { label: "Latest version size", value: formatSize(this.latestVersionSize) },
+    ];
+  }
   formatCount = formatCount;
 
   constructor(
@@ -169,26 +173,29 @@ export class ModelDetailComponent implements OnInit {
   ngOnInit(): void {
     this.route.params
       .pipe(
-        switchMap(params => {
+        tap(params => {
           // Route params are strings, and the segment is whatever the URL carried: reject
           // anything that is not a positive integer once, here, rather than at each use.
           const mid = Number(params["mid"]);
           this.mid = Number.isInteger(mid) && mid > 0 ? mid : undefined;
           if (this.mid === undefined) {
             this.notificationService.error("This is not a valid model id");
-            return this.route.data;
+            return;
           }
           this.retrieveModelInfo();
           this.retrieveModelVersionList();
           this.loadHubActivity();
-          return this.route.data;
         }),
         untilDestroyed(this)
       )
       .subscribe();
   }
 
-  /** Opening the page counts as a view; the like state needs a signed-in viewer. */
+  /**
+   * Opening the page counts as a view; the like state needs a signed-in viewer. A reply that
+   * lands after the route has moved on to another model is dropped, so it cannot overwrite
+   * that model's values.
+   */
   private loadHubActivity(): void {
     if (!this.mid) {
       return;
@@ -196,12 +203,18 @@ export class ModelDetailComponent implements OnInit {
     const mid = this.mid;
     this.hubService
       .postView(mid, this.currentUid ?? 0, EntityType.Model)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe(count => (this.viewCount = count));
 
     this.hubService
       .getCounts([EntityType.Model], [mid], [ActionType.Like])
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
 
     if (this.currentUid === undefined) {
@@ -209,7 +222,10 @@ export class ModelDetailComponent implements OnInit {
     }
     this.hubService
       .isLiked([mid], [EntityType.Model])
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
   }
 
@@ -231,9 +247,13 @@ export class ModelDetailComponent implements OnInit {
       return;
     }
     const mid = this.mid;
+    // As in loadHubActivity, a model that arrives after the route has moved on is dropped.
     this.modelService
       .getModel(mid, this.isLogin)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
       .subscribe({
         next: dashboardModel => {
           const model = dashboardModel.model;
@@ -267,11 +287,15 @@ export class ModelDetailComponent implements OnInit {
   private loadCoverImageUrl(mid: number): void {
     this.modelService
       .getModelCoverUrl(mid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ url }) => (this.coverImageUrl = url),
-        error: () => (this.coverImageUrl = null),
-      });
+      .pipe(
+        map(({ url }) => url),
+        // A failed presign means no cover. Turned into a value here, a late failure is dropped
+        // by the filter below just like a late url (filter lets errors through).
+        catchError(() => of(null)),
+        filter(() => this.mid === mid),
+        untilDestroyed(this)
+      )
+      .subscribe(url => (this.coverImageUrl = url));
   }
 
   retrieveModelVersionList(): void {

@@ -39,18 +39,47 @@ describe("UserDatasetFileRendererComponent", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [UserDatasetFileRendererComponent, HttpClientTestingModule],
-      providers: [
-        DatasetService,
-        ModelService,
-        NotificationService,
-        { provide: DomSanitizer, useValue: { bypassSecurityTrustUrl: vi.fn() } },
-        ...commonTestProviders,
-      ],
+      providers: [{ provide: DomSanitizer, useValue: { bypassSecurityTrustUrl: vi.fn() } }, ...commonTestProviders],
     });
     const fixture = TestBed.createComponent(UserDatasetFileRendererComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
+
+  function prepareFile(
+    filePath: string,
+    over: Partial<{
+      resourceType: EntityType;
+      resourceId: number | undefined;
+      versionId: number | undefined;
+      fileSize: number | undefined;
+      isLogin: boolean;
+    }> = {}
+  ): void {
+    component.resourceType = over.resourceType ?? component.resourceType;
+    component.resourceId = "resourceId" in over ? over.resourceId : 1;
+    component.versionId = "versionId" in over ? over.versionId : 2;
+    component.filePath = filePath;
+    if ("fileSize" in over) component.fileSize = over.fileSize;
+    if ("isLogin" in over) component.isLogin = over.isLogin!;
+  }
+
+  function loadFileWithBlob(filePath: string, blob: Blob, over: { isLogin?: boolean } = {}): void {
+    vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
+    prepareFile(filePath, { isLogin: over.isLogin ?? false, fileSize: undefined });
+    component.reloadFileContent();
+  }
+
+  function withRevokeUrlSpy(run: (revokeSpy: ReturnType<typeof vi.fn>) => void): void {
+    const originalRevoke = URL.revokeObjectURL;
+    const revokeSpy = vi.fn();
+    (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+    try {
+      run(revokeSpy);
+    } finally {
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+    }
+  }
 
   it("should return true for supported MIME type", () => {
     const supportedMimeType = "image/jpeg"; // Example of a supported MIME type
@@ -83,10 +112,7 @@ describe("UserDatasetFileRendererComponent", () => {
 
     it("flags an oversized file and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "notes.txt"; // TXT limit is 1 MB
-      component.fileSize = 5 * 1024 * 1024;
+      prepareFile("notes.txt", { fileSize: 5 * 1024 * 1024 }); // TXT limit is 1 MB
 
       component.reloadFileContent();
 
@@ -95,14 +121,11 @@ describe("UserDatasetFileRendererComponent", () => {
     });
 
     it("retrieves a supported file and switches on the matching display", () => {
-      const datasetService = TestBed.inject(DatasetService);
       const blob = new Blob(["hello"], { type: "text/plain" });
-      const spy = vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "notes.txt";
-      component.isLogin = true;
-      component.fileSize = 100;
+      const spy = vi
+        .spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile")
+        .mockReturnValue(of(blob));
+      prepareFile("notes.txt", { isLogin: true, fileSize: 100 });
 
       component.reloadFileContent();
 
@@ -115,9 +138,7 @@ describe("UserDatasetFileRendererComponent", () => {
       vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockReturnValue(
         throwError(() => new Error("download failed"))
       );
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "notes.txt";
+      prepareFile("notes.txt");
 
       component.reloadFileContent();
 
@@ -131,9 +152,7 @@ describe("UserDatasetFileRendererComponent", () => {
       vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockImplementation(path =>
         path === "data.csv" ? slowFile : of(notes)
       );
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "data.csv";
+      prepareFile("data.csv");
       component.reloadFileContent();
 
       component.filePath = "notes.txt";
@@ -150,11 +169,7 @@ describe("UserDatasetFileRendererComponent", () => {
       const modelSpy = vi
         .spyOn(TestBed.inject(ModelService), "retrieveModelVersionSingleFile")
         .mockReturnValue(of(new Blob(["weights"], { type: "text/plain" })));
-      component.resourceType = EntityType.Model;
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "/model/a/m/v1/notes.txt";
-      component.isLogin = true;
+      prepareFile("/model/a/m/v1/notes.txt", { resourceType: EntityType.Model, isLogin: true });
 
       component.reloadFileContent();
 
@@ -164,10 +179,7 @@ describe("UserDatasetFileRendererComponent", () => {
 
     it("hits nothing for a kind that has no file preview", () => {
       const datasetSpy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      component.resourceType = EntityType.Workflow;
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "notes.txt";
+      prepareFile("notes.txt", { resourceType: EntityType.Workflow });
 
       component.reloadFileContent();
 
@@ -210,33 +222,25 @@ describe("UserDatasetFileRendererComponent", () => {
     });
 
     it("turnOffAllDisplay resets every display and error flag", () => {
-      component.displayCSV = true;
-      component.displayXlsx = true;
-      component.displayImage = true;
-      component.displayPlainText = true;
-      component.displayMarkdown = true;
-      component.displayJson = true;
-      component.displayMP4 = true;
-      component.displayMP3 = true;
-      component.isLoading = true;
-      component.isFileLoadingError = true;
-      component.isFileSizeUnloadable = true;
-      component.isFileTypePreviewUnsupported = true;
+      const flags = [
+        "displayCSV",
+        "displayXlsx",
+        "displayImage",
+        "displayPlainText",
+        "displayMarkdown",
+        "displayJson",
+        "displayMP4",
+        "displayMP3",
+        "isLoading",
+        "isFileLoadingError",
+        "isFileSizeUnloadable",
+        "isFileTypePreviewUnsupported",
+      ] as const;
+      for (const flag of flags) component[flag] = true;
 
       component.turnOffAllDisplay();
 
-      expect(component.displayCSV).toBe(false);
-      expect(component.displayXlsx).toBe(false);
-      expect(component.displayImage).toBe(false);
-      expect(component.displayPlainText).toBe(false);
-      expect(component.displayMarkdown).toBe(false);
-      expect(component.displayJson).toBe(false);
-      expect(component.displayMP4).toBe(false);
-      expect(component.displayMP3).toBe(false);
-      expect(component.isLoading).toBe(false);
-      expect(component.isFileLoadingError).toBe(false);
-      expect(component.isFileSizeUnloadable).toBe(false);
-      expect(component.isFileTypePreviewUnsupported).toBe(false);
+      for (const flag of flags) expect(component[flag]).toBe(false);
     });
   });
 
@@ -346,38 +350,25 @@ describe("UserDatasetFileRendererComponent", () => {
 
   describe("ngOnDestroy", () => {
     it("revokes the object URL when one was created", () => {
-      const originalRevoke = URL.revokeObjectURL;
-      const revokeSpy = vi.fn();
-      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
-      try {
+      withRevokeUrlSpy(revokeSpy => {
         component.fileURL = "blob:to-revoke";
         component.ngOnDestroy();
         expect(revokeSpy).toHaveBeenCalledWith("blob:to-revoke");
-      } finally {
-        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
-      }
+      });
     });
 
     it("does nothing when no object URL exists", () => {
-      const originalRevoke = URL.revokeObjectURL;
-      const revokeSpy = vi.fn();
-      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
-      try {
+      withRevokeUrlSpy(revokeSpy => {
         component.fileURL = undefined;
         component.ngOnDestroy();
         expect(revokeSpy).not.toHaveBeenCalled();
-      } finally {
-        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
-      }
+      });
     });
   });
 
   describe("turnOffAllDisplay URL cleanup", () => {
     it("revokes both the raw and the safe object URLs when present", () => {
-      const originalRevoke = URL.revokeObjectURL;
-      const revokeSpy = vi.fn();
-      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
-      try {
+      withRevokeUrlSpy(revokeSpy => {
         component.fileURL = "blob:raw";
         // safeFileURL is a SafeUrl (an opaque object); the code calls .toString() on it before
         // revoking, so use an object with a toString() rather than a raw string cast.
@@ -385,9 +376,7 @@ describe("UserDatasetFileRendererComponent", () => {
         component.turnOffAllDisplay();
         expect(revokeSpy).toHaveBeenCalledWith("blob:raw");
         expect(revokeSpy).toHaveBeenCalledWith("blob:safe");
-      } finally {
-        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
-      }
+      });
     });
   });
 
@@ -395,16 +384,7 @@ describe("UserDatasetFileRendererComponent", () => {
     // Helper: drive reloadFileContent through the async subscribe with a canned blob.
     // fileSize is left undefined so the pre-check size guard is skipped and the
     // blob-size branch inside next() is exercised instead.
-    function loadWith(filePath: string, blob: Blob) {
-      const datasetService = TestBed.inject(DatasetService);
-      vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = filePath;
-      component.isLogin = false;
-      component.fileSize = undefined;
-      component.reloadFileContent();
-    }
+    const loadWith = (filePath: string, blob: Blob) => loadFileWithBlob(filePath, blob);
 
     let originalCreate: typeof URL.createObjectURL;
     let createSpy: ReturnType<typeof vi.fn>;
@@ -419,39 +399,30 @@ describe("UserDatasetFileRendererComponent", () => {
       (URL as unknown as { createObjectURL: unknown }).createObjectURL = originalCreate;
     });
 
-    it("selects the image viewer and builds a safe URL for a PNG", () => {
-      const blob = new Blob(["img"], { type: "image/png" });
-      loadWith("photo.png", blob);
-      expect(component.displayImage).toBe(true);
-      expect(createSpy).toHaveBeenCalledWith(blob);
-      expect(component.fileURL).toBe("blob:created");
-    });
-
-    it("selects the video viewer for an MP4", () => {
-      const blob = new Blob(["vid"], { type: "video/mp4" });
-      loadWith("clip.mp4", blob);
-      expect(component.displayMP4).toBe(true);
-      expect(createSpy).toHaveBeenCalledWith(blob);
-    });
-
-    it("selects the audio viewer for an MP3", () => {
-      const blob = new Blob(["aud"], { type: "audio/mpeg" });
-      loadWith("song.mp3", blob);
-      expect(component.displayMP3).toBe(true);
-      expect(createSpy).toHaveBeenCalledWith(blob);
-    });
-
-    it("selects the markdown viewer for a MD file", () => {
-      const blob = new Blob(["# hi"], { type: "text/markdown" });
-      loadWith("readme.md", blob);
-      expect(component.displayMarkdown).toBe(true);
-    });
-
-    it("selects the JSON viewer for a JSON file", () => {
-      const blob = new Blob(['{"a":1}'], { type: "application/json" });
-      loadWith("data.json", blob);
-      expect(component.displayJson).toBe(true);
-    });
+    for (const [desc, path, payload, mime, flag, checksSafeUrl] of [
+      [
+        "selects the image viewer and builds a safe URL for a PNG",
+        "photo.png",
+        "img",
+        "image/png",
+        "displayImage",
+        true,
+      ],
+      ["selects the video viewer for an MP4", "clip.mp4", "vid", "video/mp4", "displayMP4", true],
+      ["selects the audio viewer for an MP3", "song.mp3", "aud", "audio/mpeg", "displayMP3", true],
+      ["selects the markdown viewer for a MD file", "readme.md", "# hi", "text/markdown", "displayMarkdown", false],
+      ["selects the JSON viewer for a JSON file", "data.json", '{"a":1}', "application/json", "displayJson", false],
+    ] as const) {
+      it(desc, () => {
+        const blob = new Blob([payload], { type: mime });
+        loadWith(path, blob);
+        expect(component[flag]).toBe(true);
+        if (checksSafeUrl) {
+          expect(createSpy).toHaveBeenCalledWith(blob);
+          if (flag === "displayImage") expect(component.fileURL).toBe("blob:created");
+        }
+      });
+    }
 
     // Papa.parse's property on the vite namespace is a non-configurable getter (cannot be spied or
     // reassigned), and module-mocking papaparse is disallowed, so the real parser runs against a
@@ -489,14 +460,10 @@ describe("UserDatasetFileRendererComponent", () => {
     });
 
     it("does not fetch when the dataset ids are missing", () => {
-      const datasetService = TestBed.inject(DatasetService);
-      const spy = vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile");
+      const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
       // A supported, in-limit file, so the two pre-checks pass and the id guard is the
       // only thing left to stop the request.
-      component.resourceId = undefined;
-      component.versionId = 2;
-      component.filePath = "notes.txt";
-      component.fileSize = 100;
+      prepareFile("notes.txt", { resourceId: undefined, fileSize: 100 });
 
       component.reloadFileContent();
 
@@ -634,17 +601,7 @@ describe("UserDatasetFileRendererComponent", () => {
       (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
     });
 
-    function loadCsv(): void {
-      const datasetService = TestBed.inject(DatasetService);
-      vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(
-        of(new Blob(["ignored"], { type: MIME_TYPES.CSV }))
-      );
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "data.csv";
-      component.fileSize = undefined;
-      component.reloadFileContent();
-    }
+    const loadCsv = () => loadFileWithBlob("data.csv", new Blob(["ignored"], { type: MIME_TYPES.CSV }));
 
     it("leaves the table empty when the CSV has no rows", async () => {
       outcome = { text: "" };
@@ -656,15 +613,7 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(component.tableContent).toEqual([]);
     });
 
-    function loadText(filePath: string): void {
-      vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockReturnValue(
-        of(new Blob(["ignored"], { type: "text/plain" }))
-      );
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = filePath;
-      component.reloadFileContent();
-    }
+    const loadText = (filePath: string) => loadFileWithBlob(filePath, new Blob(["ignored"], { type: "text/plain" }));
 
     it("does not show a CSV's rows once another file is selected while it is parsing", async () => {
       outcome = { text: "a,b\n1,2" };
@@ -718,9 +667,6 @@ describe("UserDatasetFileRendererComponent rendering", () => {
       // MarkdownModule.forRoot() backs the <markdown> element in the markdown preview.
       imports: [UserDatasetFileRendererComponent, HttpClientTestingModule, MarkdownModule.forRoot()],
       providers: [
-        DatasetService,
-        ModelService,
-        NotificationService,
         {
           provide: DomSanitizer,
           useValue: {

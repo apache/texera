@@ -18,8 +18,8 @@
  */
 
 import Ajv from "ajv";
-import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
-import type { ValidationError, Validation } from "../../types/workflow";
+import { fetchOperatorMetadata, type OperatorMetadata } from "../../api/backend-api";
+import type { Validation } from "../../types/workflow";
 import { createLogger } from "../../logger";
 
 const log = createLogger("WorkflowSystemMetadata");

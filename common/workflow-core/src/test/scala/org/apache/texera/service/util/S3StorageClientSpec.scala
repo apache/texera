@@ -21,7 +21,6 @@ package org.apache.texera.service.util
 
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.tags.NonParallelTest
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
@@ -36,18 +35,9 @@ import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 @NonParallelTest
-class S3StorageClientSpec
-    extends AnyFunSuite
-    with S3StorageTestBase
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+class S3StorageClientSpec extends AnyFunSuite with S3BucketTestBase {
 
-  private val testBucketName = "test-s3-storage-client"
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    S3StorageClient.createBucketIfNotExist(testBucketName)
-  }
+  protected val testBucketName = "test-s3-storage-client"
 
   override def afterAll(): Unit = {
     // Best-effort cleanup of the prefixes these tests use (deleteDirectory rejects an empty prefix).
@@ -119,16 +109,10 @@ class S3StorageClientSpec
     new ByteArrayInputStream(data)
   }
 
-  private def readInputStream(inputStream: java.io.InputStream): Array[Byte] = {
-    val buffer = new Array[Byte](8192)
-    val outputStream = new java.io.ByteArrayOutputStream()
-    var bytesRead = 0
-    while ({
-      bytesRead = inputStream.read(buffer); bytesRead != -1
-    }) {
-      outputStream.write(buffer, 0, bytesRead)
-    }
-    outputStream.toByteArray
+  private def downloadBytes(key: String): Array[Byte] = {
+    val stream = S3StorageClient.downloadObject(testBucketName, key)
+    try stream.readAllBytes()
+    finally stream.close()
   }
 
   // ========================================
@@ -170,9 +154,7 @@ class S3StorageClientSpec
     assert(eTag.nonEmpty)
 
     // Verify the uploaded content
-    val downloadedStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = readInputStream(downloadedStream)
-    downloadedStream.close()
+    val downloadedData = downloadBytes(objectKey)
 
     assert(downloadedData.length == largeData.length)
     assert(downloadedData.sameElements(largeData))
@@ -203,9 +185,7 @@ class S3StorageClientSpec
 
     assert(eTag2 != null)
 
-    val downloadedStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = new String(readInputStream(downloadedStream))
-    downloadedStream.close()
+    val downloadedData = new String(downloadBytes(objectKey))
 
     assert(downloadedData == data2)
 
@@ -223,9 +203,7 @@ class S3StorageClientSpec
 
     S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream(testData))
 
-    val inputStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = new String(readInputStream(inputStream))
-    inputStream.close()
+    val downloadedData = new String(downloadBytes(objectKey))
 
     assert(downloadedData == testData)
 
@@ -239,9 +217,7 @@ class S3StorageClientSpec
 
     S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream(largeData))
 
-    val inputStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = readInputStream(inputStream)
-    inputStream.close()
+    val downloadedData = downloadBytes(objectKey)
 
     assert(downloadedData.length == largeData.length)
     assert(downloadedData.sameElements(largeData))
@@ -255,9 +231,7 @@ class S3StorageClientSpec
 
     S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream(""))
 
-    val inputStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = readInputStream(inputStream)
-    inputStream.close()
+    val downloadedData = downloadBytes(objectKey)
 
     assert(downloadedData.isEmpty)
 
@@ -279,9 +253,7 @@ class S3StorageClientSpec
 
     S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream(binaryData))
 
-    val inputStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = readInputStream(inputStream)
-    inputStream.close()
+    val downloadedData = downloadBytes(objectKey)
 
     assert(downloadedData.sameElements(binaryData))
 
@@ -353,9 +325,7 @@ class S3StorageClientSpec
     assert(eTag != null)
 
     // Download
-    val inputStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = new String(readInputStream(inputStream))
-    inputStream.close()
+    val downloadedData = new String(downloadBytes(objectKey))
     assert(downloadedData == testData)
 
     // Delete
@@ -389,9 +359,7 @@ class S3StorageClientSpec
 
     S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream(testData))
 
-    val inputStream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloadedData = new String(readInputStream(inputStream))
-    inputStream.close()
+    val downloadedData = new String(downloadBytes(objectKey))
     assert(downloadedData == testData)
 
     S3StorageClient.deleteObject(testBucketName, objectKey)
@@ -426,9 +394,7 @@ class S3StorageClientSpec
     S3StorageClient.deleteDirectory(testBucketName, prefix)
 
     assert(!S3StorageClient.directoryExists(testBucketName, prefix))
-    val survivor = S3StorageClient.downloadObject(testBucketName, sibling)
-    assert(new String(readInputStream(survivor)) == "keep me")
-    survivor.close()
+    assert(new String(downloadBytes(sibling)) == "keep me")
     S3StorageClient.deleteObject(testBucketName, sibling)
   }
 
@@ -508,9 +474,7 @@ class S3StorageClientSpec
     assert(thrown.getMessage.contains("directoryPrefix must not be empty"))
 
     // The bucket is untouched.
-    val survivor = S3StorageClient.downloadObject(testBucketName, guard)
-    assert(new String(readInputStream(survivor)) == "keep me")
-    survivor.close()
+    assert(new String(downloadBytes(guard)) == "keep me")
     S3StorageClient.deleteObject(testBucketName, guard)
   }
 
@@ -559,9 +523,7 @@ class S3StorageClientSpec
     // The bucket is still usable afterwards.
     val objectKey = "test/after-recreate.txt"
     S3StorageClient.uploadObject(testBucketName, objectKey, createInputStream("still here"))
-    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    assert(new String(readInputStream(stream)) == "still here")
-    stream.close()
+    assert(new String(downloadBytes(objectKey)) == "still here")
     S3StorageClient.deleteObject(testBucketName, objectKey)
   }
 
@@ -590,9 +552,7 @@ class S3StorageClientSpec
       Seq(CompletedPart.builder().partNumber(1).eTag(response.eTag()).build())
     )
 
-    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    assert(readInputStream(stream).sameElements(partData))
-    stream.close()
+    assert(downloadBytes(objectKey).sameElements(partData))
     S3StorageClient.deleteObject(testBucketName, objectKey)
   }
 
@@ -616,9 +576,7 @@ class S3StorageClientSpec
       Seq(CompletedPart.builder().partNumber(1).eTag(response.eTag()).build())
     )
 
-    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    assert(readInputStream(stream).sameElements(partData))
-    stream.close()
+    assert(downloadBytes(objectKey).sameElements(partData))
     S3StorageClient.deleteObject(testBucketName, objectKey)
   }
 
@@ -660,9 +618,7 @@ class S3StorageClientSpec
       )
     )
 
-    val stream = S3StorageClient.downloadObject(testBucketName, objectKey)
-    val downloaded = readInputStream(stream)
-    stream.close()
+    val downloaded = downloadBytes(objectKey)
 
     assert(downloaded.length == head.length + tail.length)
     assert(downloaded.take(head.length).sameElements(head))

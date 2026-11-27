@@ -184,9 +184,8 @@ def test_retry_is_not_limited_to_commit_conflicts():
     writer, _, table, _ = make_writer(buffer_size=1)
     table.append.side_effect = ValueError("not a commit conflict")
 
-    with patch("tenacity.nap.time.sleep"):
-        with pytest.raises(ValueError):
-            writer.put_one({"value": 1})
+    with patch("tenacity.nap.time.sleep"), pytest.raises(ValueError):
+        writer.put_one({"value": 1})
 
     # The retry decorator sets no exception filter, so even a non-conflict
     # error is retried for all 10 attempts before being reraised.
@@ -198,9 +197,11 @@ def test_flush_reraises_after_ten_failed_attempts_and_keeps_buffer():
     writer, _, table, _ = make_writer(buffer_size=1)
     table.append.side_effect = CommitFailedException("concurrent commit")
 
-    with patch("tenacity.nap.time.sleep") as mock_sleep:
-        with pytest.raises(CommitFailedException):
-            writer.put_one({"value": 1})
+    with (
+        patch("tenacity.nap.time.sleep") as mock_sleep,
+        pytest.raises(CommitFailedException),
+    ):
+        writer.put_one({"value": 1})
 
     assert table.append.call_count == 10
     assert table.refresh.call_count == 10

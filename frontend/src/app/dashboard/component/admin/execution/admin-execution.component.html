@@ -44,56 +44,27 @@
   class="execution-table">
   <thead>
     <tr>
+      @for (col of tableColumns; track col.label) { @if (col.sortField) {
       <th
         [nzShowSort]="true"
         [nzSortFn]="true"
         [nzSortDirections]="['ascend', 'descend', null]"
-        (nzSortOrderChange)="onSortChange('workflow_name', $event)"
-        nzWidth="16%">
-        Workflow (ID)
+        (nzSortOrderChange)="onSortChange(col.sortField, $event)"
+        [nzWidth]="col.width">
+        {{ col.label }}
       </th>
-      <th
-        [nzShowSort]="true"
-        [nzSortFn]="true"
-        [nzSortDirections]="['ascend', 'descend', null]"
-        (nzSortOrderChange)="onSortChange('execution_name', $event)"
-        nzWidth="16%">
-        Execution Name (ID)
-      </th>
-      <th
-        [nzShowSort]="true"
-        [nzSortFn]="true"
-        [nzSortDirections]="['ascend', 'descend', null]"
-        (nzSortOrderChange)="onSortChange('initiator', $event)"
-        nzWidth="12%">
-        Initiator
-      </th>
+      } @else if (col.filters) {
       <th
         nzShowFilter
-        [nzFilters]="[
-          { text: 'READY', value: 'READY' },
-          { text: 'RUNNING', value: 'RUNNING'},
-          { text: 'PAUSED', value: 'PAUSED'},
-          { text: 'COMPLETED', value: 'COMPLETED'},
-          { text: 'FAILED', value: 'FAILED'},
-          { text: 'KILLED', value: 'KILLED'},
-          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
-          { text: 'UNKNOWN', value: 'UNKNOWN'}]"
+        [nzFilters]="col.filters"
         [nzFilterFn]="true"
         (nzFilterChange)="onFilterChange($event)"
-        nzWidth="13%">
-        Status
+        [nzWidth]="col.width">
+        {{ col.label }}
       </th>
-      <th nzWidth="10%">Time Used (hh:mm:ss)</th>
-      <th
-        [nzShowSort]="true"
-        [nzSortFn]="true"
-        [nzSortDirections]="['ascend', 'descend', null]"
-        (nzSortOrderChange)="onSortChange('end_time', $event)"
-        nzWidth="20%">
-        End Time
-      </th>
-      <th nzWidth="13%">Action</th>
+      } @else {
+      <th [nzWidth]="col.width">{{ col.label }}</th>
+      } }
     </tr>
   </thead>
   <tbody>
@@ -112,59 +83,29 @@
       <td>{{ execution.userName }}</td>
       <td [ngStyle]="{ 'color': getStatusColor(execution.executionStatus) }"><b>{{ execution.executionStatus }}</b></td>
       <td>
-        <div *ngIf="execution.executionTime >= 0; else endTimeNotAvailable">
+        <div *ngIf="execution.executionTime >= 0; else notAvailable">
           {{ convertSecondsToTime(execution.executionTime) }}
         </div>
-        <ng-template #endTimeNotAvailable>
-          <div>Not Available</div>
-        </ng-template>
       </td>
-
       <td>
-        <div *ngIf="execution.endTime !== 0; else endTimeNotAvailable">
+        <div *ngIf="execution.endTime !== 0; else notAvailable">
           {{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}
         </div>
-        <ng-template #endTimeNotAvailable>
-          <div>Not Available</div>
-        </ng-template>
       </td>
       <td>
+        @for (action of executionActions; track action.icon) {
         <button
           type="button"
-          (click)="killExecution(execution.workflowId)"
-          [disabled]="execution.executionStatus === 'COMPLETED' ||
-                        execution.executionStatus === 'JUST COMPLETED' ||
-                        execution.executionStatus === 'FAILED' ||
-                        execution.executionStatus === 'KILLED'"
+          (click)="action.run(execution.workflowId)"
+          [disabled]="action.isDisabled(execution.executionStatus)"
           nz-button
-          nz-tooltip="kill execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          nz-tooltip="{{ action.verb }} execution {{ execution.executionName }} of workflow {{ execution.workflowName }}">
           <i
             nz-icon
             nzTheme="outline"
-            nzType="stop"></i>
+            [nzType]="action.icon"></i>
         </button>
-        <button
-          type="button"
-          (click)="pauseExecution(execution.workflowId)"
-          [disabled]="execution.executionStatus !== 'RUNNING'"
-          nz-button
-          nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}">
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="pause"></i>
-        </button>
-        <button
-          type="button"
-          (click)="resumeExecution(execution.workflowId)"
-          [disabled]="execution.executionStatus !== 'PAUSED'"
-          nz-button
-          nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}">
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="redo"></i>
-        </button>
+        }
         <button
           (click)="clickToViewHistory(execution.workflowId, execution.workflowName)"
           nz-button
@@ -181,6 +122,10 @@
     </tr>
   </tbody>
 </nz-table>
+
+<ng-template #notAvailable>
+  <div>Not Available</div>
+</ng-template>
 
 <ng-template #loadingTemplate>
   <div class="loading-container">

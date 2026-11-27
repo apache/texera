@@ -22,59 +22,21 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs._
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.`type`.{ExistingUploadFile, ExistingUploadFilesRequest}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.io.ByteArrayInputStream
 import scala.jdk.CollectionConverters._
 
 // Covers the model endpoints the UI needs beyond upload and download: the staged
 // (uncommitted) change list and its per-file reset, the "already uploaded" probe
 // that lets a client skip re-sending bytes, the owner facet for the list page,
 // and the framework/format metadata labels.
-class ModelApiForUiSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockTexeraDB
-    with MockLakeFS
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with ResourceTestHelpers {
+class ModelApiForUiSpec extends ModelResourceTestSupport("model_ui_owner") {
 
-  private def mkUser(name: String): User = {
-    val user = new User
-    user.setName(name)
-    user.setEmail(s"$name@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
-  }
-
-  private val ownerUser: User = mkUser("model_ui_owner")
   private val strangerUser: User = mkUser("model_ui_stranger")
+  override protected def extraUsers: Seq[User] = Seq(strangerUser)
 
-  lazy val modelResource = new ModelResource()
-  lazy val sessionUser = new SessionUser(ownerUser)
   lazy val strangerSession = new SessionUser(strangerUser)
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-    val userDao = new UserDao(getDSLContext.configuration())
-    userDao.insert(ownerUser)
-    userDao.insert(strangerUser)
-  }
-
-  override protected def afterAll(): Unit = {
-    try shutdownDB()
-    finally super.afterAll()
-  }
 
   // ---------- helpers ----------
   private def newModel(
@@ -82,32 +44,28 @@ class ModelApiForUiSpec
       format: String = null,
       isPublic: Boolean = false
   ): ModelResource.DashboardModel =
-    modelResource.createModel(
-      ModelResource.CreateModelRequest(
-        modelName = uniqueName("ui-model"),
-        modelDescription = "for model-api-for-ui tests",
-        isModelPublic = isPublic,
-        isModelDownloadable = true,
-        framework = framework,
-        format = format
-      ),
-      sessionUser
+    createModelFixture(
+      uniqueName("ui-model"),
+      "for model-api-for-ui tests",
+      isPublic = isPublic,
+      framework = framework,
+      format = format
     )
 
-  private def upload(mid: Integer, path: String, bytes: Array[Byte]): Unit =
+  /** Asks findExistingUploadFiles about one file as `user` and returns the paths it matched. */
+  private def findExisting(
+      mid: Integer,
+      path: String,
+      size: Long,
+      user: SessionUser = sessionUser
+  ): List[String] =
     modelResource
-      .uploadOneFileToModel(
+      .findExistingUploadFiles(
         mid,
-        urlEnc(path),
-        "upload",
-        new ByteArrayInputStream(bytes),
-        mkHeaders(bytes.length.toLong),
-        sessionUser
+        ExistingUploadFilesRequest(List(ExistingUploadFile(path, size))),
+        user
       )
-      .getStatus shouldEqual 200
-
-  private def matchedPaths(response: core.Response): List[String] =
-    response.getEntity
+      .getEntity
       .asInstanceOf[Map[String, java.util.List[String]]]("filePaths")
       .asScala
       .toList
@@ -190,26 +148,14 @@ class ModelApiForUiSpec
     upload(mid, "model.pt", Array.fill[Byte](64)(0x1))
     modelResource.createModelVersion("v1", mid, sessionUser)
 
-    val response = modelResource.findExistingUploadFiles(
-      mid,
-      ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", 64L))),
-      sessionUser
-    )
-
-    matchedPaths(response) shouldEqual List("model.pt")
+    findExisting(mid, "model.pt", 64L) shouldEqual List("model.pt")
   }
 
   it should "match a staged file that has not been committed yet" in {
     val mid = newModel().model.getMid
     upload(mid, "model.pt", Array.fill[Byte](64)(0x1))
 
-    val response = modelResource.findExistingUploadFiles(
-      mid,
-      ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", 64L))),
-      sessionUser
-    )
-
-    matchedPaths(response) shouldEqual List("model.pt")
+    findExisting(mid, "model.pt", 64L) shouldEqual List("model.pt")
   }
 
   it should "not match a file whose size differs" in {
@@ -217,13 +163,7 @@ class ModelApiForUiSpec
     upload(mid, "model.pt", Array.fill[Byte](64)(0x1))
     modelResource.createModelVersion("v1", mid, sessionUser)
 
-    val response = modelResource.findExistingUploadFiles(
-      mid,
-      ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", 65L))),
-      sessionUser
-    )
-
-    matchedPaths(response) shouldBe empty
+    findExisting(mid, "model.pt", 65L) shouldBe empty
   }
 
   // A staged deletion does not withdraw the committed file from the match set. This is
@@ -234,36 +174,20 @@ class ModelApiForUiSpec
     modelResource.createModelVersion("v1", mid, sessionUser)
     modelResource.deleteModelFile(mid, urlEnc("model.pt"), sessionUser)
 
-    val response = modelResource.findExistingUploadFiles(
-      mid,
-      ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", 64L))),
-      sessionUser
-    )
-
-    matchedPaths(response) shouldEqual List("model.pt")
+    findExisting(mid, "model.pt", 64L) shouldEqual List("model.pt")
   }
 
   it should "report matches for a model with no version yet as empty" in {
     val mid = newModel().model.getMid
 
-    val response = modelResource.findExistingUploadFiles(
-      mid,
-      ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", 64L))),
-      sessionUser
-    )
-
-    matchedPaths(response) shouldBe empty
+    findExisting(mid, "model.pt", 64L) shouldBe empty
   }
 
   it should "reject a negative size" in {
     val mid = newModel().model.getMid
 
     assertThrows[BadRequestException] {
-      modelResource.findExistingUploadFiles(
-        mid,
-        ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", -1L))),
-        sessionUser
-      )
+      findExisting(mid, "model.pt", -1L)
     }
   }
 
@@ -271,11 +195,7 @@ class ModelApiForUiSpec
     val mid = newModel().model.getMid
 
     assertThrows[BadRequestException] {
-      modelResource.findExistingUploadFiles(
-        mid,
-        ExistingUploadFilesRequest(List(ExistingUploadFile("../secret.pt", 64L))),
-        sessionUser
-      )
+      findExisting(mid, "../secret.pt", 64L)
     }
   }
 
@@ -283,11 +203,7 @@ class ModelApiForUiSpec
     val mid = newModel(isPublic = true).model.getMid
 
     assertThrows[ForbiddenException] {
-      modelResource.findExistingUploadFiles(
-        mid,
-        ExistingUploadFilesRequest(List(ExistingUploadFile("model.pt", 64L))),
-        strangerSession
-      )
+      findExisting(mid, "model.pt", 64L, strangerSession)
     }
   }
 

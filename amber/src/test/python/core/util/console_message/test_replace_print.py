@@ -49,9 +49,8 @@ class TestReplacePrintLifecycle:
     def test_print_is_restored_even_when_the_block_raises(self):
         original = builtins.print
         buf = CapturingBuffer()
-        with pytest.raises(RuntimeError):
-            with replace_print("w", buf):
-                raise RuntimeError("boom")
+        with pytest.raises(RuntimeError), replace_print("w", buf):
+            raise RuntimeError("boom")
         assert builtins.print is original
 
     def test_exit_returns_true_for_clean_block_and_false_for_raising_block(self):

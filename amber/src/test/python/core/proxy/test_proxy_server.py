@@ -25,13 +25,14 @@ from pyarrow.flight import Action
 from core.proxy.proxy_server import ProxyServer, get_free_local_port
 
 
-class TestProxyServer:
-    @pytest.fixture()
-    def server(self):
-        server = ProxyServer()
-        yield server
-        server.graceful_shutdown()
+@pytest.fixture
+def server():
+    server = ProxyServer()
+    yield server
+    server.graceful_shutdown()
 
+
+class TestProxyServer:
     def test_server_can_register_control_actions_with_lambda(self, server):
         assert "hello" not in server._procedures
         server.register("hello", lambda: None)
@@ -158,12 +159,6 @@ class TestProxyServerHandlers:
     """Handler registration and the data path, which the default constructor
     leaves unimplemented until the runtime wires them up."""
 
-    @pytest.fixture()
-    def server(self):
-        server = ProxyServer()
-        yield server
-        server.graceful_shutdown()
-
     def test_data_handler_must_accept_command_and_data(self, server):
         with pytest.raises(AssertionError):
             server.register_data_handler(lambda only_one: None)
@@ -252,17 +247,13 @@ class TestProxyServerPort:
         finally:
             server.graceful_shutdown()
 
-    def test_picks_a_free_port_when_none_is_given(self):
-        server = ProxyServer()
+    def test_picks_a_free_port_when_none_is_given(self, server):
+        port = server.get_port_number()
+        assert isinstance(port, int)
+        assert 0 < port < 65536
+        # A second server must not collide with the first one's port.
+        other = ProxyServer()
         try:
-            port = server.get_port_number()
-            assert isinstance(port, int)
-            assert 0 < port < 65536
-            # A second server must not collide with the first one's port.
-            other = ProxyServer()
-            try:
-                assert other.get_port_number() != port
-            finally:
-                other.graceful_shutdown()
+            assert other.get_port_number() != port
         finally:
-            server.graceful_shutdown()
+            other.graceful_shutdown()

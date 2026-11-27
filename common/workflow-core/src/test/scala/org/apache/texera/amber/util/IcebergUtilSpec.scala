@@ -24,7 +24,13 @@ import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.hadoop.fs.FileSystem
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.GenericRecord
-import org.apache.iceberg.exceptions.{AlreadyExistsException, RESTException}
+import org.apache.iceberg.exceptions.{
+  AlreadyExistsException,
+  NoSuchNamespaceException,
+  NoSuchTableException,
+  RESTException
+}
+import org.apache.iceberg.hadoop.HadoopCatalog
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalamock.scalatest.MockFactory
@@ -32,7 +38,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.nio.ByteBuffer
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
 import java.util.TimeZone
@@ -60,6 +66,30 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
       Types.NestedField.optional(7, "test-7", Types.BinaryType.get())
     ).asJava
   )
+
+  /** Converts the tuple of `fields` to a record, checks the record's fields `test-1` to `test-7`
+    * against `expected` in order, then converts the record back to the same tuple.
+    */
+  private def verifyTupleRecordRoundTrip(fields: Array[Any], expected: Any*): Unit = {
+    val tuple = Tuple.builder(texeraSchema).addSequentially(fields).build()
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
+    assert(expected.size == texeraSchema.getAttributes.size)
+    expected.zipWithIndex.foreach {
+      case (value, index) =>
+        val field = s"test-${index + 1}"
+        withClue(s"$field: ")(assert(record.getField(field) == value))
+    }
+    assert(IcebergUtil.fromRecord(record, texeraSchema) == tuple)
+  }
+
+  private def withTempHadoopCatalog(warehousePrefix: String, catalogName: String)(
+      run: (HadoopCatalog, Path) => Unit
+  ): Unit = {
+    val warehouse = Files.createTempDirectory(warehousePrefix)
+    val catalog = IcebergUtil.createHadoopCatalog(catalogName, warehouse)
+    try run(catalog, warehouse)
+    finally catalog.close()
+  }
 
   behavior of "IcebergUtil"
 
@@ -110,33 +140,24 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
   }
 
   it should "convert Texera Tuple to Iceberg GenericRecord correctly" in {
-    val tuple = Tuple
-      .builder(texeraSchema)
-      .addSequentially(
-        Array(
-          Int.box(42),
-          Long.box(123456789L),
-          Boolean.box(true),
-          Double.box(3.14),
-          new Timestamp(10000L),
-          "hello world",
-          Array[Byte](1, 2, 3, 4)
-        )
-      )
-      .build()
-
-    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
-
-    assert(record.getField("test-1") == 42)
-    assert(record.getField("test-2") == 123456789L)
-    assert(record.getField("test-3") == true)
-    assert(record.getField("test-4") == 3.14)
-    assert(record.getField("test-5") == new Timestamp(10000L).toLocalDateTime)
-    assert(record.getField("test-6") == "hello world")
-    assert(record.getField("test-7") == ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
-
-    val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
-    assert(tupleFromRecord == tuple)
+    verifyTupleRecordRoundTrip(
+      Array(
+        Int.box(42),
+        Long.box(123456789L),
+        Boolean.box(true),
+        Double.box(3.14),
+        new Timestamp(10000L),
+        "hello world",
+        Array[Byte](1, 2, 3, 4)
+      ),
+      42,
+      123456789L,
+      true,
+      3.14,
+      new Timestamp(10000L).toLocalDateTime,
+      "hello world",
+      ByteBuffer.wrap(Array[Byte](1, 2, 3, 4))
+    )
   }
 
   // Los Angeles kept local mean time, -7:52:58, until 1883. A zone with no such
@@ -157,63 +178,45 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
   }
 
   it should "convert Texera Tuple with null values to Iceberg GenericRecord correctly" in {
-    val tuple = Tuple
-      .builder(texeraSchema)
-      .addSequentially(
-        Array(
-          Int.box(42), // Non-null
-          null, // Null Long
-          Boolean.box(true), // Non-null
-          null, // Null Double
-          null, // Null Timestamp
-          "hello world", // Non-null String
-          null // Null Binary
-        )
-      )
-      .build()
-
-    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
-
-    assert(record.getField("test-1") == 42)
-    assert(record.getField("test-2") == null)
-    assert(record.getField("test-3") == true)
-    assert(record.getField("test-4") == null)
-    assert(record.getField("test-5") == null)
-    assert(record.getField("test-6") == "hello world")
-    assert(record.getField("test-7") == null)
-
-    val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
-    assert(tupleFromRecord == tuple)
+    verifyTupleRecordRoundTrip(
+      Array(
+        Int.box(42), // Non-null
+        null, // Null Long
+        Boolean.box(true), // Non-null
+        null, // Null Double
+        null, // Null Timestamp
+        "hello world", // Non-null String
+        null // Null Binary
+      ),
+      42,
+      null,
+      true,
+      null,
+      null,
+      "hello world",
+      null
+    )
   }
 
   it should "convert a fully null Texera Tuple to Iceberg GenericRecord correctly" in {
-    val tuple = Tuple
-      .builder(texeraSchema)
-      .addSequentially(
-        Array(
-          null, // Null Integer
-          null, // Null Long
-          null, // Null Boolean
-          null, // Null Double
-          null, // Null Timestamp
-          null, // Null String
-          null // Null Binary
-        )
-      )
-      .build()
-
-    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
-
-    assert(record.getField("test-1") == null)
-    assert(record.getField("test-2") == null)
-    assert(record.getField("test-3") == null)
-    assert(record.getField("test-4") == null)
-    assert(record.getField("test-5") == null)
-    assert(record.getField("test-6") == null)
-    assert(record.getField("test-7") == null)
-
-    val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
-    assert(tupleFromRecord == tuple)
+    verifyTupleRecordRoundTrip(
+      Array(
+        null, // Null Integer
+        null, // Null Long
+        null, // Null Boolean
+        null, // Null Double
+        null, // Null Timestamp
+        null, // Null String
+        null // Null Binary
+      ),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    )
   }
 
   it should "convert Iceberg GenericRecord to Texera Tuple correctly" in {
@@ -355,26 +358,25 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
   }
 
   it should "create and load tables via createHadoopCatalog in a local warehouse on every platform" in {
-    val warehouse = Files.createTempDirectory("iceberg-local-warehouse")
-    val catalog = IcebergUtil.createHadoopCatalog("local_test", warehouse)
+    withTempHadoopCatalog("iceberg-local-warehouse", "local_test") { (catalog, warehouse) =>
+      // On Windows hosts without a winutils.exe installation, this used to fail with
+      // "Hadoop bin directory does not exist": Hadoop's default local file system
+      // shells out to winutils for chmod on every file/directory creation.
+      IcebergUtil.createTable(
+        catalog,
+        "test_namespace",
+        "test_table",
+        IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
+        overrideIfExists = true
+      )
 
-    // On Windows hosts without a winutils.exe installation, this used to fail with
-    // "Hadoop bin directory does not exist": Hadoop's default local file system
-    // shells out to winutils for chmod on every file/directory creation.
-    IcebergUtil.createTable(
-      catalog,
-      "test_namespace",
-      "test_table",
-      IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
-      overrideIfExists = true
-    )
-
-    assert(
-      Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
-      "table metadata must be written through the local file system"
-    )
-    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
-    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "missing_table").isEmpty)
+      assert(
+        Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
+        "table metadata must be written through the local file system"
+      )
+      assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
+      assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "missing_table").isEmpty)
+    }
   }
 
   it should "reject catalogs that do not support namespaces" in {
@@ -397,74 +399,90 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
   }
 
   it should "drop and recreate an existing table when override is enabled" in {
-    val warehouse = Files.createTempDirectory("iceberg-override-warehouse")
-    val catalog = IcebergUtil.createHadoopCatalog("override_test", warehouse)
-    val originalSchema = IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER))
-    val replacementSchema = IcebergUtil.toIcebergSchema(Schema().add("value", AttributeType.STRING))
+    withTempHadoopCatalog("iceberg-override-warehouse", "override_test") { (catalog, _) =>
+      val originalSchema = IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER))
+      val replacementSchema =
+        IcebergUtil.toIcebergSchema(Schema().add("value", AttributeType.STRING))
 
-    IcebergUtil.createTable(
-      catalog,
-      "test_namespace",
-      "test_table",
-      originalSchema,
-      overrideIfExists = false
-    )
-    val recreatedTable = IcebergUtil.createTable(
-      catalog,
-      "test_namespace",
-      "test_table",
-      replacementSchema,
-      overrideIfExists = true
-    )
-
-    assert(recreatedTable.schema().sameSchema(replacementSchema))
-    assert(
-      catalog
-        .loadTable(TableIdentifier.of("test_namespace", "test_table"))
-        .schema()
-        .sameSchema(replacementSchema)
-    )
-  }
-
-  it should "preserve an existing table when override is disabled" in {
-    val warehouse = Files.createTempDirectory("iceberg-preserve-warehouse")
-    val catalog = IcebergUtil.createHadoopCatalog("preserve_test", warehouse)
-    val originalSchema = IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER))
-    val replacementSchema = IcebergUtil.toIcebergSchema(Schema().add("value", AttributeType.STRING))
-
-    IcebergUtil.createTable(
-      catalog,
-      "test_namespace",
-      "test_table",
-      originalSchema,
-      overrideIfExists = false
-    )
-
-    intercept[AlreadyExistsException] {
       IcebergUtil.createTable(
         catalog,
         "test_namespace",
         "test_table",
-        replacementSchema,
+        originalSchema,
         overrideIfExists = false
       )
+      val recreatedTable = IcebergUtil.createTable(
+        catalog,
+        "test_namespace",
+        "test_table",
+        replacementSchema,
+        overrideIfExists = true
+      )
+
+      assert(recreatedTable.schema().sameSchema(replacementSchema))
+      assert(
+        catalog
+          .loadTable(TableIdentifier.of("test_namespace", "test_table"))
+          .schema()
+          .sameSchema(replacementSchema)
+      )
     }
-    assert(
-      catalog
-        .loadTable(TableIdentifier.of("test_namespace", "test_table"))
-        .schema()
-        .sameSchema(originalSchema)
-    )
   }
 
-  it should "return None when loading table metadata fails" in {
+  it should "preserve an existing table when override is disabled" in {
+    withTempHadoopCatalog("iceberg-preserve-warehouse", "preserve_test") { (catalog, _) =>
+      val originalSchema = IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER))
+      val replacementSchema =
+        IcebergUtil.toIcebergSchema(Schema().add("value", AttributeType.STRING))
+
+      IcebergUtil.createTable(
+        catalog,
+        "test_namespace",
+        "test_table",
+        originalSchema,
+        overrideIfExists = false
+      )
+
+      intercept[AlreadyExistsException] {
+        IcebergUtil.createTable(
+          catalog,
+          "test_namespace",
+          "test_table",
+          replacementSchema,
+          overrideIfExists = false
+        )
+      }
+      assert(
+        catalog
+          .loadTable(TableIdentifier.of("test_namespace", "test_table"))
+          .schema()
+          .sameSchema(originalSchema)
+      )
+    }
+  }
+
+  it should "return None when the table or its namespace does not exist" in {
+    val identifier = TableIdentifier.of("test_namespace", "test_table")
+    Seq(new NoSuchTableException("no table"), new NoSuchNamespaceException("no namespace"))
+      .foreach { missing =>
+        val catalog = mock[Catalog]
+        (catalog.loadTable _).expects(identifier).throwing(missing)
+
+        assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").isEmpty)
+      }
+  }
+
+  it should "throw rather than return None when loading table metadata fails" in {
     val catalog = mock[Catalog]
     val identifier = TableIdentifier.of("test_namespace", "test_table")
     (catalog.loadTable _)
       .expects(identifier)
       .throwing(new RuntimeException("catalog unavailable"))
 
-    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").isEmpty)
+    val error = intercept[RuntimeException] {
+      IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table")
+    }
+    assert(error.getMessage == "catalog unavailable")
   }
 
   it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {

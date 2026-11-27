@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import socket
 from threading import Event
 from types import SimpleNamespace
 from unittest.mock import call, patch, MagicMock
@@ -106,7 +105,7 @@ class TestCheckHeartbeat:
         hb = make_heartbeat()
         with patch(
             "core.runnables.heartbeat.socket.create_connection",
-            side_effect=socket.timeout("slow"),
+            side_effect=TimeoutError("slow"),
         ):
             assert hb._check_heartbeat() is False
 

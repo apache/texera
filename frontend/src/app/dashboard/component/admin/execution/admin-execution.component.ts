@@ -54,6 +54,36 @@ const TIME_TICK_INTERVAL_MS = 1000;
 // How often the current page's data is refreshed from the server (decoupled from the page bar).
 const EXECUTION_REFRESH_INTERVAL_MS = 5000;
 
+const EXECUTION_STATUS_COLORS = new Map<string, string>([
+  ["READY", "lightgreen"],
+  ["RUNNING", "orange"],
+  ["PAUSED", "purple"],
+  ["COMPLETED", "green"],
+  ["FAILED", "gray"],
+  ["KILLED", "red"],
+  ["JUST COMPLETED", "blue"],
+]);
+
+const TERMINAL_EXECUTION_STATUSES = new Set<string>(["COMPLETED", "JUST COMPLETED", "FAILED", "KILLED"]);
+
+const STATUS_FILTERS: Array<{ text: string; value: string }> = [...EXECUTION_STATUS_COLORS.keys(), "UNKNOWN"].map(
+  status => ({ text: status, value: status })
+);
+
+interface ExecutionColumn {
+  label: string;
+  width: string;
+  sortField?: string;
+  filters?: Array<{ text: string; value: string }>;
+}
+
+interface ExecutionAction {
+  icon: string;
+  verb: string;
+  isDisabled: (status: string) => boolean;
+  run: (wid: number) => void;
+}
+
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-execution.component.html",
@@ -89,6 +119,27 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   sortField: string = NO_SORT;
   sortDirection: string = NO_SORT;
   filter: string[] = [];
+
+  readonly tableColumns: ReadonlyArray<ExecutionColumn> = [
+    { label: "Workflow (ID)", width: "16%", sortField: "workflow_name" },
+    { label: "Execution Name (ID)", width: "16%", sortField: "execution_name" },
+    { label: "Initiator", width: "12%", sortField: "initiator" },
+    { label: "Status", width: "13%", filters: STATUS_FILTERS },
+    { label: "Time Used (hh:mm:ss)", width: "10%" },
+    { label: "End Time", width: "20%", sortField: "end_time" },
+    { label: "Action", width: "13%" },
+  ];
+
+  readonly executionActions: ReadonlyArray<ExecutionAction> = [
+    {
+      icon: "stop",
+      verb: "kill",
+      isDisabled: s => TERMINAL_EXECUTION_STATUSES.has(s),
+      run: wid => this.killExecution(wid),
+    },
+    { icon: "pause", verb: "pause", isDisabled: s => s !== "RUNNING", run: wid => this.pauseExecution(wid) },
+    { icon: "redo", verb: "resume", isDisabled: s => s !== "PAUSED", run: wid => this.resumeExecution(wid) },
+  ];
 
   // Handle for the client-side time/status tick; cleared on destroy.
   private clockTimer?: ReturnType<typeof setInterval>;
@@ -238,24 +289,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    * Determine and return the color associated with a given execution status.
    */
   getStatusColor(status: string): string {
-    switch (status) {
-      case "READY":
-        return "lightgreen";
-      case "RUNNING":
-        return "orange";
-      case "PAUSED":
-        return "purple";
-      case "FAILED":
-        return "gray";
-      case "JUST COMPLETED":
-        return "blue";
-      case "COMPLETED":
-        return "green";
-      case "KILLED":
-        return "red";
-      default:
-        return "black";
-    }
+    return EXECUTION_STATUS_COLORS.get(status) ?? "black";
   }
 
   /**
@@ -296,42 +330,31 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   }
 
   /**
-   Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
-   Therefore, commenting the code to ensure the connections is established and request has been sent.
+   * Send a workflow execution control request over websocket and refresh the current page.
+   * Due to the Async nature when setting up the websocket, closing immediately can abort the send.
    */
+  private sendExecutionCommand(
+    wid: number,
+    requestType: "WorkflowKillRequest" | "WorkflowPauseRequest" | "WorkflowResumeRequest"
+  ): void {
+    const socket = new WorkflowWebsocketService(this.config);
+    socket.openWebsocket(wid);
+    socket.send(requestType, {});
+    // Reflect the new status promptly instead of waiting for the next refresh tick.
+    this.fetchCurrentPage();
+    // socket.closeWebsocket();
+  }
+
   killExecution(wid: number) {
-    let socket = new WorkflowWebsocketService(this.config);
-    socket.openWebsocket(wid);
-    socket.send("WorkflowKillRequest", {});
-    // Reflect the new status promptly instead of waiting for the next refresh tick.
-    this.fetchCurrentPage();
-    // socket.closeWebsocket();
+    this.sendExecutionCommand(wid, "WorkflowKillRequest");
   }
 
-  /**
-   Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
-   Therefore, commenting the code to ensure the connections is established and request has been sent.
-   */
   pauseExecution(wid: number) {
-    let socket = new WorkflowWebsocketService(this.config);
-    socket.openWebsocket(wid);
-    socket.send("WorkflowPauseRequest", {});
-    // Reflect the new status promptly instead of waiting for the next refresh tick.
-    this.fetchCurrentPage();
-    // socket.closeWebsocket();
+    this.sendExecutionCommand(wid, "WorkflowPauseRequest");
   }
 
-  /**
-   Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
-   Therefore, commenting the code to ensure the connections is established and request has been sent.
-   */
   resumeExecution(wid: number) {
-    let socket = new WorkflowWebsocketService(this.config);
-    socket.openWebsocket(wid);
-    socket.send("WorkflowResumeRequest", {});
-    // Reflect the new status promptly instead of waiting for the next refresh tick.
-    this.fetchCurrentPage();
-    // socket.closeWebsocket();
+    this.sendExecutionCommand(wid, "WorkflowResumeRequest");
   }
 
   /**

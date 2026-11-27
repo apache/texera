@@ -58,6 +58,41 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   const createdUnit = { computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit;
 
+  const stubTypes = (...typeOptions: WorkflowComputingUnitType[]) =>
+    mockComputingUnitService.getComputingUnitTypes.mockReturnValue(of({ typeOptions }));
+
+  const stubLimits = (cpu: string[], memory: string[], gpu: string[]) =>
+    mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
+      of({ cpuLimitOptions: cpu, memoryLimitOptions: memory, gpuLimitOptions: gpu })
+    );
+
+  const selectMemory = (memory: string): void => {
+    component.selectedMemory = memory;
+    component.onMemorySelectionChange();
+  };
+
+  const setShm = (value: number, unit: "Mi" | "Gi"): void => {
+    component.shmSizeValue = value;
+    component.shmSizeUnit = unit;
+  };
+
+  const setVisible = (): void => {
+    component.visible = true;
+    fixture.detectChanges();
+  };
+
+  const triggerVisible = (): void => {
+    component.visible = true;
+    component.ngOnChanges({ visible: { currentValue: true } as never });
+  };
+
+  /** Renders the component, optionally fires ngOnChanges(visible=true) (for host dialogs), then settles. */
+  const openModal = (emitChanges = false): void => {
+    fixture.detectChanges();
+    if (emitChanges) triggerVisible();
+    setVisible();
+  };
+
   beforeEach(async () => {
     // No curated images by default, so the existing tests see today's behaviour. Cleared
     // as well as stubbed: the mock is shared, so call counts would carry between tests.
@@ -69,10 +104,8 @@ describe("ComputingUnitCreateModalComponent", () => {
       createKubernetesBasedComputingUnit: vi.fn(),
       createLocalComputingUnit: vi.fn(),
     } as unknown as Mocked<WorkflowComputingUnitManagingService>;
-    mockComputingUnitService.getComputingUnitTypes.mockReturnValue(of({ typeOptions: [] }));
-    mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
-      of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: [] })
-    );
+    stubTypes();
+    stubLimits([], [], []);
     mockComputingUnitService.createKubernetesBasedComputingUnit.mockReturnValue(of(createdUnit));
     mockComputingUnitService.createLocalComputingUnit.mockReturnValue(of(createdUnit));
 
@@ -101,19 +134,14 @@ describe("ComputingUnitCreateModalComponent", () => {
     component = fixture.componentInstance;
   });
 
-  /** Both hosts render this modal always, so the list is read when it opens, not on init. */
-  const openDialog = () => {
-    fixture.detectChanges();
-    component.visible = true;
-    component.ngOnChanges({ visible: { currentValue: true } as never });
-    fixture.detectChanges();
-  };
+  const stubImageError = (status: number, statusText: string) =>
+    mockCuImageService.list.mockReturnValue(throwError(() => new HttpErrorResponse({ status, statusText })));
 
   it("offers only ready images, and none when there are none", () => {
     mockCuImageService.list.mockReturnValue(
       of([curatedImage({ iid: 1 }), curatedImage({ iid: 2, name: "Still checking", status: "VALIDATING" })])
     );
-    openDialog();
+    openModal(true);
     // A unit cannot start from an image that has not passed its check.
     expect(component.curatedImages.map(i => i.iid)).toEqual([1]);
     // Nothing is preselected: the default is the deployment's own image.
@@ -123,20 +151,16 @@ describe("ComputingUnitCreateModalComponent", () => {
   // A 503 means the feature is off and is expected; anything else means the picker
   // vanished for a reason the user should hear about.
   it("says so when the images cannot be loaded for a real reason", () => {
-    mockCuImageService.list.mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 500, statusText: "Server Error" }))
-    );
-    openDialog();
+    stubImageError(500, "Server Error");
+    openModal(true);
     expect(component.curatedImages).toEqual([]);
     expect(mockNotificationService.error).toHaveBeenCalled();
   });
 
   it("shows no images when the deployment has the feature switched off", () => {
     // The API answers 503 there. The dropdown is hidden and nothing else changes.
-    mockCuImageService.list.mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 503, statusText: "Service Unavailable" }))
-    );
-    openDialog();
+    stubImageError(503, "Service Unavailable");
+    openModal(true);
     expect(component.curatedImages).toEqual([]);
     // Expected on such a deployment, so it is not reported.
     expect(mockNotificationService.error).not.toHaveBeenCalled();
@@ -144,11 +168,9 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   it("sends the chosen image, and forgets it when the modal reopens", () => {
     mockCuImageService.list.mockReturnValue(of([curatedImage({ iid: 7 })]));
-    mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-      of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
-    );
+    stubTypes("kubernetes");
     mockComputingUnitService.createKubernetesBasedComputingUnit.mockReturnValue(of(createdUnit));
-    openDialog();
+    openModal(true);
 
     component.newComputingUnitName = "On a curated image";
     component.selectedImageId = 7;
@@ -164,8 +186,7 @@ describe("ComputingUnitCreateModalComponent", () => {
     );
 
     // The image is chosen per unit, so the next one must not inherit it.
-    component.visible = true;
-    component.ngOnChanges({ visible: { currentValue: true } as never });
+    triggerVisible();
     expect(component.selectedImageId).toBe(component.DEPLOYMENT_IMAGE);
   });
 
@@ -177,8 +198,7 @@ describe("ComputingUnitCreateModalComponent", () => {
     expect(mockCuImageService.list).not.toHaveBeenCalled();
 
     mockCuImageService.list.mockReturnValue(of([curatedImage({ iid: 9, name: "Ready later" })]));
-    component.visible = true;
-    component.ngOnChanges({ visible: { currentValue: true } as never });
+    triggerVisible();
     expect(component.curatedImages.map(i => i.iid)).toEqual([9]);
   });
 
@@ -188,25 +208,19 @@ describe("ComputingUnitCreateModalComponent", () => {
   });
 
   it("prefers the kubernetes type when available", () => {
-    mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-      of({ typeOptions: ["local", "kubernetes"] as WorkflowComputingUnitType[] })
-    );
+    stubTypes("local", "kubernetes");
     fixture.detectChanges();
     expect(component.selectedComputingUnitType).toBe("kubernetes");
   });
 
   it("falls back to the first available type when kubernetes is absent", () => {
-    mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-      of({ typeOptions: ["local"] as WorkflowComputingUnitType[] })
-    );
+    stubTypes("local");
     fixture.detectChanges();
     expect(component.selectedComputingUnitType).toBe("local");
   });
 
   it("applies fetched limit options with first-option defaults", () => {
-    mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
-      of({ cpuLimitOptions: ["2", "4"], memoryLimitOptions: ["2Gi", "4Gi"], gpuLimitOptions: ["0", "1"] })
-    );
+    stubLimits(["2", "4"], ["2Gi", "4Gi"], ["0", "1"]);
     fixture.detectChanges();
     expect(component.cpuOptions).toEqual(["2", "4"]);
     expect(component.selectedCpu).toBe("2");
@@ -249,6 +263,11 @@ describe("ComputingUnitCreateModalComponent", () => {
     expect(mockComputingUnitService.createLocalComputingUnit).not.toHaveBeenCalled();
   });
 
+  const expectNoCreateCalls = (): void => {
+    expect(mockComputingUnitService.createKubernetesBasedComputingUnit).not.toHaveBeenCalled();
+    expect(mockComputingUnitService.createLocalComputingUnit).not.toHaveBeenCalled();
+  };
+
   it("rejects a create without a selected type", () => {
     fixture.detectChanges();
     component.selectedComputingUnitType = undefined;
@@ -256,8 +275,7 @@ describe("ComputingUnitCreateModalComponent", () => {
     component.startComputingUnit();
 
     expect(mockNotificationService.error).toHaveBeenCalledWith("Please select a valid computing unit type");
-    expect(mockComputingUnitService.createKubernetesBasedComputingUnit).not.toHaveBeenCalled();
-    expect(mockComputingUnitService.createLocalComputingUnit).not.toHaveBeenCalled();
+    expectNoCreateCalls();
   });
 
   it("emits unitCreated and a success toast on a successful kubernetes create", () => {
@@ -268,8 +286,7 @@ describe("ComputingUnitCreateModalComponent", () => {
     component.selectedMemory = "4Gi";
     component.selectedGpu = "0";
     component.selectedJvmMemorySize = "2G";
-    component.shmSizeValue = 128;
-    component.shmSizeUnit = "Mi";
+    setShm(128, "Mi");
     const unitCreatedSpy = vi.fn();
     component.unitCreated.subscribe(unitCreatedSpy);
 
@@ -297,14 +314,12 @@ describe("ComputingUnitCreateModalComponent", () => {
     component.handleAddComputeUnitModalCancel();
 
     expect(visibleSpy).toHaveBeenCalledWith(false);
-    expect(mockComputingUnitService.createKubernetesBasedComputingUnit).not.toHaveBeenCalled();
-    expect(mockComputingUnitService.createLocalComputingUnit).not.toHaveBeenCalled();
+    expectNoCreateCalls();
   });
 
   it("reconfigures the JVM memory slider when the memory selection changes", () => {
     fixture.detectChanges();
-    component.selectedMemory = "4Gi";
-    component.onMemorySelectionChange();
+    selectMemory("4Gi");
     const expected = getJvmMemorySliderConfig("4Gi");
     expect(component.jvmMemoryMax).toBe(expected.jvmMemoryMax);
     expect(component.showJvmMemorySlider).toBe(expected.showJvmMemorySlider);
@@ -314,12 +329,10 @@ describe("ComputingUnitCreateModalComponent", () => {
   it("flags shared memory larger than total memory", () => {
     fixture.detectChanges();
     component.selectedMemory = "1Gi";
-    component.shmSizeValue = 2;
-    component.shmSizeUnit = "Gi";
+    setShm(2, "Gi");
     expect(component.isShmTooLarge()).toBe(true);
 
-    component.shmSizeValue = 64;
-    component.shmSizeUnit = "Mi";
+    setShm(64, "Mi");
     expect(component.isShmTooLarge()).toBe(false);
   });
 
@@ -344,10 +357,8 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   it("resets the advanced values each time the modal opens", () => {
     fixture.detectChanges();
-    component.selectedMemory = "8Gi";
-    component.onMemorySelectionChange();
-    component.shmSizeValue = 4;
-    component.shmSizeUnit = "Gi";
+    selectMemory("8Gi");
+    setShm(4, "Gi");
     component.onJvmMemorySliderChange(component.jvmMemoryMax);
 
     component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
@@ -359,18 +370,21 @@ describe("ComputingUnitCreateModalComponent", () => {
     expect(component.selectedJvmMemorySize).toBe(expected.selectedJvmMemorySize);
 
     // Closing the modal must not touch the values.
-    component.shmSizeValue = 2;
-    component.shmSizeUnit = "Gi";
+    setShm(2, "Gi");
     component.ngOnChanges({ visible: new SimpleChange(true, false, false) });
     expect(component.shmSizeValue).toBe(2);
     expect(component.shmSizeUnit).toBe("Gi");
   });
 
-  it("surfaces the max-JVM warning on the collapsed header", () => {
-    vi.spyOn(component, "isShmTooLarge").mockReturnValue(false);
-    vi.spyOn(component, "isMaxJvmMemorySelected").mockReturnValue(true);
-
+  const setupCollapsedWarning = (shmTooLarge: boolean, maxJvm?: boolean, memory?: string): void => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(shmTooLarge);
+    if (maxJvm !== undefined) vi.spyOn(component, "isMaxJvmMemorySelected").mockReturnValue(maxJvm);
+    if (memory !== undefined) component.selectedMemory = memory;
     component.showAdvancedSettings = false;
+  };
+
+  it("surfaces the max-JVM warning on the collapsed header", () => {
+    setupCollapsedWarning(false, true);
     expect(component.hasCollapsedWarning()).toBe(true);
     expect(component.collapsedWarningText()).toBe("JVM memory at maximum");
 
@@ -380,18 +394,12 @@ describe("ComputingUnitCreateModalComponent", () => {
   });
 
   it("prefers the shm warning over the JVM warning when both apply", () => {
-    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
-    vi.spyOn(component, "isMaxJvmMemorySelected").mockReturnValue(true);
-
-    component.selectedMemory = "4Gi";
-    component.showAdvancedSettings = false;
+    setupCollapsedWarning(true, true, "4Gi");
     expect(component.collapsedWarningText()).toBe("Shared memory exceeds total");
   });
 
   it("flags a collapsed warning only when collapsed and shm exceeds memory", () => {
-    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
-    component.selectedMemory = "4Gi";
-    component.showAdvancedSettings = false;
+    setupCollapsedWarning(true, undefined, "4Gi");
     expect(component.hasCollapsedWarning()).toBe(true);
     // Expanded: the inline warning is visible, so the header stays quiet.
     component.showAdvancedSettings = true;
@@ -399,15 +407,12 @@ describe("ComputingUnitCreateModalComponent", () => {
   });
 
   it("suppresses the shm warning until the memory options have loaded", () => {
-    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
-    component.selectedMemory = "";
-    component.showAdvancedSettings = false;
+    setupCollapsedWarning(true, undefined, "");
     expect(component.hasCollapsedWarning()).toBe(false);
   });
 
   it("does not flag a warning when shm fits within memory", () => {
-    vi.spyOn(component, "isShmTooLarge").mockReturnValue(false);
-    component.showAdvancedSettings = false;
+    setupCollapsedWarning(false);
     expect(component.hasCollapsedWarning()).toBe(false);
   });
 
@@ -425,20 +430,19 @@ describe("ComputingUnitCreateModalComponent", () => {
     );
   });
 
+  const expectErrorContaining = (fragment: string): void =>
+    expect(mockNotificationService.error).toHaveBeenCalledWith(expect.stringContaining(fragment));
+
   it("toasts when fetching computing unit types fails", () => {
     mockComputingUnitService.getComputingUnitTypes.mockReturnValue(throwError(() => new Error("boom")));
     fixture.detectChanges();
-    expect(mockNotificationService.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to fetch computing unit types")
-    );
+    expectErrorContaining("Failed to fetch computing unit types");
   });
 
   it("toasts when fetching resource limit options fails", () => {
     mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(throwError(() => new Error("boom")));
     fixture.detectChanges();
-    expect(mockNotificationService.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to fetch resource options")
-    );
+    expectErrorContaining("Failed to fetch resource options");
   });
 
   it("toasts when the create request fails", () => {
@@ -451,9 +455,7 @@ describe("ComputingUnitCreateModalComponent", () => {
 
     component.startComputingUnit();
 
-    expect(mockNotificationService.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to start computing unit")
-    );
+    expectErrorContaining("Failed to start computing unit");
     expect(unitCreatedSpy).not.toHaveBeenCalled();
   });
 
@@ -467,8 +469,7 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   it("snaps the JVM memory slider to the nearest valid step", () => {
     fixture.detectChanges();
-    component.selectedMemory = "8Gi";
-    component.onMemorySelectionChange();
+    selectMemory("8Gi");
 
     component.onJvmMemorySliderChange(component.jvmMemoryMax - 1);
 
@@ -478,8 +479,7 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   it("flags max JVM memory only when the slider is shown at its maximum", () => {
     fixture.detectChanges();
-    component.selectedMemory = "8Gi";
-    component.onMemorySelectionChange();
+    selectMemory("8Gi");
 
     component.onJvmMemorySliderChange(component.jvmMemoryMax);
     expect(component.isMaxJvmMemorySelected()).toBe(true);
@@ -490,12 +490,10 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   it("preserves a valid previous JVM selection when switching between large memory options", () => {
     fixture.detectChanges();
-    component.selectedMemory = "8Gi";
-    component.onMemorySelectionChange();
+    selectMemory("8Gi");
     component.onJvmMemorySliderChange(1); // Index 1 for 4G in [2, 4, 6]
 
-    component.selectedMemory = "4096Mi";
-    component.onMemorySelectionChange();
+    selectMemory("4096Mi");
 
     expect(component.jvmMemorySliderValue).toBe(1);
     expect(component.selectedJvmMemorySize).toBe("4G");
@@ -503,12 +501,10 @@ describe("ComputingUnitCreateModalComponent", () => {
 
   it("resets the JVM selection when switching to an unrecognized memory unit", () => {
     fixture.detectChanges();
-    component.selectedMemory = "8Gi";
-    component.onMemorySelectionChange();
+    selectMemory("8Gi");
     component.onJvmMemorySliderChange(1);
 
-    component.selectedMemory = "2";
-    component.onMemorySelectionChange();
+    selectMemory("2");
 
     const expected = getJvmMemorySliderConfig("2");
     expect(component.showJvmMemorySlider).toBe(expected.showJvmMemorySlider);
@@ -516,27 +512,32 @@ describe("ComputingUnitCreateModalComponent", () => {
   });
 
   describe("template rendering", () => {
+    const stubFullForm = (): void => {
+      stubTypes("kubernetes", "local");
+      stubLimits(["1", "2"], ["8Gi", "16Gi"], ["0", "1"]);
+    };
+    const openMinimalK8s = (): void => {
+      stubTypes("kubernetes");
+      stubLimits(["1"], ["1Gi"], ["0"]);
+      openModal();
+    };
+    const expectPresent = (...selectors: string[]) =>
+      selectors.forEach(s => expect(document.querySelector(s)).toBeTruthy());
+    const expectAbsent = (...selectors: string[]) =>
+      selectors.forEach(s => expect(document.querySelector(s)).toBeNull());
+
     afterEach(() => {
       document.querySelectorAll(".cdk-overlay-container").forEach(el => el.remove());
     });
 
     it("renders the full kubernetes form with GPU select, shm warning, JVM slider and max-memory alert", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["kubernetes", "local"] as WorkflowComputingUnitType[] })
-      );
-      mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
-        of({ cpuLimitOptions: ["1", "2"], memoryLimitOptions: ["8Gi", "16Gi"], gpuLimitOptions: ["0", "1"] })
-      );
+      stubFullForm();
       fixture.detectChanges();
       component.onJvmMemorySliderChange(component.jvmMemoryMax);
-      component.shmSizeValue = 16;
-      component.shmSizeUnit = "Gi";
-      component.visible = true;
-      fixture.detectChanges();
+      setShm(16, "Gi");
+      setVisible();
 
-      expect(document.querySelector(".create-compute-unit-container")).toBeTruthy();
-      expect(document.querySelector(".unit-name-input")).toBeTruthy();
-      expect(document.querySelector(".gpu-selection")).toBeTruthy();
+      expectPresent(".create-compute-unit-container", ".unit-name-input", ".gpu-selection");
 
       // Collapsed: the invalid shm value is announced on the panel header.
       expect(document.querySelector(".advanced-settings-hint--warning")?.textContent).toContain(
@@ -551,68 +552,45 @@ describe("ComputingUnitCreateModalComponent", () => {
       expect(document.querySelector(".shm-warning")?.textContent).toContain(
         "Shared memory cannot be greater than total memory."
       );
-      expect(document.querySelector(".jvm-memory-slider")).toBeTruthy();
-      expect(document.querySelector("nz-alert")).toBeTruthy();
-      expect(document.querySelector(".unit-uri-input")).toBeNull();
+      expectPresent(".jvm-memory-slider", "nz-alert");
+      expectAbsent(".unit-uri-input");
     });
 
     it("expands and collapses the advanced panel when the toggle button is clicked", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
-      );
-      mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
-        of({ cpuLimitOptions: ["1"], memoryLimitOptions: ["1Gi"], gpuLimitOptions: ["0"] })
-      );
-      fixture.detectChanges();
-      component.visible = true;
-      fixture.detectChanges();
+      openMinimalK8s();
 
       const toggle = document.querySelector(".advanced-settings-toggle") as HTMLButtonElement;
       const body = document.querySelector(".advanced-settings-body") as HTMLElement;
-      expect(toggle.getAttribute("aria-expanded")).toBe("false");
-      expect(body.classList.contains("expanded")).toBe(false);
+      const expectExpanded = (expanded: boolean): void => {
+        expect(toggle.getAttribute("aria-expanded")).toBe(String(expanded));
+        expect(body.classList.contains("expanded")).toBe(expanded);
+      };
+      expectExpanded(false);
 
       toggle.click();
       fixture.detectChanges();
       expect(component.showAdvancedSettings).toBe(true);
-      expect(toggle.getAttribute("aria-expanded")).toBe("true");
-      expect(body.classList.contains("expanded")).toBe(true);
+      expectExpanded(true);
 
       toggle.click();
       fixture.detectChanges();
       expect(component.showAdvancedSettings).toBe(false);
-      expect(toggle.getAttribute("aria-expanded")).toBe("false");
-      expect(body.classList.contains("expanded")).toBe(false);
+      expectExpanded(false);
     });
 
     it("renders the minimal kubernetes form without GPU select, warnings, or slider", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
-      );
-      mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
-        of({ cpuLimitOptions: ["1"], memoryLimitOptions: ["1Gi"], gpuLimitOptions: ["0"] })
-      );
-      fixture.detectChanges();
-      component.visible = true;
-      fixture.detectChanges();
+      openMinimalK8s();
 
-      expect(document.querySelector(".create-compute-unit-container")).toBeTruthy();
-      expect(document.querySelector(".gpu-selection")).toBeNull();
-      expect(document.querySelector(".shm-warning")).toBeNull();
-      expect(document.querySelector(".jvm-memory-slider")).toBeNull();
-      expect(document.querySelector("nz-alert")).toBeNull();
+      expectPresent(".create-compute-unit-container");
+      expectAbsent(".gpu-selection", ".shm-warning", ".jvm-memory-slider", "nz-alert");
     });
 
     it("renders the local form with name and URI inputs", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["local"] as WorkflowComputingUnitType[] })
-      );
-      fixture.detectChanges();
-      component.visible = true;
-      fixture.detectChanges();
+      stubTypes("local");
+      openModal();
 
-      expect(document.querySelector(".unit-uri-input")).toBeTruthy();
-      expect(document.querySelector(".memory-selection")).toBeNull();
+      expectPresent(".unit-uri-input");
+      expectAbsent(".memory-selection");
     });
 
     // The modal body renders inside the CDK overlay, which is a view attached to
@@ -647,15 +625,8 @@ describe("ComputingUnitCreateModalComponent", () => {
     };
 
     it("updates the form state through the rendered controls", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["kubernetes", "local"] as WorkflowComputingUnitType[] })
-      );
-      mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
-        of({ cpuLimitOptions: ["1", "2"], memoryLimitOptions: ["8Gi", "16Gi"], gpuLimitOptions: ["0", "1"] })
-      );
-      fixture.detectChanges();
-      component.visible = true;
-      fixture.detectChanges();
+      stubFullForm();
+      openModal();
 
       setInputValue(".unit-name-input", "Typed Name");
       expect(component.newComputingUnitName).toBe("Typed Name");
@@ -668,17 +639,15 @@ describe("ComputingUnitCreateModalComponent", () => {
       setInputValue(".shm-size-input", "128");
       expect(component.shmSizeValue).toBe(128);
 
-      clickSelectOption("memory-selection", "16Gi");
-      expect(component.selectedMemory).toBe("16Gi");
-
-      clickSelectOption("cpu-selection", "2");
-      expect(component.selectedCpu).toBe("2");
-
-      clickSelectOption("gpu-selection", "1");
-      expect(component.selectedGpu).toBe("1");
-
-      clickSelectOption("shm-unit-select", "Gi");
-      expect(component.shmSizeUnit).toBe("Gi");
+      for (const [selectClass, optionText, readActual] of [
+        ["memory-selection", "16Gi", () => component.selectedMemory],
+        ["cpu-selection", "2", () => component.selectedCpu],
+        ["gpu-selection", "1", () => component.selectedGpu],
+        ["shm-unit-select", "Gi", () => component.shmSizeUnit],
+      ] as const) {
+        clickSelectOption(selectClass, optionText);
+        expect(readActual()).toBe(optionText);
+      }
 
       // jsdom cannot produce meaningful slider drag geometry; emit the view-model
       // update at the NgModel seam, which is what a real drag/keypress triggers.
@@ -701,14 +670,11 @@ describe("ComputingUnitCreateModalComponent", () => {
     });
 
     it("falls back to a slider minimum of 0 when no JVM steps are configured", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
-      );
+      stubTypes("kubernetes");
       fixture.detectChanges();
       component.showJvmMemorySlider = true;
       component.jvmMemorySteps = [];
-      component.visible = true;
-      fixture.detectChanges();
+      setVisible();
 
       const sliderEl = document.querySelector("nz-slider")!;
       const slider = (getDebugNode(sliderEl) as DebugElement).componentInstance as { nzMin: number };
@@ -716,12 +682,8 @@ describe("ComputingUnitCreateModalComponent", () => {
     });
 
     it("wires the footer buttons to cancel and create", () => {
-      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
-        of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
-      );
-      fixture.detectChanges();
-      component.visible = true;
-      fixture.detectChanges();
+      stubTypes("kubernetes");
+      openModal();
       const visibleSpy = vi.fn();
       const unitCreatedSpy = vi.fn();
       component.visibleChange.subscribe(visibleSpy);
@@ -733,8 +695,7 @@ describe("ComputingUnitCreateModalComponent", () => {
       expect(visibleSpy).toHaveBeenCalledWith(false);
       expect(unitCreatedSpy).not.toHaveBeenCalled();
 
-      component.visible = true;
-      fixture.detectChanges();
+      setVisible();
       buttons[1].click();
       expect(unitCreatedSpy).toHaveBeenCalledWith(createdUnit);
       expect(visibleSpy).toHaveBeenCalledTimes(2);

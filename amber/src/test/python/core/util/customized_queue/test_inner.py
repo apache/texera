@@ -119,13 +119,19 @@ class TestInnerInstanceBinding:
         assert a_inner is not b_inner
 
 
+def counter_outer(decorator):
+    class Outer:
+        @decorator
+        class Counter:
+            def __init__(self):
+                self.value = 0
+
+    return Outer
+
+
 class TestInnerProperty:
     def test_property_auto_instantiates_inner_on_access(self):
-        class Outer:
-            @inner.property
-            class Counter:
-                def __init__(self):
-                    self.value = 0
+        Outer = counter_outer(inner.property)
 
         outer = Outer()
         c = outer.Counter
@@ -138,11 +144,7 @@ class TestInnerProperty:
         # Plain `@inner.property` (without `cached_property`) does not memoize,
         # so two accesses produce two distinct instances. Pin this so the
         # difference between `property` and `cached_property` is preserved.
-        class Outer:
-            @inner.property
-            class Counter:
-                def __init__(self):
-                    self.value = 0
+        Outer = counter_outer(inner.property)
 
         outer = Outer()
         first = outer.Counter
@@ -154,11 +156,7 @@ class TestInnerCachedProperty:
     def test_cached_property_returns_the_same_instance_on_repeat_access(self):
         # cached_property memoizes the inner instance on the outer object,
         # so subsequent attribute reads return the exact same object.
-        class Outer:
-            @inner.cached_property
-            class Counter:
-                def __init__(self):
-                    self.value = 0
+        Outer = counter_outer(inner.cached_property)
 
         outer = Outer()
         first = outer.Counter
@@ -168,11 +166,7 @@ class TestInnerCachedProperty:
         assert second.value == 42
 
     def test_cached_property_caches_independently_per_outer_instance(self):
-        class Outer:
-            @inner.cached_property
-            class Counter:
-                def __init__(self):
-                    self.value = 0
+        Outer = counter_outer(inner.cached_property)
 
         a = Outer()
         b = Outer()

@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
 import { HttpErrorResponse } from "@angular/common/http";
-import { TestBed } from "@angular/core/testing";
+import { flushHttpRequest, setupHttpServiceTest } from "../../../testing/http-service-test-utils";
 import { AppSettings } from "../../../app-setting";
 import {
   WorkflowComputingUnitManagingService,
@@ -39,12 +39,7 @@ describe("WorkflowComputingUnitManagingService", () => {
   const unitWithResource = (resource: any) => ({ computingUnit: { cuid: 1, name: "u", resource } }) as any;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [WorkflowComputingUnitManagingService],
-    });
-    service = TestBed.inject(WorkflowComputingUnitManagingService);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service, httpMock } = setupHttpServiceTest(WorkflowComputingUnitManagingService));
   });
 
   afterEach(() => {
@@ -60,20 +55,24 @@ describe("WorkflowComputingUnitManagingService", () => {
       let result: any;
       service.createKubernetesBasedComputingUnit("k8s", "2", "4G", "1", "1G", "64M").subscribe(r => (result = r));
 
-      const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_CREATE_URL}`);
-      expect(req.request.method).toEqual("POST");
-      expect(req.request.body).toEqual({
-        name: "k8s",
-        cpuLimit: "2",
-        memoryLimit: "4G",
-        gpuLimit: "1",
-        jvmMemorySize: "1G",
-        shmSize: "64M",
-        uri: "",
-        unitType: "kubernetes",
-      });
-
-      req.flush(unitWithResource('{"cpuLimit":"2","memoryLimit":"4G"}'));
+      flushHttpRequest(
+        httpMock,
+        `${api}/${COMPUTING_UNIT_CREATE_URL}`,
+        "POST",
+        unitWithResource('{"cpuLimit":"2","memoryLimit":"4G"}'),
+        {
+          body: {
+            name: "k8s",
+            cpuLimit: "2",
+            memoryLimit: "4G",
+            gpuLimit: "1",
+            jvmMemorySize: "1G",
+            shmSize: "64M",
+            uri: "",
+            unitType: "kubernetes",
+          },
+        }
+      );
       expect(result.computingUnit.resource).toEqual({ cpuLimit: "2", memoryLimit: "4G" });
     });
   });
@@ -132,32 +131,31 @@ describe("WorkflowComputingUnitManagingService", () => {
 
   it("terminateComputingUnit() DELETEs the terminate endpoint", () => {
     service.terminateComputingUnit(9).subscribe();
-    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/9/terminate`);
-    expect(req.request.method).toEqual("DELETE");
-    req.flush({});
+    flushHttpRequest(httpMock, `${api}/${COMPUTING_UNIT_BASE_URL}/9/terminate`, "DELETE", {});
   });
 
   it("getComputingUnitLimitOptions() GETs the limits endpoint", () => {
     service.getComputingUnitLimitOptions().subscribe();
-    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/limits`);
-    expect(req.request.method).toEqual("GET");
-    req.flush({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: [] });
+    flushHttpRequest(httpMock, `${api}/${COMPUTING_UNIT_BASE_URL}/limits`, "GET", {
+      cpuLimitOptions: [],
+      memoryLimitOptions: [],
+      gpuLimitOptions: [],
+    });
   });
 
   it("getComputingUnitTypes() GETs the types endpoint", () => {
     service.getComputingUnitTypes().subscribe();
-    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_TYPES_URL}`);
-    expect(req.request.method).toEqual("GET");
-    req.flush({ typeOptions: [] });
+    flushHttpRequest(httpMock, `${api}/${COMPUTING_UNIT_TYPES_URL}`, "GET", { typeOptions: [] });
   });
 
   it("listComputingUnits() GETs the list endpoint and parses every unit's resource", () => {
     let result: any[] = [];
     service.listComputingUnits().subscribe(r => (result = r));
 
-    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_LIST_URL}`);
-    expect(req.request.method).toEqual("GET");
-    req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
+    flushHttpRequest(httpMock, `${api}/${COMPUTING_UNIT_LIST_URL}`, "GET", [
+      unitWithResource('{"cpuLimit":"1"}'),
+      unitWithResource('{"cpuLimit":"2"}'),
+    ]);
 
     expect(result.map(u => u.computingUnit.resource)).toEqual([{ cpuLimit: "1" }, { cpuLimit: "2" }]);
   });
@@ -166,9 +164,10 @@ describe("WorkflowComputingUnitManagingService", () => {
     let result: any[] = [];
     service.listAllComputingUnits().subscribe(r => (result = r));
 
-    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_ADMIN_LIST_URL}`);
-    expect(req.request.method).toEqual("GET");
-    req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
+    flushHttpRequest(httpMock, `${api}/${COMPUTING_UNIT_ADMIN_LIST_URL}`, "GET", [
+      unitWithResource('{"cpuLimit":"1"}'),
+      unitWithResource('{"cpuLimit":"2"}'),
+    ]);
 
     expect(result.map(u => u.computingUnit.resource)).toEqual([{ cpuLimit: "1" }, { cpuLimit: "2" }]);
   });
@@ -194,9 +193,7 @@ describe("WorkflowComputingUnitManagingService", () => {
     let result: ClusterCapacity | undefined;
     service.getClusterCapacity().subscribe(r => (result = r));
 
-    const req = httpMock.expectOne(`${api}/computing-unit/admin/cluster-capacity`);
-    expect(req.request.method).toEqual("GET");
-    req.flush(capacity);
+    flushHttpRequest(httpMock, `${api}/computing-unit/admin/cluster-capacity`, "GET", capacity);
 
     expect(result).toEqual(capacity);
   });
@@ -215,8 +212,11 @@ describe("WorkflowComputingUnitManagingService", () => {
   it("renameComputingUnit() PUTs to a URI-encoded rename endpoint", () => {
     service.renameComputingUnit(3, "my unit/name").subscribe();
 
-    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/3/rename/${encodeURIComponent("my unit/name")}`);
-    expect(req.request.method).toEqual("PUT");
-    req.flush({});
+    flushHttpRequest(
+      httpMock,
+      `${api}/${COMPUTING_UNIT_BASE_URL}/3/rename/${encodeURIComponent("my unit/name")}`,
+      "PUT",
+      {}
+    );
   });
 });

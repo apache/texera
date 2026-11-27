@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard.user
 
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -45,11 +46,15 @@ class UserResource {
   @Path("/joining-reason/required")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isJoiningReasonRequired(@QueryParam("uid") uid: Int): java.lang.Boolean = {
-    val user = UserResource.userDao.fetchOneByUid(uid)
-    if (user == null) {
+    val record = UserResource.context
+      .select(USER.JOINING_REASON)
+      .from(USER)
+      .where(USER.UID.eq(uid))
+      .fetchOne()
+    if (record == null) {
       throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
     }
-    java.lang.Boolean.valueOf(user.getJoiningReason == null)
+    java.lang.Boolean.valueOf(record.value1() == null)
   }
 
   /**

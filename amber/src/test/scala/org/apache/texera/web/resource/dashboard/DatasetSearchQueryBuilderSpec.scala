@@ -20,8 +20,9 @@
 package org.apache.texera.web.resource.dashboard
 
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, User}
@@ -29,10 +30,13 @@ import org.apache.texera.web.resource.dashboard.DashboardResource.{
   DashboardClickableFileEntry,
   SearchQueryParams
 }
+import org.apache.texera.web.resource.dashboard.VersionedSearchQuerySupport.{
+  assertProjection,
+  params,
+  renderSearch
+}
 import org.jooq.Record
-import org.scalatest.{BeforeAndAfterAll, OptionValues}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.OptionValues
 
 import java.io.IOException
 import java.net.{InetSocketAddress, URI}
@@ -41,132 +45,20 @@ import java.util.concurrent.{ExecutorService, Executors}
 import scala.jdk.CollectionConverters._
 
 /**
-  * Covers `DatasetSearchQueryBuilder` from both ends: the shape of the SQL it builds, and the
-  * `DashboardClickableFileEntry` it turns a fetched row into.
+  * Pins the rendered visibility and projection rules and hydrates rows fetched through the
+  * production builder. SQL assertions catch swapped aliases that translateRecord can reverse
+  * during hydration, and distinguish the owner join from a join on the caller's access row.
   *
-  * == Part 1: which datasets a caller may see ==
+  * Keyword assertions work under either full-text mode: they match tokens and the shared field
+  * expression because usePgroonga is JVM-wide and may have been set by another suite.
   *
-  * Every member of the builder is `override protected`, so the query side is reachable only through
-  * the trait's `final constructQuery`, and what it returns can be rendered to SQL and inspected
-  * without executing it — those are assertions about the query's *shape*. Three branches decide
-  * visibility and nothing else tests them:
-  *
-  *   - the join predicate `.and(if (uid == null) DSL.falseCondition() else DATASET_USER_ACCESS.UID.eq(uid))`,
-  *     which scopes the grant rows to the caller. Without the `eq(uid)` the `UID.isNotNull` check
-  *     below matches *anyone's* grant row, which is a complete sharing bypass;
-  *   - the anonymous arm, which must restrict to public datasets and nothing else;
-  *   - `includePublic == false`, which must return only explicitly-granted datasets and must not
-  *     leak public ones in.
-  *
-  * == Part 2: what a row becomes ==
-  *
-  * `toEntryImpl` is `override protected` here (the workflow and project siblings widen theirs to
-  * `override def`), so it is not directly callable. The route in is the trait's public `toEntry`,
-  * which first runs `UnifiedResourceSchema.translateRecord` — so the record handed to it must carry
-  * the *aliased* select fields, not raw `DATASET.*` fields. Rather than hand-build that record,
-  * these tests fetch the builder's own query and pass a real row, which is exactly what
-  * `DashboardResource.searchAllResources` does.
-  *
-  * A record permutation is invisible from this end. `translateRecord` writes each aliased value back
-  * to the very column the schema paired it with (`UnifiedResourceSchema:174`), so ANY swap of two
-  * same-typed schema assignments — `name`/`description`, `is_public`/`is_downloadable`,
-  * `did`/`ownerId` — cancels out exactly and produces a byte-identical entry. What the entry-level
-  * column assertions below really pin is that each slot still references *some* `DATASET` column
-  * (wire a slot to a literal and `translateRecord` drops the field, so the value reads back null).
-  * The projections are pinned where a permutation is actually visible: the SQL-shape test
-  * "project every dataset column under the alias its schema slot names".
-  *
-  * `toEntryImpl` also calls `LakeFSStorageClient.retrieveRepositorySize`, which is a live HTTP call
-  * with no injectable seam. Two non-obvious things make it testable anyway:
-  *
-  *   - **The stub binds AT the configured endpoint** (`StorageConfig.lakefsEndpoint`, i.e.
-  *     `localhost:8000`) instead of repointing that endpoint at an ephemeral port. This is
-  *     deliberate. `LakeFSStorageClient.apiClient` is a `lazy val` that captures the endpoint once
-  *     per JVM, and `amber/build.sbt` runs every suite in ONE unforked JVM
-  *     (`Tags.limit(Tags.Test, 1)` serializes them but does not isolate them). Mutating the global
-  *     `StorageConfig.lakefsEndpoint` here would therefore be order-dependent — any earlier suite
-  *     that forced `apiClient` wins — and would leave the client bound to a dead port for every
-  *     later suite. Binding at the address the config already names is order-independent and
-  *     memoizes nothing wrongly. The price is that the port is machine-global: if something else
-  *     holds it (a local `bin/local-dev.sh up` lakeFS, or a sibling worktree running these tests),
-  *     the six tests that need a *successful* size `cancel` rather than fail. CI has no lakeFS in
-  *     this job, so it is deterministic there.
-  *
-  *     A cancel is louder than it looks, and the sbt log shows it only as `canceled 6` while the
-  *     build stays green. It disarms the whole `toEntry` half of this suite: not just its coverage
-  *     (which falls back toward the ~59% this file had before), but every assertion protecting
-  *     `toEntryImpl` — the owner-email pair included, so the `new User` mutant this suite otherwise
-  *     kills goes unnoticed too. Measured: with the port held, mutating `size` to `0L` in
-  *     `VersionedResourceTables.hydrate` leaves `succeeded 18, failed 0, canceled 6` and sbt printing
-  *     "All tests passed" at exit 0. The
-  *     assertions in the SQL-shape tests are unaffected, because they render rather than fetch and
-  *     never call lakeFS — that is the half that stays armed everywhere (verified: with the port
-  *     held, breaking a projection or a where-clause connective still fails the build).
-  *   - **The `null`-return test needs no stub at all.** Connection-refused, 404 and 501 all surface
-  *     as `io.lakefs.clients.sdk.ApiException` (`ApiClient` wraps `IOException` in one, and non-2xx
-  *     throws one directly), so that test behaves identically whether the stub bound or not.
-  *
-  * The stub is ~50 lines duplicated in spirit from
-  * `common/workflow-core/.../LakeFSStorageClientSpec`. It cannot be shared: `build.sbt` gives
-  * `WorkflowExecutionService` a test->test dependency on `DAO` and `Auth` only, so workflow-core's
-  * test tree is not on this module's test classpath.
-  *
-  * The keyword tests RENDER a full-text predicate (they do not fetch one), and rendering reads the
-  * JVM-global `FulltextSearchQueryUtils.usePgroonga`: the `pgroonga_condition(...)` arm while it
-  * holds `true`, the `to_tsvector`/`to_tsquery` arm while it holds `false`. That flag is a plain
-  * mutable `var` and amber has no `Test / fork`, so its value here is whatever the suites sharing
-  * this JVM have left it at — not something this spec controls or should assume. This suite
-  * therefore neither touches nor restores it, and every keyword assertion here is deliberately
-  * branch-independent. Two things reach both arms: the `coalesce(...) || ' ' || coalesce(...)`
-  * expression, built in `FulltextSearchQueryUtils` as `combinedFields` before the `if (usePgroonga)`
-  * branch and embedded verbatim by either arm, and each INDIVIDUAL keyword token. Their JOINING does
-  * not — the `true` arm space-joins the full keyword list into one literal (rendering
-  * `pgroonga_condition('alpha beta', ...)`), while the `false` arm emits one predicate per keyword
-  * and joins the words *inside* a keyword with ` & ` (rendering `to_tsquery('english', 'alpha & beta')`).
-  * `to_tsquery('english', 'alpha & beta')`). So assert on individual tokens — never on a joined
-  * multi-token string, and never on one arm's own output; either would tie this spec's result to
-  * whichever other suites wrote the flag first.
-  *
-  * The `record.into(USER).into(classOf[User]).getEmail` in `VersionedResourceTables.hydrate` used to
-  * be executed but unobservable: the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its
-  * `DSL.inline("")` default, so the translated record carried no `USER` column,
-  * `DashboardDataset.ownerEmail` was ALWAYS null for dataset search results, and the owner
-  * `leftJoin(USER)` was a join that was selected from and never read. Replacing that read with a bare
-  * `new User` therefore changed nothing. The schema now names `userEmail = USER.EMAIL` and the value
-  * is asserted below, which kills that mutant; the owner-email tests are the ones that hold it dead,
-  * so a schema slot silently dropped again fails them.
-  *
-  * The slot now lives in the base rather than here, which is what stops the next versioned resource
-  * from repeating the bug: `hydrate` is `final` on `VersionedResourceTables` and reads `USER.EMAIL`
-  * for EVERY versioned resource, so `VersionedResourceSearchQueryBuilder` builds the whole projection
-  * — `userEmail` included — as a `final lazy val` a subclass cannot replace, and takes only the three
-  * columns its descriptor does not already name. A new resource type therefore gets the owner email
-  * whether or not its author thinks about it, and the projection assertion below guards the base for
-  * every subclass instead of just this one.
-  *
-  * Not covered, and not coverable from a test:
-  *   - `constructFromClause`'s `includePublic: Boolean = false` default. `scalac` emits
-  *     `constructFromClause$default$3`, but `constructQuery` always passes all three arguments, so
-  *     it has zero call sites and the method is `protected`.
-  *   - the `LazyLogging` `logger` lazy-val bitmap on the `object` line, and scala-logging's
-  *     `if (underlying.isErrorEnabled)` guard around `logger.error`. Only the enabled arm ever runs.
-  *   - three of the six branch arms of `dataset.getOwnerUid == uid` (JaCoCo reports cb=3, mb=3).
-  *     They are the null-safe boxed-`Integer` equality's null checks, and they describe a null
-  *     `owner_uid` — a state `INT NOT NULL` plus an FK to `"user"(uid)` forbids.
-  *   - `class DatasetSearchQueryBuilder {}` at the bottom of the file: a vestigial empty class with
-  *     zero references repo-wide. It should be deleted, not instantiated by a test.
-  *
-  * Covered but unconstrainable, so no reviewer should count it as pinned behaviour:
-  *   - the `.filter(_.nonEmpty)` after the keyword split. `getFullTextSearchFilter` re-applies
-  *     `keywords.map(_.trim).filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so
-  *     dropping it here is an equivalent mutation — no observable differs.
+  * LakeFS caches its configured endpoint. The stub binds there for the duration of this suite
+  * without changing StorageConfig. If the port is occupied, successful hydration cases cancel
+  * while the SQL tests and missing-repository case still run.
   */
 class DatasetSearchQueryBuilderSpec
-    extends AnyFlatSpec
-    with Matchers
-    with OptionValues
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupBeforeEach = false)
+    with OptionValues {
 
   private val uid: Integer = Integer.valueOf(42)
 
@@ -291,9 +183,7 @@ class DatasetSearchQueryBuilderSpec
     access
   }
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-
+  override protected def onBeforeAll(): Unit = {
     val cfg = getDSLContext.configuration()
     new UserDao(cfg)
       .insert(user(ownerUid, "dataset_search_owner"), user(otherUid, "dataset_search_other"))
@@ -317,11 +207,9 @@ class DatasetSearchQueryBuilderSpec
     }
   }
 
-  override protected def afterAll(): Unit = {
-    try {
-      if (server != null) server.stop(0)
-      if (serverPool != null) serverPool.shutdownNow()
-    } finally shutdownDB()
+  override protected def onAfterAll(): Unit = {
+    if (server != null) server.stop(0)
+    if (serverPool != null) serverPool.shutdownNow()
   }
 
   /** Runs `body` with the owner's own grant row replaced by `privilege`, or removed, then restores it. */
@@ -336,22 +224,12 @@ class DatasetSearchQueryBuilderSpec
     }
   }
 
-  private def params(keywords: String*): SearchQueryParams =
-    SearchQueryParams(keywords = keywords.toList.asJava)
-
-  /**
-    * The query rendered with its bind values inlined, lower-cased and with the identifier quoting
-    * stripped, so assertions read as `dataset.is_public` rather than `"texera_db"."dataset"."is_public"`.
-    */
   private def sqlFor(
-      callerUid: Integer,
+      uid: Integer,
       includePublic: Boolean,
       p: SearchQueryParams = params()
   ): String =
-    getDSLContext
-      .renderInlined(DatasetSearchQueryBuilder.constructQuery(callerUid, p, includePublic))
-      .toLowerCase
-      .replace("\"", "")
+    renderSearch(getDSLContext, DatasetSearchQueryBuilder, uid, p, includePublic)
 
   /** One row of the builder's own query, narrowed to a single dataset id. */
   private def rowFor(callerUid: Integer, did: Integer): Record = {
@@ -532,40 +410,8 @@ class DatasetSearchQueryBuilderSpec
   }
 
   it should "project every dataset column under the alias its schema slot names" in {
-    // `toEntry` cannot see a mistake here at all. `UnifiedResourceSchema.translateRecord` writes
-    // every alias back to the column the schema paired it with, so swapping ANY two same-typed
-    // assignments — name/description, is_public/is_downloadable, did/ownerId — cancels out by the
-    // time `toEntryImpl` reads the record and yields a byte-identical entry. The rendered SELECT is
-    // the only place a permutation is visible.
-    //
-    // A permutation is not harmless downstream. `DashboardResource.getOrderFields` sorts on
-    // `resourceName` (its "Name" case, DashboardResource:168) and on `resourceCreationTime` (its
-    // "CreateTime" case), both by alias, so a swap silently re-points dashboard sorting. It is NOT
-    // the frontend that reads these aliases: `searchAllResources` consumes each record into a
-    // `DashboardClickableFileEntry` and returns those, so no alias survives into the HTTP response.
-    // `resourceDescription` in fact has no production reader at all today —
-    // `UnifiedResourceSchema.resourceDescriptionField` is referenced nowhere and `getColumnField`
-    // has no "Description" case — which is worth an issue of its own; it is pinned here anyway
-    // because the schema slot is what a copy-paste between builders gets wrong.
     val sql = sqlFor(uid, includePublic = true)
-
-    sql should include("dataset.name as resourcename")
-    sql should include("dataset.description as resourcedescription")
-    sql should include("dataset.creation_time as resourcecreationtime")
-    sql should include("dataset.owner_uid as resourceownerid")
-    sql should include("dataset.repository_name as repository_name")
-    // The id/publicity/privilege/cover slots are shared with the other versioned resources,
-    // so their aliases are resource-neutral while the columns feeding them are the dataset's.
-    sql should include("dataset.did as versioned_resource_id")
-    sql should include("dataset.is_public as is_versioned_resource_public")
-    sql should include("dataset.is_downloadable as is_versioned_resource_downloadable")
-    sql should include("dataset_user_access.privilege as user_versioned_resource_access")
-    sql should include("dataset.cover_image as versioned_resource_cover_image")
-    // The one projected column that is not a DATASET column, and the one this schema used to leave
-    // at its `DSL.inline("")` default. It gets an assertion of its own rather than trusting the
-    // entry-level test because it is now the base class's slot, not this builder's: dropping it from
-    // `VersionedResourceSearchQueryBuilder` renders `'' as email` for every versioned resource, and
-    // this names the missing slot instead of surfacing as a null three layers downstream.
+    assertProjection(sql, "dataset", "did")
     sql should include("user.email as email")
   }
 
@@ -636,9 +482,7 @@ class DatasetSearchQueryBuilderSpec
     requireStub()
 
     // Was null for every dataset in the dashboard until the schema named `userEmail = USER.EMAIL`:
-    // the USER join was selected from and never read. This is also the assertion that kills the
-    // `record.into(USER).into(classOf[User])` -> `new User` mutant in
-    // `VersionedResourceTables.hydrate`, which survived the whole suite while the value was null.
+    // the USER join was selected from and never read. Returning a null email here would regress it.
     entryFor(ownerUid, sizedDid).dataset.value.ownerEmail shouldBe "dataset_search_owner@mail.com"
   }
 
@@ -707,5 +551,19 @@ class DatasetSearchQueryBuilderSpec
     // The null is load-bearing. DashboardResource filters these rows out and raises `hasMismatch`
     // from them; without it a dataset whose repository is gone is shown to the user as 0 bytes.
     DatasetSearchQueryBuilder.toEntry(ownerUid, rowFor(ownerUid, goneDid)) shouldBe null
+  }
+  // The search's side of that null, and no stub needed for the same reason.
+  "DashboardResource.searchAllResources" should "flag a mismatch for a dataset lakeFS rejects" in {
+    val result = DashboardResource.searchAllResources(
+      new SessionUser(user(ownerUid, "dataset_search_owner")),
+      SearchQueryParams(
+        resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
+        datasetIds = Seq(goneDid).asJava
+      ),
+      includePublic = true
+    )
+
+    result.results shouldBe empty
+    result.hasMismatch shouldBe true
   }
 }

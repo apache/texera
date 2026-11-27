@@ -19,18 +19,10 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
 import org.apache.texera.amber.core.workflow.{
   GlobalPortIdentity,
   InputPort,
   OutputPort,
-  PhysicalLink,
   PhysicalOp,
   PortIdentity
 }
@@ -39,30 +31,17 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   OutputPortConfig,
   ResourceConfig
 }
+import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 
-class RegionSpec extends AnyFlatSpec {
-
-  private def physicalOpId(opId: String): PhysicalOpIdentity =
-    PhysicalOpIdentity(OperatorIdentity(opId), "main")
-
-  private def op(opId: String): PhysicalOp =
-    PhysicalOp(
-      physicalOpId(opId),
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      OpExecInitInfo.Empty
-    )
+class RegionSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
 
   private def wiredOp(opId: String): PhysicalOp =
     op(opId)
       .withInputPorts(List(InputPort(PortIdentity(0))))
       .withOutputPorts(List(OutputPort(PortIdentity(0))))
-
-  private def link(fromOp: String, toOp: String): PhysicalLink =
-    PhysicalLink(physicalOpId(fromOp), PortIdentity(0), physicalOpId(toOp), PortIdentity(0))
 
   "Region" should "expose the physical operators provided at construction" in {
     val a = op("a")

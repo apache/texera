@@ -289,8 +289,7 @@ load_workflows() {
         fi
 
         # Parse and create workflow
-        content=$(jq -c . "$workflow_file")
-        if [ $? -ne 0 ]; then
+        if ! content=$(jq -c . "$workflow_file"); then
             print_error "Failed to parse $workflow_file with jq"
             continue
         fi

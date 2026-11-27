@@ -29,16 +29,16 @@ import {
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { Contributor, DatasetVersion } from "../../../../../common/type/dataset";
-import { switchMap, throttleTime } from "rxjs/operators";
+import { catchError, filter, map, switchMap, tap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
-import { ActionType, EntityType, HubService, LikedStatus } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { HttpErrorResponse } from "@angular/common/http";
-import { EMPTY, Observable, Subscription } from "rxjs";
+import { EMPTY, Observable, of, Subscription } from "rxjs";
 import { formatCount } from "src/app/common/util/format.util";
 import { replaceOneImmutable } from "src/app/common/util/array-utils";
 import { format } from "date-fns";
@@ -54,18 +54,13 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
-import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
-import { NzInputDirective } from "ng-zorro-antd/input";
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
-
-export const THROTTLE_TIME_MS = 1000;
+import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
 @UntilDestroy()
 @Component({
@@ -83,22 +78,19 @@ export const THROTTLE_TIME_MS = 1000;
     NzSpaceCompactItemDirective,
     NzButtonComponent,
     NzPopconfirmDirective,
-    NzSwitchComponent,
-    FormsModule,
     MarkdownDescriptionComponent,
-    NzWaveDirective,
     NzTabsComponent,
     NzTabComponent,
     NzCollapseComponent,
     NzCollapsePanelComponent,
     NzDividerComponent,
     NgFor,
-    NzInputDirective,
     NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
     VersionsFilesBrowserComponent,
+    ResourceDetailSettingsComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -173,46 +165,59 @@ export class DatasetDetailComponent implements OnInit {
   ngOnInit(): void {
     this.route.params
       .pipe(
-        switchMap(params => {
-          this.did = params["did"];
+        tap(params => {
+          // Route params are strings, and the segment is whatever the URL carried: reject
+          // anything that is not a positive integer once, here, rather than at each use.
+          const did = Number(params["did"]);
+          this.did = Number.isInteger(did) && did > 0 ? did : undefined;
+          if (this.did === undefined) {
+            this.notificationService.error("This is not a valid dataset id");
+            return;
+          }
           this.retrieveDatasetInfo();
           this.retrieveDatasetVersionList();
           this.retrieveLatestVersionFile();
-          return this.route.data; // or some other observable
+          // The router reuses this page when the dataset id changes, so the hub state is
+          // loaded with each id rather than once.
+          this.loadHubActivity(this.did);
         }),
         untilDestroyed(this)
       )
       .subscribe();
+  }
 
-    if (!isDefined(this.did)) {
+  /**
+   * Opening the page counts as a view; the like state needs a signed-in viewer. A reply that
+   * lands after the route has moved on to another dataset is dropped, so it cannot overwrite
+   * that dataset's values.
+   */
+  private loadHubActivity(did: number): void {
+    this.hubService
+      .postView(did, this.currentUid ?? 0, EntityType.Dataset)
+      .pipe(
+        filter(() => this.did === did),
+        untilDestroyed(this)
+      )
+      .subscribe(count => (this.viewCount = count));
+
+    this.hubService
+      .getCounts([EntityType.Dataset], [did], [ActionType.Like])
+      .pipe(
+        filter(() => this.did === did),
+        untilDestroyed(this)
+      )
+      .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
+
+    if (this.currentUid === undefined) {
       return;
     }
-
     this.hubService
-      .getCounts([EntityType.Dataset], [this.did], [ActionType.Like])
-      .pipe(untilDestroyed(this))
-      .subscribe(counts => {
-        this.likeCount = counts[0].counts.like ?? 0;
-      });
-
-    this.hubService
-      .postView(this.did, this.currentUid ? this.currentUid : 0, EntityType.Dataset)
-      .pipe(throttleTime(THROTTLE_TIME_MS))
-      .pipe(untilDestroyed(this))
-      .subscribe(count => {
-        this.viewCount = count;
-      });
-
-    if (!isDefined(this.currentUid)) {
-      return;
-    }
-
-    this.hubService
-      .isLiked([this.did], [EntityType.Dataset])
-      .pipe(untilDestroyed(this))
-      .subscribe((isLiked: LikedStatus[]) => {
-        this.isLiked = isLiked.length > 0 ? isLiked[0].isLiked : false;
-      });
+      .isLiked([did], [EntityType.Dataset])
+      .pipe(
+        filter(() => this.did === did),
+        untilDestroyed(this)
+      )
+      .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
   }
 
   /** Commits the staged files; the panel owns the rest of the version flow. */
@@ -240,7 +245,7 @@ export class DatasetDetailComponent implements OnInit {
         .updateDatasetPublicity(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.datasetIsPublic = checked;
             let state = "public";
             if (!this.datasetIsPublic) {
@@ -248,7 +253,7 @@ export class DatasetDetailComponent implements OnInit {
             }
             this.notificationService.success(`Dataset ${this.datasetName} is now ${state}`);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Fail to change the dataset publicity");
           },
         });
@@ -262,7 +267,7 @@ export class DatasetDetailComponent implements OnInit {
         .updateDatasetDownloadable(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.datasetIsDownloadable = checked;
             let state = "allowed";
             if (!this.datasetIsDownloadable) {
@@ -270,7 +275,7 @@ export class DatasetDetailComponent implements OnInit {
             }
             this.notificationService.success(`Dataset downloads are now ${state}`);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Failed to change the dataset download permission");
           },
         });
@@ -280,9 +285,13 @@ export class DatasetDetailComponent implements OnInit {
   retrieveDatasetInfo() {
     if (this.did) {
       const did = this.did;
+      // As in loadHubActivity, a dataset that arrives after the route has moved on is dropped.
       this.datasetService
         .getDataset(did, this.isLogin)
-        .pipe(untilDestroyed(this))
+        .pipe(
+          filter(() => this.did === did),
+          untilDestroyed(this)
+        )
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
@@ -296,11 +305,15 @@ export class DatasetDetailComponent implements OnInit {
           if (dataset.coverImage) {
             this.datasetService
               .getDatasetCoverUrl(did)
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                next: ({ url }) => (this.coverImageUrl = url),
-                error: () => (this.coverImageUrl = null),
-              });
+              .pipe(
+                map(({ url }) => url),
+                // A failed presign means no cover. Turned into a value here, a late failure is
+                // dropped by the filter below just like a late url (filter lets errors through).
+                catchError(() => of(null)),
+                filter(() => this.did === did),
+                untilDestroyed(this)
+              )
+              .subscribe(url => (this.coverImageUrl = url));
           } else {
             this.coverImageUrl = null;
           }
@@ -446,21 +459,28 @@ export class DatasetDetailComponent implements OnInit {
         .deleteDatasetFile(this.did, relativePath)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
             this.versionsFilesBrowser?.notePathStaged(relativePath);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Failed to delete the file");
           },
         });
     }
   }
 
-  // alias for formatSize
-  formatSize = formatSize;
+  protected get overviewStatistics() {
+    return [
+      { label: "Created", value: this.datasetCreationTime },
+      { label: "Last updated", value: this.latestVersionCreationTime || "—" },
+      { label: "Versions", value: this.versions.length },
+      { label: "Latest version file", value: this.latestVersionFileName || "—" },
+      { label: "Latest version size", value: formatSize(this.latestVersionSize) },
+    ];
+  }
 
   formatCount = formatCount;
 

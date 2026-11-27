@@ -20,23 +20,23 @@ import pytest
 from core.storage.storage_config import StorageConfig
 
 
-_INIT_KWARGS = dict(
-    catalog_type="postgres",
-    postgres_uri_without_scheme="localhost:5432/texera",
-    postgres_username="pg_user",
-    postgres_password="pg_pass",
-    rest_catalog_uri="http://rest:8181",
-    rest_catalog_warehouse_name="warehouse",
-    table_result_namespace="result_ns",
-    table_state_namespace="state_ns",
-    directory_path="/data/iceberg",
-    commit_batch_size="4096",
-    s3_endpoint="http://rustfs:9000",
-    s3_region="us-west-2",
-    s3_auth_username="s3_user",
-    s3_auth_password="s3_pass",
-    s3_large_binaries_base_uri="s3://bucket/objects/1/",
-)
+_INIT_KWARGS = {
+    "catalog_type": "postgres",
+    "postgres_uri_without_scheme": "localhost:5432/texera",
+    "postgres_username": "pg_user",
+    "postgres_password": "pg_pass",
+    "rest_catalog_uri": "http://rest:8181",
+    "rest_catalog_warehouse_name": "warehouse",
+    "table_result_namespace": "result_ns",
+    "table_state_namespace": "state_ns",
+    "directory_path": "/data/iceberg",
+    "commit_batch_size": "4096",
+    "s3_endpoint": "http://rustfs:9000",
+    "s3_region": "us-west-2",
+    "s3_auth_username": "s3_user",
+    "s3_auth_password": "s3_pass",
+    "s3_large_binaries_base_uri": "s3://bucket/objects/1/",
+}
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def fresh_config(monkeypatch):
     for name in saved:
         if name.isupper():
             monkeypatch.setattr(StorageConfig, name, None)
-    yield StorageConfig
+    return StorageConfig
 
 
 class TestInitialize:

@@ -107,110 +107,91 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
     components.head
   }
 
-  "getReconfigurations" should "limit the scope to the reconfigured operator when no one-to-many operator is upstream" in {
-    val region = buildRegion(
-      1,
-      Set(op("a"), op("b"), op("c")),
-      Set(link("a", "b"), link("b", "c"))
+  private def verifySingleReconfiguration(
+      ops: Set[PhysicalOp],
+      links: Set[PhysicalLink],
+      targets: Seq[String],
+      expectedScope: Set[String],
+      expectedSources: Set[String],
+      excludedFromScope: Set[String] = Set.empty,
+      extraRegions: Seq[Region] = Seq.empty
+  ): Unit = {
+    val region = buildRegion(1, ops, links)
+    val request = reconfigureRequest(targets: _*)
+    val component = singleComponent(
+      FriesReconfigurationAlgorithm.getReconfigurations(
+        managerWithRegions((region +: extraRegions): _*),
+        request
+      )
     )
-    val request = reconfigureRequest("b")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("b")))
-    assert(component.sources == Set(physicalOpId("b")))
+    assert(component.scope == expectedScope.map(physicalOpId))
+    assert(component.sources == expectedSources.map(physicalOpId))
     assert(component.reconfigurations == request.reconfiguration.toSet)
-    assert(!component.scope.contains(physicalOpId("a")))
-    assert(!component.scope.contains(physicalOpId("c")))
+    excludedFromScope.foreach(id => assert(!component.scope.contains(physicalOpId(id))))
+  }
+
+  "getReconfigurations" should "limit the scope to the reconfigured operator when no one-to-many operator is upstream" in {
+    verifySingleReconfiguration(
+      Set(op("a"), op("b"), op("c")),
+      Set(link("a", "b"), link("b", "c")),
+      Seq("b"),
+      expectedScope = Set("b"),
+      expectedSources = Set("b"),
+      excludedFromScope = Set("a", "c")
+    )
   }
 
   it should "extend the scope up to a one-to-many operator that has a reconfigured descendant" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("a", oneToMany = true), op("b"), op("c")),
-      Set(link("a", "b"), link("b", "c"))
+      Set(link("a", "b"), link("b", "c")),
+      Seq("c"),
+      expectedScope = Set("a", "b", "c"),
+      expectedSources = Set("a")
     )
-    val request = reconfigureRequest("c")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("a"), physicalOpId("b"), physicalOpId("c")))
-    assert(component.sources == Set(physicalOpId("a")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
   }
 
   it should "ignore one-to-many operators that have no reconfigured descendant" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("a"), op("b"), op("x", oneToMany = true), op("y")),
-      Set(link("a", "b"), link("x", "y"))
+      Set(link("a", "b"), link("x", "y")),
+      Seq("b"),
+      expectedScope = Set("b"),
+      expectedSources = Set("b"),
+      excludedFromScope = Set("x", "y")
     )
-    val request = reconfigureRequest("b")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("b")))
-    assert(!component.scope.contains(physicalOpId("x")))
-    assert(!component.scope.contains(physicalOpId("y")))
   }
 
   it should "not extend the scope to a one-to-many operator downstream of the reconfigured operator" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("a"), op("b"), op("m", oneToMany = true), op("c")),
-      Set(link("a", "b"), link("b", "m"), link("m", "c"))
+      Set(link("a", "b"), link("b", "m"), link("m", "c")),
+      Seq("b"),
+      expectedScope = Set("b"),
+      expectedSources = Set("b"),
+      excludedFromScope = Set("m", "c")
     )
-    val request = reconfigureRequest("b")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("b")))
-    assert(!component.scope.contains(physicalOpId("m")))
-    assert(!component.scope.contains(physicalOpId("c")))
   }
 
   it should "exclude side branches that do not lead back to a reconfigured operator" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("s", oneToMany = true), op("b"), op("c"), op("x")),
-      Set(link("s", "b"), link("b", "c"), link("s", "x"))
+      Set(link("s", "b"), link("b", "c"), link("s", "x")),
+      Seq("c"),
+      expectedScope = Set("s", "b", "c"),
+      expectedSources = Set("s"),
+      excludedFromScope = Set("x")
     )
-    val request = reconfigureRequest("c")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("s"), physicalOpId("b"), physicalOpId("c")))
-    assert(component.sources == Set(physicalOpId("s")))
-    assert(!component.scope.contains(physicalOpId("x")))
   }
 
   it should "include all parallel branches between a one-to-many operator and the reconfigured operator" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("s", oneToMany = true), op("a"), op("b"), op("t")),
-      Set(link("s", "a"), link("s", "b"), link("a", "t"), link("b", "t"))
+      Set(link("s", "a"), link("s", "b"), link("a", "t"), link("b", "t")),
+      Seq("t"),
+      expectedScope = Set("s", "a", "b", "t"),
+      expectedSources = Set("s")
     )
-    val request = reconfigureRequest("t")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(
-      component.scope ==
-        Set(physicalOpId("s"), physicalOpId("a"), physicalOpId("b"), physicalOpId("t"))
-    )
-    assert(component.sources == Set(physicalOpId("s")))
   }
 
   it should "split disconnected closures into separate components with their own reconfigurations" in {
@@ -235,64 +216,48 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
   }
 
   it should "merge reconfigured operators connected by a link into a single component" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("a"), op("b"), op("c"), op("d")),
-      Set(link("a", "b"), link("b", "c"), link("c", "d"))
+      Set(link("a", "b"), link("b", "c"), link("c", "d")),
+      Seq("b", "c"),
+      expectedScope = Set("b", "c"),
+      expectedSources = Set("b"),
+      excludedFromScope = Set("a", "d")
     )
-    val request = reconfigureRequest("b", "c")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("b"), physicalOpId("c")))
-    assert(component.sources == Set(physicalOpId("b")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
-    assert(!component.scope.contains(physicalOpId("a")))
-    assert(!component.scope.contains(physicalOpId("d")))
   }
 
   it should "handle a single-operator region" in {
-    val region = buildRegion(1, Set(op("only")), Set.empty)
-    val request = reconfigureRequest("only")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("only")))
-    assert(component.sources == Set(physicalOpId("only")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
+    verifySingleReconfiguration(
+      Set(op("only")),
+      Set.empty,
+      Seq("only"),
+      expectedScope = Set("only"),
+      expectedSources = Set("only")
+    )
   }
 
   it should "select the reconfigured operator itself as the marker source when it has no upstream" in {
-    val region = buildRegion(1, Set(op("a"), op("b")), Set(link("a", "b")))
-    val request = reconfigureRequest("a")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("a")))
-    assert(component.sources == Set(physicalOpId("a")))
-    assert(!component.scope.contains(physicalOpId("b")))
+    verifySingleReconfiguration(
+      Set(op("a"), op("b")),
+      Set(link("a", "b")),
+      Seq("a"),
+      expectedScope = Set("a"),
+      expectedSources = Set("a"),
+      excludedFromScope = Set("b")
+    )
   }
 
   it should "produce components only for regions that contain reconfigured operators" in {
-    val regionWithReconfiguration =
-      buildRegion(1, Set(op("a1"), op("b1")), Set(link("a1", "b1")))
     val regionWithoutReconfiguration =
       buildRegion(2, Set(op("a2"), op("b2")), Set(link("a2", "b2")))
-    val request = reconfigureRequest("b1")
-
-    val components = FriesReconfigurationAlgorithm.getReconfigurations(
-      managerWithRegions(regionWithReconfiguration, regionWithoutReconfiguration),
-      request
+    verifySingleReconfiguration(
+      Set(op("a1"), op("b1")),
+      Set(link("a1", "b1")),
+      Seq("b1"),
+      expectedScope = Set("b1"),
+      expectedSources = Set("b1"),
+      extraRegions = Seq(regionWithoutReconfiguration)
     )
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("b1")))
   }
 
   it should "schedule reconfigurations independently for each executing region" in {
@@ -309,6 +274,8 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
     assert(components.map(_.scope) == Set(Set(physicalOpId("b1")), Set(physicalOpId("b2"))))
     val componentOfB1 = components.find(_.scope.contains(physicalOpId("b1"))).get
     val componentOfB2 = components.find(_.scope.contains(physicalOpId("b2"))).get
+    assert(componentOfB1.sources == Set(physicalOpId("b1")))
+    assert(componentOfB2.sources == Set(physicalOpId("b2")))
     assert(componentOfB1.reconfigurations.map(_.targetOpId) == Set(physicalOpId("b1")))
     assert(componentOfB2.reconfigurations.map(_.targetOpId) == Set(physicalOpId("b2")))
   }
@@ -327,39 +294,24 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
     // The descendant-based pull-in only inspects OTHER one-to-many operators upstream;
     // a reconfigured one-to-many operator does not widen its own scope, so
     // ReconfigurationHandler's scope.size == 1 fast path applies.
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("a"), op("m", oneToMany = true), op("c")),
-      Set(link("a", "m"), link("m", "c"))
+      Set(link("a", "m"), link("m", "c")),
+      Seq("m"),
+      expectedScope = Set("m"),
+      expectedSources = Set("m"),
+      excludedFromScope = Set("a", "c")
     )
-    val request = reconfigureRequest("m")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("m")))
-    assert(component.sources == Set(physicalOpId("m")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
-    assert(!component.scope.contains(physicalOpId("a")))
-    assert(!component.scope.contains(physicalOpId("c")))
   }
 
   it should "select multiple marker sources when several one-to-many operators converge on the reconfigured operator" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("s1", oneToMany = true), op("s2", oneToMany = true), op("t")),
-      Set(link("s1", "t"), link("s2", "t"))
+      Set(link("s1", "t"), link("s2", "t")),
+      Seq("t"),
+      expectedScope = Set("s1", "s2", "t"),
+      expectedSources = Set("s1", "s2")
     )
-    val request = reconfigureRequest("t")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("s1"), physicalOpId("s2"), physicalOpId("t")))
-    assert(component.sources == Set(physicalOpId("s1"), physicalOpId("s2")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
   }
 
   it should "traverse links on every input port when branches arrive on different ports" in {
@@ -370,39 +322,18 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
       OpExecInitInfo.Empty
     ).withInputPorts(List(InputPort(PortIdentity()), InputPort(PortIdentity(1))))
       .withOutputPorts(List(OutputPort(PortIdentity())))
-    val region = buildRegion(
-      1,
-      Set(
-        op("m0", oneToMany = true),
-        op("b0"),
-        op("m1", oneToMany = true),
-        op("b1"),
-        targetOp
-      ),
+    verifySingleReconfiguration(
+      Set(op("m0", oneToMany = true), op("b0"), op("m1", oneToMany = true), op("b1"), targetOp),
       Set(
         link("m0", "b0"),
         link("b0", "t", toPort = 0),
         link("m1", "b1"),
         link("b1", "t", toPort = 1)
-      )
+      ),
+      Seq("t"),
+      expectedScope = Set("m0", "b0", "m1", "b1", "t"),
+      expectedSources = Set("m0", "m1")
     )
-    val request = reconfigureRequest("t")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(
-      component.scope == Set(
-        physicalOpId("m0"),
-        physicalOpId("b0"),
-        physicalOpId("m1"),
-        physicalOpId("b1"),
-        physicalOpId("t")
-      )
-    )
-    assert(component.sources == Set(physicalOpId("m0"), physicalOpId("m1")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
   }
 
   it should "return no components for an empty reconfiguration request" in {
@@ -416,20 +347,13 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
   }
 
   it should "keep multiple reconfigured operators in the same connected component" in {
-    val region = buildRegion(
-      1,
+    verifySingleReconfiguration(
       Set(op("a"), op("b"), op("c")),
-      Set(link("a", "b"), link("b", "c"))
+      Set(link("a", "b"), link("b", "c")),
+      Seq("a", "c"),
+      expectedScope = Set("a", "b", "c"),
+      expectedSources = Set("a")
     )
-    val request = reconfigureRequest("a", "c")
-
-    val components =
-      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
-
-    val component = singleComponent(components)
-    assert(component.scope == Set(physicalOpId("a"), physicalOpId("b"), physicalOpId("c")))
-    assert(component.sources == Set(physicalOpId("a")))
-    assert(component.reconfigurations == request.reconfiguration.toSet)
   }
 
   it should "ignore unknown target operators when splitting multiple disconnected components" in {

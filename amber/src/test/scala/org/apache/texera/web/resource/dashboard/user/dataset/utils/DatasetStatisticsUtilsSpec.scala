@@ -19,12 +19,10 @@
 
 package org.apache.texera.web.resource.dashboard.user.dataset.utils
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET, USER}
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import java.util.UUID
@@ -43,7 +41,7 @@ import java.util.UUID
   * rows are uniformly private (or uniformly downloadable) cannot tell the owner
   * filter apart from an owner filter plus a spurious visibility predicate.
   */
-class DatasetStatisticsUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
+class DatasetStatisticsUtilsSpec extends DatabaseFlatSpec(cleanupBeforeEach = false) {
 
   private val ownerUid = 7000 + scala.util.Random.nextInt(1000)
   private val otherUid = ownerUid + 1
@@ -52,13 +50,10 @@ class DatasetStatisticsUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll with
   private var userDao: UserDao = _
   private var datasetDao: DatasetDao = _
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
     datasetDao = new DatasetDao(getDSLContext.configuration())
   }
-
-  override protected def afterAll(): Unit = shutdownDB()
 
   private def resetFixtures(): Unit = {
     Seq(ownerUid, otherUid, strangerUid).foreach { uid =>

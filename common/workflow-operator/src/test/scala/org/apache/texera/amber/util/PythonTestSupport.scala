@@ -21,7 +21,7 @@ package org.apache.texera.amber.util
 
 import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.common.config.UdfConfig
-import org.scalatest.Assertions.fail
+import org.scalatest.Assertions.{cancel, fail}
 import org.scalatest.Tag
 
 import java.io.InputStream
@@ -50,6 +50,14 @@ private[amber] object PythonTestSupport {
 
   def canImportWithin(python: String, timeoutSeconds: Int, modules: String*): Boolean =
     succeeds(Seq(python, "-c", "import " + modules.mkString(", ")), timeoutSeconds)
+
+  /** The configured interpreter, or a cancelled test if none runs or it lacks `modules`. */
+  def requirePython(modules: String*): String = {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, modules: _*))
+      cancel(s"'$python' cannot import ${modules.mkString(", ")}")
+    python
+  }
 
   private def runnable(executable: String): Boolean =
     succeeds(Seq(executable, "--version"), 5)

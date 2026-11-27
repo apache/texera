@@ -20,7 +20,8 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { AgentService } from "../../../service/agent/agent.service";
+import { AgentService, IndexedTuple, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
+import { AgentState } from "../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { NgIf, NgFor } from "@angular/common";
@@ -40,7 +41,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { IndexedTuple, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
 import type { WebOutputMode } from "../../../types/execute-workflow.interface";
 
 interface TupleDisplayEntry {
@@ -162,6 +162,13 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
       return;
     }
 
+    // The agent service rejects a prompt while a run is in flight; check first
+    // so the user's text is kept instead of cleared under a false success toast.
+    if (!this.isSelectedAgentAvailable()) {
+      this.notificationService.warning("Agent is busy. Please wait for the current run to finish.");
+      return;
+    }
+
     const agentId = this.selectedAgentId;
     const operatorName = this.operatorDisplayName || this.getOperatorName() || "this operator";
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
@@ -181,8 +188,13 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     }
   }
 
+  public isSelectedAgentAvailable(): boolean {
+    if (!this.selectedAgentId) return false;
+    return this.agentService.getAgentStateSnapshot(this.selectedAgentId) === AgentState.AVAILABLE;
+  }
+
   public canSend(): boolean {
-    return !!this.selectedAgentId && !!this.feedbackMessage.trim();
+    return !!this.selectedAgentId && !!this.feedbackMessage.trim() && this.isSelectedAgentAvailable();
   }
 
   public isVisualization(): boolean {

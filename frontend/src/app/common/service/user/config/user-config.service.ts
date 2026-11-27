@@ -19,7 +19,7 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, of } from "rxjs";
+import { Observable } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
 import { UserService } from "../user.service";
 import { shareReplay, tap } from "rxjs/operators";
@@ -99,9 +99,8 @@ export class UserConfigService {
    * keys and values must be strings.
    * @param key string key that uniquely identifies a value
    * @param value string value corresponding to the key from the backend
-   * @returns observable indicating the backend has been successfully updated
    */
-  public set(key: string, value: string): Observable<void> {
+  public set(key: string, value: string): void {
     if (!this.userService.isLogin()) {
       throw new Error("user not logged in");
     }
@@ -109,21 +108,18 @@ export class UserConfigService {
       throw new Error("Dictionary Service: key cannot be empty");
     }
     const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
-    const req = this.http.put<void>(url, value).pipe(
-      tap(_ => this.updateEntry(key, value)),
-      shareReplay(1)
-    );
-    req.subscribe();
-    return req;
+    this.http
+      .put<void>(url, value)
+      .pipe(tap(() => this.updateEntry(key, value)))
+      .subscribe();
   }
 
   /**
    * delete a value from the backend.
    * keys and values must be strings.
    * @param key string key that uniquely identifies a value
-   * @returns observable indicating the backend has been successfully updated
    */
-  public delete(key: string): Observable<void> {
+  public delete(key: string): void {
     if (!this.userService.isLogin()) {
       throw new Error("user not logged in");
     }
@@ -131,15 +127,13 @@ export class UserConfigService {
       throw new Error("Dictionary Service: key cannot be empty");
     }
     if (!(key in this.localUserDictionary)) {
-      return of();
+      return;
     }
     const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
-    const req = this.http.delete<void>(url).pipe(
-      tap(_ => this.updateEntry(key, undefined)),
-      shareReplay(1)
-    );
-    req.subscribe();
-    return req;
+    this.http
+      .delete<void>(url)
+      .pipe(tap(() => this.updateEntry(key, undefined)))
+      .subscribe();
   }
 
   private updateEntry(key: string, value: string | undefined) {

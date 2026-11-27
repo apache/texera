@@ -19,7 +19,7 @@
 
 // The backend's LogicalPlanSpec checks LogicalPlan.enclosingLoopStarts against the same file.
 import loopBlocks from "../../../../../common/workflow-compiler/src/test/resources/loop-blocks.json";
-import { enclosingLoopStarts, LOOP_END_OP_TYPE, LOOP_START_OP_TYPE } from "./loop-block.util";
+import { enclosingLoopStarts, LOOP_START_OP_TYPE } from "./loop-block.util";
 
 /** A case of loop-blocks.json: a graph, and the Loop Starts around each operator inside a block. */
 interface LoopBlockCase {
@@ -87,7 +87,7 @@ describe("enclosingLoopStarts", () => {
     const types = new Set(
       [...loopBlocks.cases, ...loopBlocks.randomGraphs].flatMap(testCase => testCase.operators.map(({ type }) => type))
     );
-    expect([...types].sort()).toEqual([LOOP_END_OP_TYPE, LOOP_START_OP_TYPE, "Operator"].sort());
+    expect([...types].sort()).toEqual(["LoopEnd", LOOP_START_OP_TYPE, "Operator"].sort());
   });
 
   it("finds nothing in an empty graph", () => {

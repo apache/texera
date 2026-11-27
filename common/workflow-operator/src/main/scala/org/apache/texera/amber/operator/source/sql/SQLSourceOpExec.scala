@@ -242,7 +242,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
             curLowerBound.longValue <= upperBound.longValue
           case AttributeType.DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
-          case AttributeType.STRING | AttributeType.ANY | AttributeType.BOOLEAN | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
@@ -298,7 +298,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
           case AttributeType.DOUBLE =>
             nextLowerBound = curLowerBound.doubleValue + desc.interval
             isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
         queryBuilder ++= " AND " + attribute.getName +
@@ -332,7 +332,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
             String.valueOf(value)
           case AttributeType.TIMESTAMP =>
             "'" + new Timestamp(value.longValue).toString + "'"
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
@@ -354,22 +354,21 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
   protected def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
-        var result: Number = null
         val preparedStatement = connection.prepareStatement(
           "SELECT " + side + "(" + attribute.getName + ") FROM " + desc.table + ";"
         )
         val resultSet = preparedStatement.executeQuery
         resultSet.next
-        schema.getAttribute(attribute.getName).getType match {
+        val result: Number = schema.getAttribute(attribute.getName).getType match {
           case AttributeType.INTEGER =>
-            result = resultSet.getInt(1)
+            resultSet.getInt(1)
           case AttributeType.LONG =>
-            result = resultSet.getLong(1)
+            resultSet.getLong(1)
           case AttributeType.TIMESTAMP =>
-            result = resultSet.getTimestamp(1).getTime
+            resultSet.getTimestamp(1).getTime
           case AttributeType.DOUBLE =>
-            result = resultSet.getDouble(1)
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+            resultSet.getDouble(1)
+          case _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
         resultSet.close()

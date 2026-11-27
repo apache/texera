@@ -62,3 +62,13 @@ object S3StorageTestBase {
     ()
   }
 }
+
+/** An [[S3StorageTestBase]] whose suite creates its `testBucketName` bucket before its tests. */
+trait S3BucketTestBase extends S3StorageTestBase { this: Suite =>
+  protected val testBucketName: String
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    S3StorageClient.createBucketIfNotExist(testBucketName)
+  }
+}

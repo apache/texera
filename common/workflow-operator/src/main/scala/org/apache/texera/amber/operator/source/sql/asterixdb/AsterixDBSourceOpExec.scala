@@ -84,9 +84,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
     val tupleBuilder = Tuple.builder(schema)
     val row = curResultIterator.get.next().toString
 
-    var values: Option[List[String]] = None
     try {
-      values = CSVParser.parse(row, '\\', ',', '"')
+      val values: Option[List[String]] = CSVParser.parse(row, '\\', ',', '"')
       if (values == null) {
         return null
       }
@@ -261,7 +260,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
             String.valueOf(value)
           case AttributeType.TIMESTAMP =>
             "datetime('" + formatter.format(new Timestamp(value.longValue).toInstant) + "')"
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
+          case _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>

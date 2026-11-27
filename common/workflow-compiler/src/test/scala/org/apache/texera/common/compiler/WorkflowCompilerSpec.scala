@@ -39,6 +39,8 @@ import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpD
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
+import org.apache.texera.amber.operator.udf.r.RUDFOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor, TestOperators}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -121,8 +123,8 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   /**
     * A test-only Python operator whose code generation fails with a
     * whitespace-padded message. No shipped operator raises a padded message, so
-    * this is the only way to pin the compiler's regex-group + `trim` extraction
-    * of the marker's payload.
+    * this is the only way to pin the compiler's strip-the-marker + `trim`
+    * extraction of the marker's payload.
     */
   private class PaddedFailurePyOp extends PythonOperatorDescriptor {
     override def asSource(): Boolean = true
@@ -139,6 +141,89 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
         List.empty,
         List(OutputPort())
       )
+  }
+
+  /** A test-only Python operator whose generated code mentions the marker in a comment. */
+  private class MarkerInCommentPyOp extends PythonOperatorDescriptor {
+    override def asSource(): Boolean = true
+    override def generatePythonCode(): String =
+      "x = 1\n# a note about #EXCEPTION DURING CODE GENERATION: markers\nyield x\n"
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> Schema())
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "marker-in-comment",
+        "mentions the marker inside its own code",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List.empty,
+        List(OutputPort())
+      )
+  }
+
+  /** A test-only Python operator whose code generation throws an exception with no message. */
+  private class NullMessageFailurePyOp extends PythonOperatorDescriptor {
+    override def asSource(): Boolean = true
+    override def generatePythonCode(): String = throw new RuntimeException()
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> Schema())
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "null-message",
+        "raises an exception without a message during code generation",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List.empty,
+        List(OutputPort())
+      )
+  }
+
+  /** A test-only Python operator whose code generation fails with a multi-line message. */
+  private class MultiLineFailurePyOp extends PythonOperatorDescriptor {
+    override def asSource(): Boolean = true
+    override def generatePythonCode(): String =
+      throw new RuntimeException("first line of the failure\nsecond line of the failure")
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> Schema())
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "multi-line",
+        "raises a multi-line message during code generation",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List.empty,
+        List(OutputPort())
+      )
+  }
+
+  /** A test-only Python operator whose code generation fails with a CRLF multi-line message. */
+  private class CrlfFailurePyOp extends PythonOperatorDescriptor {
+    override def asSource(): Boolean = true
+    override def generatePythonCode(): String =
+      throw new RuntimeException("first line\r\nsecond line")
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> Schema())
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "crlf",
+        "raises a CRLF multi-line message during code generation",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List.empty,
+        List(OutputPort())
+      )
+  }
+
+  private def rUdfOp(code: String): RUDFOpDesc = {
+    val op = new RUDFOpDesc()
+    op.code = code
+    op
+  }
+
+  private def pythonUdfOp(code: String): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = code
+    op
   }
 
   // -------------------- happy path --------------------
@@ -547,7 +632,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     // `message` is the RuntimeException's toString, so the extracted payload is
     // the tail of it: exactly the raised message with its padding removed, and
-    // with the marker itself stripped off by the regex.
+    // with the marker itself stripped off.
     val message = result.operatorIdToError(padded.operatorIdentifier).message
     assert(
       message.endsWith("Operator is not configured properly: padded codegen failure"),
@@ -596,6 +681,178 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(sortPhysicalOps.nonEmpty)
     assert(sortPhysicalOps.forall(_.isPythonBased), "Sort must still be a Python-based operator")
     assert(sortPhysicalOps.forall(!_.getCode.contains("#EXCEPTION DURING CODE GENERATION")))
+  }
+
+  it should "compile a Python UDF whose own code mentions the marker in a comment" in {
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
+    val udf = pythonUdfOp(
+      "from pytexera import *\n" +
+        "\n" +
+        "# NOTE: #EXCEPTION DURING CODE GENERATION: this is only a comment\n" +
+        "class ProcessTupleOperator(UDFOperatorV2):\n" +
+        "    @overrides\n" +
+        "    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n" +
+        "        yield tuple_\n"
+    )
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(csv, udf),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            udf.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(result.physicalPlan.isDefined, "a valid UDF must keep the physical plan")
+    // The user's script is the operator's code as-is, so the comment did reach the check.
+    val udfPhysicalOps = result.physicalPlan.get.getPhysicalOpsOfLogicalOp(udf.operatorIdentifier)
+    assert(udfPhysicalOps.nonEmpty)
+    assert(udfPhysicalOps.forall(_.isPythonBased))
+    assert(udfPhysicalOps.forall(_.getCode.contains("#EXCEPTION DURING CODE GENERATION")))
+  }
+
+  it should "ignore the marker when it is not at the start of a Python operator's code" in {
+    val op = new MarkerInCommentPyOp
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(op),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(result.physicalPlan.isDefined)
+  }
+
+  it should "report the exception type when a code-generation failure has no message" in {
+    val op = new NullMessageFailurePyOp
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(op),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    val message = result.operatorIdToError(op.operatorIdentifier).message
+    assert(
+      message.endsWith("Operator is not configured properly: java.lang.RuntimeException"),
+      s"unexpected message: [$message]"
+    )
+  }
+
+  it should "report every line of a multi-line code-generation failure message" in {
+    val op = new MultiLineFailurePyOp
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(op),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    val message = result.operatorIdToError(op.operatorIdentifier).message
+    assert(
+      message.endsWith(
+        "Operator is not configured properly: first line of the failure\nsecond line of the failure"
+      ),
+      s"unexpected message: [$message]"
+    )
+  }
+
+  it should "still report a Python UDF whose code starts with the marker" in {
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
+    val udf = pythonUdfOp("#EXCEPTION DURING CODE GENERATION: user wrote this")
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(csv, udf),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            udf.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    // The marker at the very start of the code is indistinguishable from a failed generation.
+    val message = result.operatorIdToError(udf.operatorIdentifier).message
+    assert(
+      message.endsWith("Operator is not configured properly: user wrote this"),
+      s"unexpected message: [$message]"
+    )
+    assert(result.physicalPlan.isEmpty)
+  }
+
+  it should "compile an R UDF whose own code mentions the marker in a comment" in {
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
+    val udf = rUdfOp(
+      "# NOTE: #EXCEPTION DURING CODE GENERATION: this is only a comment\n" +
+        "function(t) t\n"
+    )
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(csv, udf),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            udf.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(result.physicalPlan.isDefined, "a valid R UDF must keep the physical plan")
+    val udfPhysicalOps = result.physicalPlan.get.getPhysicalOpsOfLogicalOp(udf.operatorIdentifier)
+    assert(udfPhysicalOps.nonEmpty)
+    assert(udfPhysicalOps.forall(_.isPythonBased), "R UDFs go through the same check")
+    assert(udfPhysicalOps.forall(_.getCode.contains("#EXCEPTION DURING CODE GENERATION")))
+  }
+
+  it should "report a CRLF multi-line code-generation failure message in full" in {
+    val op = new CrlfFailurePyOp
+
+    val result = newCompiler().compile(
+      LogicalPlanPojo(
+        operators = List(op),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    val message = result.operatorIdToError(op.operatorIdentifier).message
+    assert(
+      message.endsWith("Operator is not configured properly: first line\r\nsecond line"),
+      s"unexpected message: [$message]"
+    )
   }
 
   it should "not subject non-Python operators to the code-generation check" in {

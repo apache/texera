@@ -71,7 +71,9 @@ _mk_jwt() {
 # Behaviour knobs are read from the environment by the stub (STUB_*).
 # Called directly (never in a command substitution, which would lose the
 # variables): sets $RUN_RC, $RUN_OUT and $RUN_LOG for the caller. The login
-# token is $1; any further KEY=VAL arguments become stub knobs.
+# token is $1; any further KEY=VAL arguments become stub knobs. With
+# BROKEN_WORKFLOW set, the tree also holds a workflow file that jq cannot
+# parse, named to sort ahead of the good one.
 _run_loader() {
     local token="$1"; shift
     local tmp
@@ -80,6 +82,9 @@ _run_loader() {
     printf 'sepal,species\n1.0,setosa\n' > "$tmp/examples/datasets/iris-species/Iris.csv"
     printf 'an example\n' > "$tmp/examples/datasets/iris-species/description.txt"
     printf '{"operators":[],"links":[]}\n' > "$tmp/examples/workflows/Example Workflow.json"
+    if [[ -n "${BROKEN_WORKFLOW:-}" ]]; then
+        printf '{"operators":[\n' > "$tmp/examples/workflows/Broken Workflow.json"
+    fi
     cp "$LOADER" "$tmp/examples/load-examples.sh"
 
     RUN_LOG="$tmp/requests.log"
@@ -193,6 +198,22 @@ if [[ "$RUN_RC" != 0 ]] && [[ "$RUN_OUT" == *"email"* ]]; then
     _pass "token without an email claim aborts with a clear message"
 else
     _fail "missing email claim should abort clearly" "rc=$RUN_RC out=$(echo "$RUN_OUT" | tail -2)"
+fi
+
+# 6) A workflow file that jq cannot parse is one more non-fatal failure: the
+#    loader reports it, still creates the workflow after it, and exits
+#    non-zero at the end instead of aborting at the bad file.
+BROKEN_WORKFLOW=1 _run_loader "$ADMIN_TOKEN"
+if [[ "$RUN_RC" != 0 ]] && [[ "$RUN_OUT" == *"Failed to parse"*"error(s)"* ]]; then
+    _pass "unparseable workflow file is reported and fails the run"
+else
+    _fail "unparseable workflow file should be reported and counted" "rc=$RUN_RC out=$(echo "$RUN_OUT" | tail -3)"
+fi
+if [[ "$(grep -c '/workflow/create' "$RUN_LOG")" == 1 ]]; then
+    _pass "the workflow after the unparseable file is still created"
+else
+    _fail "the loader should move on to the next workflow file" \
+          "$(grep '/workflow/' "$RUN_LOG" | tr '\n' ' ')"
 fi
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"

@@ -92,6 +92,20 @@ describe("TexeraLoginComponent", () => {
     component = fixture.componentInstance;
   };
 
+  const SIGNUP_FIELDS = {
+    username: "alice",
+    email: "alice@example.com",
+    password: "secret1",
+    confirm: "secret1",
+  };
+  const setConfig = (cfg: Parameters<MockGuiConfigService["setConfig"]>[0]): void => {
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig(cfg);
+  };
+  const submitForm = (patch: Record<string, unknown>): void => {
+    component.form.patchValue(patch);
+    component.submit();
+  };
+
   beforeEach(async () => {
     await createComponent();
   });
@@ -107,8 +121,7 @@ describe("TexeraLoginComponent", () => {
 
   describe("ngOnInit", () => {
     it("prefills username/password from defaultLocalUser when populated", () => {
-      const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
-      config.setConfig({ defaultLocalUser: { username: "preset-user", password: "preset-pass" } });
+      setConfig({ defaultLocalUser: { username: "preset-user", password: "preset-pass" } });
 
       component.ngOnInit();
 
@@ -117,8 +130,7 @@ describe("TexeraLoginComponent", () => {
     });
 
     it("does not prefill when defaultLocalUser is empty", () => {
-      const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
-      config.setConfig({ defaultLocalUser: {} });
+      setConfig({ defaultLocalUser: {} });
 
       component.ngOnInit();
 
@@ -148,8 +160,7 @@ describe("TexeraLoginComponent", () => {
     });
 
     it("skips the prefill and the Google subscription when already signed in", () => {
-      const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
-      config.setConfig({ defaultLocalUser: { username: "preset-user", password: "preset-pass" } });
+      setConfig({ defaultLocalUser: { username: "preset-user", password: "preset-pass" } });
       (userServiceMock.isLogin as any).mockReturnValue(true);
 
       component.ngOnInit();
@@ -184,7 +195,7 @@ describe("TexeraLoginComponent", () => {
     });
 
     it("drops the button when the provider is disabled", () => {
-      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({ appleLogin: false });
+      setConfig({ appleLogin: false });
       fixture.detectChanges();
 
       expect(host().querySelector("button.apple-button")).toBeNull();
@@ -265,22 +276,19 @@ describe("TexeraLoginComponent", () => {
     beforeEach(() => component.setMode("signin"));
 
     it("short-circuits and sets errorMessage when the username is blank", () => {
-      component.form.patchValue({ username: "   ", password: "secret1" });
-      component.submit();
+      submitForm({ username: "   ", password: "secret1" });
       expect(userServiceMock.login).not.toHaveBeenCalled();
       expect(component.errorMessage).toBeTruthy();
     });
 
     it("sets errorMessage when the password is shorter than 6 characters", () => {
-      component.form.patchValue({ username: "alice", password: "abc" });
-      component.submit();
+      submitForm({ username: "alice", password: "abc" });
       expect(userServiceMock.login).not.toHaveBeenCalled();
       expect(component.errorMessage).toBe("Password length should be greater than 5.");
     });
 
     it("calls UserService.login with a trimmed username and navigates to USER_WORKFLOW", () => {
-      component.form.patchValue({ username: "  alice  ", password: "secret1" });
-      component.submit();
+      submitForm({ username: "  alice  ", password: "secret1" });
       expect(userServiceMock.login).toHaveBeenCalledWith("alice", "secret1");
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
     });
@@ -288,23 +296,20 @@ describe("TexeraLoginComponent", () => {
     it("navigates to queryParams.returnUrl when present", async () => {
       await createComponent({ returnUrl: "/user/dataset" });
       component.setMode("signin");
-      component.form.patchValue({ username: "alice", password: "secret1" });
-      component.submit();
+      submitForm({ username: "alice", password: "secret1" });
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith("/user/dataset");
     });
 
     it("surfaces the error message on login failure and does not navigate", () => {
       (userServiceMock.login as any).mockReturnValue(throwError(() => new Error("bad credentials")));
-      component.form.patchValue({ username: "alice", password: "secret1" });
-      component.submit();
+      submitForm({ username: "alice", password: "secret1" });
       expect(component.errorMessage).toBe("bad credentials");
       expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
     });
 
     it("falls back to a default message when the login error has no message", () => {
       (userServiceMock.login as any).mockReturnValue(throwError(() => ({})));
-      component.form.patchValue({ username: "alice", password: "secret1" });
-      component.submit();
+      submitForm({ username: "alice", password: "secret1" });
       expect(component.errorMessage).toBe("Incorrect username or password");
     });
   });
@@ -314,87 +319,55 @@ describe("TexeraLoginComponent", () => {
 
     // Registration requires an email; the backend's register endpoint takes one.
     it("sets errorMessage when the email is missing or malformed", () => {
-      component.form.patchValue({
-        username: "alice",
-        email: "not-an-email",
-        password: "secret1",
-        confirm: "secret1",
-      });
-      component.submit();
+      submitForm({ ...SIGNUP_FIELDS, email: "not-an-email" });
       expect(userServiceMock.register).not.toHaveBeenCalled();
       expect(component.errorMessage).toBeTruthy();
     });
 
     it("sets errorMessage when passwords are inconsistent", () => {
-      component.form.patchValue({
-        username: "alice",
-        email: "alice@example.com",
-        password: "secret1",
-        confirm: "secret2",
-      });
-      component.submit();
+      submitForm({ ...SIGNUP_FIELDS, confirm: "secret2" });
       expect(userServiceMock.register).not.toHaveBeenCalled();
       expect(component.errorMessage).toBe("Two passwords are inconsistent.");
     });
 
     it("calls UserService.register with username, email and password, then notifies success", () => {
-      component.form.patchValue({
-        username: "  alice  ",
-        email: "  alice@example.com  ",
-        password: "secret1",
-        confirm: "secret1",
-      });
-      component.submit();
+      submitForm({ ...SIGNUP_FIELDS, username: "  alice  ", email: "  alice@example.com  " });
       expect(userServiceMock.register).toHaveBeenCalledWith("alice", "alice@example.com", "secret1");
       expect(notificationServiceMock.success).toHaveBeenCalled();
     });
 
-    const fillSignup = () =>
-      component.form.patchValue({
-        username: "alice",
-        email: "alice@example.com",
-        password: "secret1",
-        confirm: "secret1",
-      });
     const signedInAs = (role: Role) =>
       (userServiceMock.getCurrentUser as any).mockReturnValue({ uid: 7, name: "alice", role } as User);
+    const expectCreated = (redirect: boolean): void => {
+      expect(notificationServiceMock.success).toHaveBeenCalledWith(
+        redirect
+          ? "Your account has been created."
+          : "Your account has been created. Please contact the Texera administrator to activate your account."
+      );
+      if (redirect) expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+      else expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    };
 
     // With invite-only off the account is REGULAR and registering has already signed the user in,
     // so the page goes where a sign-in would rather than telling them to wait for an admin.
     it("opens the dashboard when the new account can be used at once", () => {
       signedInAs(Role.REGULAR);
-      fillSignup();
-
-      component.submit();
-
-      expect(notificationServiceMock.success).toHaveBeenCalledWith("Your account has been created.");
-      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+      submitForm(SIGNUP_FIELDS);
+      expectCreated(true);
     });
 
     // With invite-only on the account is INACTIVE, and signing in with it signs straight back out.
     it("asks the user to wait for an admin when the new account is not signed in", () => {
-      fillSignup();
-
-      component.submit();
-
-      expect(notificationServiceMock.success).toHaveBeenCalledWith(
-        "Your account has been created. Please contact the Texera administrator to activate your account."
-      );
-      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+      submitForm(SIGNUP_FIELDS);
+      expectCreated(false);
     });
 
     // An INACTIVE account can do nothing yet, so even a session that is still around for one is not
     // sent to the dashboard.
     it("does not open the dashboard for an INACTIVE account", () => {
       signedInAs(Role.INACTIVE);
-      fillSignup();
-
-      component.submit();
-
-      expect(notificationServiceMock.success).toHaveBeenCalledWith(
-        "Your account has been created. Please contact the Texera administrator to activate your account."
-      );
-      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+      submitForm(SIGNUP_FIELDS);
+      expectCreated(false);
     });
 
     // Where verification is on the code field is present from the outset, and mailing the code is
@@ -402,19 +375,22 @@ describe("TexeraLoginComponent", () => {
     // submit that silently sent mail and a second that completed.
     describe("with email verification on", () => {
       beforeEach(() => {
-        const config = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
-        config.setConfig({ emailVerification: true });
+        setConfig({ emailVerification: true });
         (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: true }));
         component.setMode("signup");
       });
 
-      const fillForm = () =>
+      const fillForm = (code?: string) =>
         component.form.patchValue({
+          ...SIGNUP_FIELDS,
           username: "  alice  ",
           email: "  alice@example.com  ",
-          password: "secret1",
-          confirm: "secret1",
+          ...(code !== undefined ? { code } : {}),
         });
+      const submitWithCode = (code: string) => {
+        fillForm(code);
+        component.submit();
+      };
 
       it("mails a code when asked, without creating the account", () => {
         fillForm();
@@ -431,10 +407,7 @@ describe("TexeraLoginComponent", () => {
       // Pressing Sign up must not put mail in someone's inbox: that is what the separate button is
       // for, and the user may never have asked for it.
       it("does not mail anything when the form is submitted", () => {
-        fillForm();
-        component.form.patchValue({ code: "123456" });
-
-        component.submit();
+        submitWithCode("123456");
 
         expect(userServiceMock.register).not.toHaveBeenCalled();
         expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
@@ -473,10 +446,7 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("submits the typed code with the same fields", () => {
-        fillForm();
-        component.form.patchValue({ code: " 123456 " });
-
-        component.submit();
+        submitWithCode(" 123456 ");
 
         expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
         expect(notificationServiceMock.success).toHaveBeenCalled();
@@ -484,13 +454,8 @@ describe("TexeraLoginComponent", () => {
 
       it("opens the dashboard once the code completes a sign-up that can be used at once", () => {
         signedInAs(Role.REGULAR);
-        fillForm();
-        component.form.patchValue({ code: "123456" });
-
-        component.submit();
-
-        expect(notificationServiceMock.success).toHaveBeenCalledWith("Your account has been created.");
-        expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+        submitWithCode("123456");
+        expectCreated(true);
       });
 
       // The button only shows where the config says verification is on. A server that disagrees has
@@ -502,8 +467,7 @@ describe("TexeraLoginComponent", () => {
 
         component.sendCode();
 
-        expect(notificationServiceMock.success).toHaveBeenCalledWith("Your account has been created.");
-        expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+        expectCreated(true);
       });
 
       it("asks for the code rather than submitting an empty one", () => {
@@ -519,17 +483,13 @@ describe("TexeraLoginComponent", () => {
         (userServiceMock.registerVerify as any).mockReturnValue(
           throwError(() => new Error("That code is not valid or has expired."))
         );
-        fillForm();
-        component.form.patchValue({ code: "000000" });
-
-        component.submit();
+        submitWithCode("000000");
 
         expect(component.errorMessage).toBe("That code is not valid or has expired.");
       });
 
       it("clears a code that was typed when the tab changes", () => {
-        fillForm();
-        component.form.patchValue({ code: "123456" });
+        fillForm("123456");
 
         component.setMode("signin");
 
@@ -539,13 +499,7 @@ describe("TexeraLoginComponent", () => {
 
     it("surfaces the error message on registration failure", () => {
       (userServiceMock.register as any).mockReturnValue(throwError(() => new Error("username taken")));
-      component.form.patchValue({
-        username: "alice",
-        email: "alice@example.com",
-        password: "secret1",
-        confirm: "secret1",
-      });
-      component.submit();
+      submitForm(SIGNUP_FIELDS);
       expect(component.errorMessage).toBe("username taken");
     });
   });
@@ -689,7 +643,7 @@ describe("TexeraLoginComponent", () => {
       orcidLogin: boolean;
       appleLogin: boolean;
     }): void {
-      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig(flags);
+      setConfig(flags);
       fixture.detectChanges();
     }
 
@@ -707,71 +661,72 @@ describe("TexeraLoginComponent", () => {
     const appleButton = (): HTMLElement | null => host().querySelector("button.apple-button");
 
     describe("provider flags", () => {
-      it("renders the local form and every social button when all are enabled", () => {
-        render({ localLogin: true, googleLogin: true, orcidLogin: true, appleLogin: true });
+      type ProviderNode = "tabs" | "form" | "google" | "orcid" | "apple" | "divider";
+      const providerNodes: Record<ProviderNode, () => Element | null> = {
+        tabs: () => host().querySelector("nz-tabs"),
+        form: () => host().querySelector("form"),
+        google: () => host().querySelector("asl-google-signin-button"),
+        orcid: orcidButton,
+        apple: appleButton,
+        divider: () => host().querySelector("nz-divider"),
+      };
 
-        expect(host().querySelector("nz-tabs")).toBeTruthy();
-        expect(host().querySelector("form")).toBeTruthy();
-        expect(host().querySelector("asl-google-signin-button")).toBeTruthy();
-        expect(orcidButton()).toBeTruthy();
-        expect(appleButton()).toBeTruthy();
+      // Renders the card with the given flags, then checks each named node: true expects it
+      // rendered, false expects it absent, and a node left out is not checked.
+      const expectProviderDom = (
+        flags: Parameters<typeof render>[0],
+        expected: Partial<Record<ProviderNode, boolean>>
+      ): void => {
+        render(flags);
+        for (const node of Object.keys(expected) as ProviderNode[]) {
+          if (expected[node]) expect(providerNodes[node]()).toBeTruthy();
+          else expect(providerNodes[node]()).toBeNull();
+        }
+      };
+
+      it("renders the local form and every social button when all are enabled", () => {
         // The "or continue with" divider only makes sense when the local form has company.
-        expect(host().querySelector("nz-divider")).toBeTruthy();
+        expectProviderDom(
+          { localLogin: true, googleLogin: true, orcidLogin: true, appleLogin: true },
+          { tabs: true, form: true, google: true, orcid: true, apple: true, divider: true }
+        );
       });
 
       it("drops every social button but keeps the form when only local login is enabled", () => {
-        render({ localLogin: true, googleLogin: false, orcidLogin: false, appleLogin: false });
-
-        expect(host().querySelector("nz-tabs")).toBeTruthy();
-        expect(host().querySelector("form")).toBeTruthy();
-        expect(host().querySelector("asl-google-signin-button")).toBeNull();
-        expect(orcidButton()).toBeNull();
-        expect(appleButton()).toBeNull();
-        expect(host().querySelector("nz-divider")).toBeNull();
+        expectProviderDom(
+          { localLogin: true, googleLogin: false, orcidLogin: false, appleLogin: false },
+          { tabs: true, form: true, google: false, orcid: false, apple: false, divider: false }
+        );
       });
 
       it("drops the tabs and the form but keeps the google button when only google is enabled", () => {
-        render({ localLogin: false, googleLogin: true, orcidLogin: false, appleLogin: false });
-
-        expect(host().querySelector("nz-tabs")).toBeNull();
-        expect(host().querySelector("form")).toBeNull();
-        expect(host().querySelector("asl-google-signin-button")).toBeTruthy();
-        expect(orcidButton()).toBeNull();
-        expect(appleButton()).toBeNull();
-        expect(host().querySelector("nz-divider")).toBeNull();
+        expectProviderDom(
+          { localLogin: false, googleLogin: true, orcidLogin: false, appleLogin: false },
+          { tabs: false, form: false, google: true, orcid: false, apple: false, divider: false }
+        );
       });
 
       // ORCID carries the divider on its own: it is a second way to "continue with"
       // something other than the local form, so the label still reads correctly.
       it("keeps the orcid button and the divider when google is disabled but orcid is not", () => {
-        render({ localLogin: true, googleLogin: false, orcidLogin: true, appleLogin: false });
-
-        expect(host().querySelector("form")).toBeTruthy();
-        expect(host().querySelector("asl-google-signin-button")).toBeNull();
-        expect(orcidButton()).toBeTruthy();
-        expect(host().querySelector("nz-divider")).toBeTruthy();
+        expectProviderDom(
+          { localLogin: true, googleLogin: false, orcidLogin: true, appleLogin: false },
+          { form: true, google: false, orcid: true, divider: true }
+        );
       });
 
       it("drops the tabs and the form but keeps the orcid button when only orcid is enabled", () => {
-        render({ localLogin: false, googleLogin: false, orcidLogin: true, appleLogin: false });
-
-        expect(host().querySelector("nz-tabs")).toBeNull();
-        expect(host().querySelector("form")).toBeNull();
-        expect(host().querySelector("asl-google-signin-button")).toBeNull();
-        expect(orcidButton()).toBeTruthy();
-        expect(appleButton()).toBeNull();
-        expect(host().querySelector("nz-divider")).toBeNull();
+        expectProviderDom(
+          { localLogin: false, googleLogin: false, orcidLogin: true, appleLogin: false },
+          { tabs: false, form: false, google: false, orcid: true, apple: false, divider: false }
+        );
       });
 
       it("renders no sign-in path when every provider is disabled", () => {
-        render({ localLogin: false, googleLogin: false, orcidLogin: false, appleLogin: false });
-
-        expect(host().querySelector("nz-tabs")).toBeNull();
-        expect(host().querySelector("form")).toBeNull();
-        expect(host().querySelector("asl-google-signin-button")).toBeNull();
-        expect(orcidButton()).toBeNull();
-        expect(appleButton()).toBeNull();
-        expect(host().querySelector("nz-divider")).toBeNull();
+        expectProviderDom(
+          { localLogin: false, googleLogin: false, orcidLogin: false, appleLogin: false },
+          { tabs: false, form: false, google: false, orcid: false, apple: false, divider: false }
+        );
         // The brand and footer are outside every flag, so the card is never empty.
         expect(host().querySelector(".brand")).toBeTruthy();
         expect(host().querySelector("p.foot")).toBeTruthy();
@@ -780,21 +735,17 @@ describe("TexeraLoginComponent", () => {
       // Apple alone alongside the form still earns the divider. Nothing covered this before,
       // which is what let the divider condition and the render helper drift apart.
       it("keeps the divider when Apple is the only social provider", () => {
-        render({ localLogin: true, googleLogin: false, orcidLogin: false, appleLogin: true });
-
-        expect(host().querySelector("form")).toBeTruthy();
-        expect(host().querySelector("asl-google-signin-button")).toBeNull();
-        expect(appleButton()).toBeTruthy();
-        expect(host().querySelector("nz-divider")).toBeTruthy();
+        expectProviderDom(
+          { localLogin: true, googleLogin: false, orcidLogin: false, appleLogin: true },
+          { form: true, google: false, apple: true, divider: true }
+        );
       });
 
       it("drops the tabs and the form but keeps Apple's slot when only Apple is enabled", () => {
-        render({ localLogin: false, googleLogin: false, orcidLogin: false, appleLogin: true });
-
-        expect(host().querySelector("nz-tabs")).toBeNull();
-        expect(host().querySelector("form")).toBeNull();
-        expect(appleButton()).toBeTruthy();
-        expect(host().querySelector("nz-divider")).toBeNull();
+        expectProviderDom(
+          { localLogin: false, googleLogin: false, orcidLogin: false, appleLogin: true },
+          { tabs: false, form: false, apple: true, divider: false }
+        );
       });
     });
 
@@ -825,7 +776,7 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("says an admin has to activate the account while invite-only is on", () => {
-        (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({ inviteOnly: true });
+        setConfig({ inviteOnly: true });
         component.setMode("signup");
         fixture.detectChanges();
 
@@ -869,6 +820,12 @@ describe("TexeraLoginComponent", () => {
     });
 
     describe("password visibility", () => {
+      const triggerIcon = (eventName: string, event: Event) => {
+        passwordIcons()[0].triggerEventHandler(eventName, event);
+        fixture.detectChanges();
+      };
+      const clickToggle = () => triggerIcon("click", new MouseEvent("click"));
+
       beforeEach(() => {
         render({ localLogin: true, googleLogin: true, orcidLogin: true, appleLogin: true });
         component.setMode("signup");
@@ -884,8 +841,7 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("reveals both password fields when the toggle is clicked", () => {
-        passwordIcons()[0].triggerEventHandler("click", new MouseEvent("click"));
-        fixture.detectChanges();
+        clickToggle();
 
         expect(component.passwordVisible).toBe(true);
         expect(input("password")?.type).toBe("text");
@@ -894,18 +850,15 @@ describe("TexeraLoginComponent", () => {
       });
 
       it("also toggles from the keyboard, so the control is reachable without a mouse", () => {
-        passwordIcons()[0].triggerEventHandler("keydown.enter", new KeyboardEvent("keydown", { key: "Enter" }));
-        fixture.detectChanges();
+        triggerIcon("keydown.enter", new KeyboardEvent("keydown", { key: "Enter" }));
 
         expect(component.passwordVisible).toBe(true);
         expect(input("password")?.type).toBe("text");
       });
 
       it("hides them again on a second click", () => {
-        passwordIcons()[0].triggerEventHandler("click", new MouseEvent("click"));
-        fixture.detectChanges();
-        passwordIcons()[0].triggerEventHandler("click", new MouseEvent("click"));
-        fixture.detectChanges();
+        clickToggle();
+        clickToggle();
 
         expect(component.passwordVisible).toBe(false);
         expect(input("password")?.type).toBe("password");

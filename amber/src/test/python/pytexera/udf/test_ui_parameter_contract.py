@@ -62,7 +62,7 @@ def normalize(value, kind):
     if kind in ("BOOL", "BOOLEAN"):
         return bool(value)
     if kind == "TIMESTAMP":
-        return value.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return value.astimezone(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     return str(value)
 
 

@@ -19,14 +19,13 @@
 
 package org.apache.texera.web.resource.dashboard
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import org.apache.texera.web.resource.dashboard.VersionedSearchQuerySupport.renderSql
 import org.apache.texera.web.resource.dashboard.hub.EntityTables
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.jooq.Record
 
 import scala.jdk.CollectionConverters._
 
@@ -35,24 +34,10 @@ import scala.jdk.CollectionConverters._
   * wrong column still compiles and runs — it just queries the wrong field. SQL is rendered,
   * never executed. `repositorySize` is uncovered: live LakeFS call, no mockable seam.
   */
-class VersionedResourceTablesSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+class VersionedResourceTablesSpec extends DatabaseFlatSpec(cleanupBeforeEach = false) {
 
   private val tables = VersionedResourceTables.DatasetTables
   private val modelTables = VersionedResourceTables.ModelTables
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def afterAll(): Unit = {
-    shutdownDB()
-  }
-
-  private def rendered(sql: String): String = sql.toLowerCase.replace("\"", "")
 
   private def model(mid: Int, ownerUid: Int, repositoryName: String): Model = {
     val m = new Model
@@ -70,14 +55,33 @@ class VersionedResourceTablesSpec
     d
   }
 
+  private def assertColumns[R <: Record, P](
+      descriptor: VersionedResourceTables[R, P],
+      table: String,
+      id: String
+  ): Unit = {
+    descriptor.table.getName shouldBe table
+    descriptor.idColumn.getName shouldBe id
+    descriptor.isPublicColumn.getName shouldBe "is_public"
+    descriptor.nameColumn.getName shouldBe "name"
+    descriptor.descriptionColumn.getName shouldBe "description"
+    descriptor.creationTimeColumn.getName shouldBe "creation_time"
+    descriptor.ownerUidColumn.getName shouldBe "owner_uid"
+  }
+
+  private def assertAccessAndOwnerJoin[R <: Record, P](
+      descriptor: VersionedResourceTables[R, P],
+      table: String,
+      id: String
+  ): Unit = {
+    val sql = renderSql(getDSLContext.render(descriptor.joinWithAccessAndOwner(None)))
+    sql should include regex (s"${table}_user_access\\.$id = [\\w.]*$table\\.$id")
+    sql should include regex (s"user\\.uid = [\\w.]*$table\\.owner_uid")
+    sql.split("left outer join").length shouldBe 3
+  }
+
   "DatasetTables" should "name every column the shared query logic reads" in {
-    tables.table.getName shouldBe "dataset"
-    tables.idColumn.getName shouldBe "did"
-    tables.isPublicColumn.getName shouldBe "is_public"
-    tables.nameColumn.getName shouldBe "name"
-    tables.descriptionColumn.getName shouldBe "description"
-    tables.creationTimeColumn.getName shouldBe "creation_time"
-    tables.ownerUidColumn.getName shouldBe "owner_uid"
+    assertColumns(tables, "dataset", "did")
   }
 
   it should "share the hub's access table rather than naming it twice" in {
@@ -99,7 +103,6 @@ class VersionedResourceTablesSpec
 
   it should "expose the POJO fields the hub de-dupes and sizes by" in {
     val d = dataset(11, 22, "dataset-11")
-    tables.idOf(d) shouldBe Integer.valueOf(11)
     tables.ownerUidOf(d) shouldBe Integer.valueOf(22)
     tables.repositoryNameOf(d) shouldBe "dataset-11"
   }
@@ -119,25 +122,19 @@ class VersionedResourceTablesSpec
   }
 
   "joinWithAccessAndOwner" should "join the access rows and the owner" in {
-    // Rendered names are schema-qualified (texera_db.dataset.did), hence the regex.
-    val sql = rendered(getDSLContext.render(tables.joinWithAccessAndOwner(None)))
-
-    sql should include regex "dataset_user_access\\.did = [\\w.]*dataset\\.did"
-    sql should include regex "user\\.uid = [\\w.]*dataset\\.owner_uid"
-    // Both joins are outer: a resource with no grant row must still appear.
-    sql.split("left outer join").length shouldBe 3
+    assertAccessAndOwnerJoin(tables, "dataset", "did")
   }
 
   it should "leave the access rows unfiltered when no condition is given" in {
     // The hub's call: every grant row.
-    val sql = rendered(getDSLContext.render(tables.joinWithAccessAndOwner(None)))
+    val sql = renderSql(getDSLContext.render(tables.joinWithAccessAndOwner(None)))
 
     sql should not include "dataset_user_access.uid ="
   }
 
   it should "narrow the access rows when a condition is given" in {
     // The search's call. Without the predicate, `uid is not null` matches anybody's grant.
-    val sql = rendered(
+    val sql = renderSql(
       getDSLContext.renderInlined(
         tables.joinWithAccessAndOwner(Some(tables.access.uidColumn.eq(Integer.valueOf(42))))
       )
@@ -148,25 +145,19 @@ class VersionedResourceTablesSpec
 
   "joinWithViewerAccessAndOwner" should "narrow the access rows to the viewer, or to none when anonymous" in {
     val forViewer =
-      rendered(
+      renderSql(
         getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(Integer.valueOf(42)))
       )
     forViewer should include("dataset_user_access.uid = 42")
 
     val forAnonymous =
-      rendered(getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(null)))
+      renderSql(getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(null)))
     forAnonymous should not include "dataset_user_access.uid ="
     forAnonymous should include("false")
   }
 
   "ModelTables" should "name every column the shared query logic reads" in {
-    modelTables.table.getName shouldBe "model"
-    modelTables.idColumn.getName shouldBe "mid"
-    modelTables.isPublicColumn.getName shouldBe "is_public"
-    modelTables.nameColumn.getName shouldBe "name"
-    modelTables.descriptionColumn.getName shouldBe "description"
-    modelTables.creationTimeColumn.getName shouldBe "creation_time"
-    modelTables.ownerUidColumn.getName shouldBe "owner_uid"
+    assertColumns(modelTables, "model", "mid")
   }
 
   it should "share the hub's access table rather than naming it twice" in {
@@ -189,7 +180,6 @@ class VersionedResourceTablesSpec
 
   it should "expose the POJO fields the hub de-dupes and sizes by" in {
     val m = model(31, 42, "model-31")
-    modelTables.idOf(m) shouldBe Integer.valueOf(31)
     modelTables.ownerUidOf(m) shouldBe Integer.valueOf(42)
     modelTables.repositoryNameOf(m) shouldBe "model-31"
   }
@@ -211,11 +201,6 @@ class VersionedResourceTablesSpec
   }
 
   it should "join the model's own access and owner rows" in {
-    val sql = rendered(getDSLContext.render(modelTables.joinWithAccessAndOwner(None)))
-
-    sql should include regex "model_user_access\\.mid = [\\w.]*model\\.mid"
-    sql should include regex "user\\.uid = [\\w.]*model\\.owner_uid"
-    sql.split("left outer join").length shouldBe 3
+    assertAccessAndOwnerJoin(modelTables, "model", "mid")
   }
-
 }

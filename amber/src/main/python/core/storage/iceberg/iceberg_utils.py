@@ -24,6 +24,7 @@ import pyiceberg.table
 from fsspec.config import conf as fsspec_conf
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.catalog.sql import SqlCatalog
+from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 from pyiceberg.expressions import AlwaysTrue
 from pyiceberg.io.pyarrow import ArrowScan
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
@@ -32,7 +33,6 @@ from pyiceberg.table import Table
 from typing import Optional, Iterable
 from pyiceberg import types as iceberg_types
 
-import core
 import core.models
 from core.models import ArrowTableTupleProvider, Tuple
 from core.models.schema.attribute_type import AttributeType, TO_ARROW_MAPPING
@@ -242,11 +242,9 @@ def create_rest_catalog(
     # server, whose I/O goes through S3FileIO, not the local filesystem.
     return load_catalog(
         catalog_name,
-        **{
-            "type": "rest",
-            "uri": rest_uri,
-            "warehouse": warehouse_name,
-        },
+        type="rest",
+        uri=rest_uri,
+        warehouse=warehouse_name,
     )
 
 
@@ -278,13 +276,11 @@ def create_table(
     if catalog.table_exists(identifier) and override_if_exists:
         catalog.drop_table(identifier)
 
-    table = catalog.create_table(
+    return catalog.create_table(
         identifier=identifier,
         schema=table_schema,
         partition_spec=UNPARTITIONED_PARTITION_SPEC,
     )
-
-    return table
 
 
 def load_table_metadata(
@@ -293,7 +289,11 @@ def load_table_metadata(
     """
     Loads metadata for an existing Iceberg table.
     - Returns the table if it exists and is successfully loaded.
-    - Returns None if the table does not exist or cannot be loaded.
+    - Returns None if the table, or its namespace, does not exist.
+
+    Any other failure is raised, such as a catalog that cannot be reached. Taken
+    for a missing table, it would make a result that exists look deleted, or a
+    table read as empty.
 
     :param catalog: The Iceberg catalog to load the table from.
     :param table_namespace: The namespace of the table.
@@ -303,7 +303,7 @@ def load_table_metadata(
     identifier = f"{table_namespace}.{table_name}"
     try:
         return catalog.load_table(identifier)
-    except Exception:
+    except (NoSuchTableError, NoSuchNamespaceError):
         return None
 
 

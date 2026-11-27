@@ -57,10 +57,10 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
       inputTupleSize: 0,
       outputTupleCount: 0,
       outputTupleSize: 0,
-      totalDataProcessingTime: 0,
-      totalControlProcessingTime: 0,
-      totalIdleTime: 0,
-      numberOfWorkers: 1,
+      dataProcessingTime: 0,
+      controlProcessingTime: 0,
+      idleTime: 0,
+      numWorkers: 1,
       status: 0,
       ...overrides,
     };
@@ -79,10 +79,10 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
         inputTupleSize: 11,
         outputTupleCount: 12,
         outputTupleSize: 13,
-        totalDataProcessingTime: 2 * NANOS,
-        totalControlProcessingTime: 3 * NANOS,
-        totalIdleTime: 4 * NANOS,
-        numberOfWorkers: 1,
+        dataProcessingTime: 2 * NANOS,
+        controlProcessingTime: 3 * NANOS,
+        idleTime: 4 * NANOS,
+        numWorkers: 1,
       }),
       makeStat({
         operatorId: "scan-op-111111",
@@ -91,17 +91,17 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
         inputTupleSize: 21,
         outputTupleCount: 22,
         outputTupleSize: 23,
-        totalDataProcessingTime: 5 * NANOS,
-        totalControlProcessingTime: 6 * NANOS,
-        totalIdleTime: 7 * NANOS,
-        numberOfWorkers: 2,
+        dataProcessingTime: 5 * NANOS,
+        controlProcessingTime: 6 * NANOS,
+        idleTime: 7 * NANOS,
+        numWorkers: 2,
       }),
       makeStat({
         operatorId: "filter-op-222222",
         timestamp: 2000,
         inputTupleCount: 100,
-        totalDataProcessingTime: 1 * NANOS,
-        numberOfWorkers: 4,
+        dataProcessingTime: 1 * NANOS,
+        numWorkers: 4,
       }),
     ];
   }
@@ -135,6 +135,13 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     return found as Series;
   }
 
+  async function mountChart(workflowRuntimeStatistics?: WorkflowRuntimeStatistics[]) {
+    await createFixture({ workflowRuntimeStatistics });
+    const gd = chartDiv();
+    fixture.detectChanges();
+    return gd;
+  }
+
   beforeEach(() => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
@@ -146,16 +153,12 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("should create", async () => {
-    await createFixture({ workflowRuntimeStatistics: validStats() });
-    chartDiv();
-    fixture.detectChanges();
+    await mountChart(validStats());
     expect(component).toBeTruthy();
   });
 
   it("ngOnInit plots the metric-0 dataset and layout onto the #chart div", async () => {
-    await createFixture({ workflowRuntimeStatistics: validStats() });
-    const gd = chartDiv();
-    fixture.detectChanges(); // ngOnInit -> createChart(0)
+    const gd = await mountChart(validStats());
 
     // Two distinct operatorIds => two grouped series rendered onto the chart div.
     expect(gd.data).toBeDefined();
@@ -167,9 +170,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("ngOnInit warns and does not plot when workflowRuntimeStatistics is undefined", async () => {
-    await createFixture({ workflowRuntimeStatistics: undefined });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart(undefined);
 
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
     expect(gd.data).toBeUndefined();
@@ -181,13 +182,13 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
 
     // Two stats for scan-op-111111 collapsed under one group key; one for filter.
     expect(Object.keys(grouped).sort()).toEqual(["filter-op-222222", "scan-op-111111"]);
-    const scan = grouped["scan-op-111111"] as Array<WorkflowRuntimeStatistics & { dataProcessingTime: number }>;
+    const scan = grouped["scan-op-111111"];
     expect(scan.length).toBe(2);
-    // totalDataProcessingTime (2e9, 5e9 ns) divided by 1e9 => seconds.
+    // dataProcessingTime (2e9, 5e9 ns) divided by 1e9 => seconds.
     expect(scan.map(s => s.dataProcessingTime)).toEqual([2, 5]);
     // control/idle also converted ns->s on the first stat (3e9 -> 3, 4e9 -> 4).
-    expect((scan[0] as unknown as { controlProcessingTime: number }).controlProcessingTime).toBe(3);
-    expect((scan[0] as unknown as { idleTime: number }).idleTime).toBe(4);
+    expect(scan[0].controlProcessingTime).toBe(3);
+    expect(scan[0].idleTime).toBe(4);
     // timestamps made relative to the first stat (1000): 0 and 2000.
     expect(scan.map(s => s.timestamp)).toEqual([0, 2000]);
     // filter stat timestamp 2000 - initial 1000 = 1000.
@@ -258,9 +259,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("onTabChanged re-plots the newly selected metric onto the #chart div", async () => {
-    await createFixture({ workflowRuntimeStatistics: validStats() });
-    const gd = chartDiv();
-    fixture.detectChanges(); // metric index 0 (Input Tuple Count)
+    const gd = await mountChart(validStats());
     expect(gd.layout?.title?.text).toBe("Input Tuple Count");
 
     component.onTabChanged(7); // metric index 7 (Number of Workers)
@@ -271,20 +270,14 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   });
 
   it("createChart warns and does not plot when the dataset is empty (only a sink operator)", async () => {
-    await createFixture({
-      workflowRuntimeStatistics: [makeStat({ operatorId: "sink-op-999999", timestamp: 1000, inputTupleCount: 42 })],
-    });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart([makeStat({ operatorId: "sink-op-999999", timestamp: 1000, inputTupleCount: 42 })]);
 
     expect(warnSpy).toHaveBeenCalledWith("No data available for the chart.");
     expect(gd.data).toBeUndefined();
   });
 
   it("createChart warns twice and does not plot when the statistics array is empty", async () => {
-    await createFixture({ workflowRuntimeStatistics: [] });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart([]);
 
     // groupStatisticsByOperatorId warns about the empty input, then createChart warns about the empty dataset.
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
@@ -295,9 +288,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
   it("onTabChanged after a statistics-less init yields an empty dataset and warns instead of plotting", async () => {
     // ngOnInit bails out before groupedStatistics is ever assigned, but the tabs still render,
     // so a tab click reaches createDataset with no grouping in place.
-    await createFixture({ workflowRuntimeStatistics: undefined });
-    const gd = chartDiv();
-    fixture.detectChanges();
+    const gd = await mountChart(undefined);
 
     expect((component as unknown as { createDataset(i: number): Series[] }).createDataset(3)).toEqual([]);
 
@@ -307,7 +298,7 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     expect(gd.data).toBeUndefined();
   });
 
-  it("createDataset falls back to the numberOfWorkers metric for an out-of-range metric index", async () => {
+  it("createDataset falls back to the numWorkers metric for an out-of-range metric index", async () => {
     await createFixture({ workflowRuntimeStatistics: validStats() });
     const grouped = group();
 
@@ -317,10 +308,25 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     // There are 8 metric keys (indices 0..7), so index 8 selects none of them.
     const outOfRange = seriesNamed(dataset(8, grouped), "scan-111111");
 
-    // It falls back to numberOfWorkers, i.e. the same series metric index 7 selects...
+    // It falls back to numWorkers, i.e. the same series metric index 7 selects...
     expect(outOfRange.y).toEqual([1, 2]);
     expect(outOfRange.y).toEqual(seriesNamed(dataset(7, grouped), "scan-111111").y);
     // ...and not the metric-0 series, so the fallback really did pick a different key.
     expect(outOfRange.y).not.toEqual(seriesNamed(dataset(0, grouped), "scan-111111").y);
+  });
+
+  it("plots the time and worker charts from the JSON the stats endpoint returns", async () => {
+    // Parsed from the exact body `WorkflowExecutionsResource.WorkflowRuntimeStatistics` serializes, so a renamed
+    // field on either side fails here instead of plotting an all-empty chart.
+    const fromBackend: WorkflowRuntimeStatistics[] = JSON.parse(
+      '[{"operatorId":"scan-op-111111","timestamp":1000,"inputTupleCount":10,"inputTupleSize":80,' +
+        '"outputTupleCount":5,"outputTupleSize":40,"dataProcessingTime":2000000000,' +
+        '"controlProcessingTime":3000000000,"idleTime":4000000000,"numWorkers":3,"status":3}]'
+    );
+    await createFixture({ workflowRuntimeStatistics: fromBackend });
+    const grouped = group();
+
+    // Metric indices 4..7 are data time, control time, idle time and number of workers.
+    expect([4, 5, 6, 7].map(i => seriesNamed(dataset(i, grouped), "scan-111111").y)).toEqual([[2], [3], [4], [3]]);
   });
 });

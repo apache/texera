@@ -19,31 +19,40 @@
 
 package org.apache.texera.amber.operator.extractdatetime
 
-import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImportWithin,
+  configuredPython,
+  runSource
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.sql.Timestamp
-import java.util.concurrent.TimeUnit
-import scala.io.Source
-import scala.util.Try
 
 class ExtractDateTimeOpDescSpec extends AnyFlatSpec with Matchers {
 
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
-
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
+
+  private val allFields = Seq(
+    DateTimeField.YEAR,
+    DateTimeField.QUARTER,
+    DateTimeField.MONTH,
+    DateTimeField.DAY,
+    DateTimeField.DAY_OF_WEEK,
+    DateTimeField.DAY_OF_YEAR,
+    DateTimeField.WEEK_OF_YEAR,
+    DateTimeField.HOUR,
+    DateTimeField.MINUTE,
+    DateTimeField.SECOND
+  )
 
   private val inputSchema = new Schema(
     new Attribute("id", AttributeType.INTEGER),
@@ -116,34 +125,20 @@ class ExtractDateTimeOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "refuse a derived name the input already carries" in {
-    val d = new ExtractDateTimeOpDesc
-    d.attribute = "ts"
-    d.fields = List(DateTimeField.YEAR)
     val clashing = new Schema(
       new Attribute("ts", AttributeType.TIMESTAMP),
       new Attribute("ts_year", AttributeType.INTEGER)
     )
     a[RuntimeException] should be thrownBy
-      d.getPhysicalOp(workflowId, executionId)
+      desc(DateTimeField.YEAR)
+        .getPhysicalOp(workflowId, executionId)
         .propagateSchema
         .func(Map(PortIdentity() -> clashing))
   }
 
   // 2024-03-05 14:09:07 is a Tuesday in ISO week 10 of Q1, day 65 of the year.
   "The executor" should "read every field the way ISO-8601 states it" in {
-    val d = desc(
-      DateTimeField.YEAR,
-      DateTimeField.QUARTER,
-      DateTimeField.MONTH,
-      DateTimeField.DAY,
-      DateTimeField.DAY_OF_WEEK,
-      DateTimeField.DAY_OF_YEAR,
-      DateTimeField.WEEK_OF_YEAR,
-      DateTimeField.HOUR,
-      DateTimeField.MINUTE,
-      DateTimeField.SECOND
-    )
-    rowsOf(d, Some("2024-03-05 14:09:07")).head.drop(2) shouldBe
+    rowsOf(desc(allFields: _*), Some("2024-03-05 14:09:07")).head.drop(2) shouldBe
       Seq(2024, 1, 3, 5, 2, 65, 10, 14, 9, 7)
   }
 
@@ -199,24 +194,11 @@ class ExtractDateTimeOpDescSpec extends AnyFlatSpec with Matchers {
       include("""astype("datetime64[us]")""")
   }
 
-  private val allFields = Seq(
-    DateTimeField.YEAR,
-    DateTimeField.QUARTER,
-    DateTimeField.MONTH,
-    DateTimeField.DAY,
-    DateTimeField.DAY_OF_WEEK,
-    DateTimeField.DAY_OF_YEAR,
-    DateTimeField.WEEK_OF_YEAR,
-    DateTimeField.HOUR,
-    DateTimeField.MINUTE,
-    DateTimeField.SECOND
-  )
-
   // The moments either side of the nanosecond edge, and far past it in both
   // directions, read against the executor's own answer for the same moment.
   it should "read the same fields as the executor at and past the nanosecond edge" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportWithin(python, 120, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val moments = Seq(
       "1677-09-22 00:12:44",
@@ -238,41 +220,11 @@ class ExtractDateTimeOpDescSpec extends AnyFlatSpec with Matchers {
          |    print(",".join(str(_v) for _v in _row))
          |""".stripMargin
 
-    val script = Files.createTempFile("extract-datetime-bounds-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(180, TimeUnit.SECONDS)
+    val (exitCode, out) =
+      runSource(python, "extract-datetime-bounds-", driver, timeoutSeconds = 180)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim.linesIterator.toSeq shouldBe expected
     }
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImport(python: String, modules: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", s"import $modules").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(120, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

@@ -113,7 +113,7 @@ describe("BrowseSectionComponent", () => {
       expect(component.routeFor(workflow)).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "501"]);
 
       component.currentUid = 1;
-      component.ngOnChanges({} as any);
+      component.ngOnChanges();
 
       expect(component.routeFor(workflow)).toEqual([USER_WORKSPACE, "501"]);
     });
@@ -142,7 +142,7 @@ describe("BrowseSectionComponent", () => {
       } as unknown as DashboardEntry;
       component.entities = [entity];
       component.ngOnInit();
-      component.ngOnChanges({} as any);
+      component.ngOnChanges();
 
       expect(component.getCoverImage(entity)).toBe(PRESIGNED_COVER);
       expect(cover).toHaveBeenCalledTimes(1);

@@ -30,8 +30,6 @@
   flex-direction: column;
   align-items: flex-start;
   width: 240px;
-  opacity: 1;
-  transition: opacity 1s ease-in-out;
 }
 
 .condition-input-popup .tooltip-header {
@@ -49,11 +47,6 @@
   color: white;
   border: 1px solid #ccc;
   padding: 5px;
-}
-
-.condition-input-popup.fade-out {
-  opacity: 0;
-  pointer-events: none;
 }
 
 ::ng-deep .cgmr.codicon.monaco-conditional-breakpoint {

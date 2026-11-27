@@ -20,42 +20,27 @@
 package org.apache.texera.web.resource.dashboard.hub
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.web.resource.dashboard.{
+  DashboardWorkflowFixtureSupport,
+  VersionedResourceTables
 }
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess
-}
-import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.apache.texera.web.resource.dashboard.hub.HubResource._
+import org.jooq.{Field, Record, Table}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-import java.sql.Timestamp
-import java.util.UUID
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.BadRequestException
 import scala.jdk.CollectionConverters._
 
 class HubResourceSpec
-    extends AnyFlatSpec
-    with Matchers
+    extends DatabaseFlatSpec()
     with MockFactory
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    with DashboardWorkflowFixtureSupport {
 
   // MockTexeraDB gives this suite its own UUID-named database, so fixed ids are
   // safe and keep failures reproducible.
@@ -64,15 +49,12 @@ class HubResourceSpec
   private val wid = 7001
   private val Wf: EntityType = EntityType.Workflow
 
-  private var userDao: UserDao = _
-  private var workflowDao: WorkflowDao = _
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
-
   // A request whose remote address is a valid IPv4 so recordUserAction stores it.
-  private def req: HttpServletRequest = {
+  private def req: HttpServletRequest = requestFrom("127.0.0.1")
+
+  private def requestFrom(remoteAddress: String): HttpServletRequest = {
     val r = stub[HttpServletRequest]
-    (r.getRemoteAddr _).when().returns("127.0.0.1")
+    (r.getRemoteAddr _).when().returns(remoteAddress)
     r
   }
 
@@ -82,41 +64,37 @@ class HubResourceSpec
     new SessionUser(u)
   }
 
-  private def makeUser(uid: Int, name: String): User = {
-    val u = new User
-    u.setUid(Integer.valueOf(uid))
-    u.setName(name)
-    u.setEmail(s"$name@test.com")
-    u
-  }
-
   private def ids(values: Int*): java.util.List[Integer] = values.map(Integer.valueOf).asJava
   private def types(values: EntityType*): java.util.List[EntityType] = values.toList.asJava
   private def actions(values: ActionType*): java.util.List[ActionType] = values.toList.asJava
 
+  private def recordLike(uid: Int, entity: UserRequest, isLike: Boolean): Boolean =
+    recordLikeAction(req, Integer.valueOf(uid), entity, isLike)
+
+  private def view(id: Integer, uid: Integer, kind: EntityType = Wf): Int =
+    hub.postView(req, ViewRequest(id, uid, kind))
+
+  private def countsFor(
+      kind: EntityType,
+      id: Int,
+      requested: java.util.List[ActionType] = null
+  ): Map[ActionType, Int] =
+    hub.getCounts(types(kind), ids(id), requested).asScala.head.counts.asScala.toMap
+
   private def likeRows: Int =
-    getDSLContext
-      .selectCount()
-      .from(WORKFLOW_USER_LIKES)
-      .where(WORKFLOW_USER_LIKES.WID.eq(wid).and(WORKFLOW_USER_LIKES.UID.eq(likerUid)))
-      .fetchOne(0, classOf[Integer])
-      .intValue()
+    getDSLContext.fetchCount(
+      WORKFLOW_USER_LIKES,
+      WORKFLOW_USER_LIKES.WID.eq(wid).and(WORKFLOW_USER_LIKES.UID.eq(likerUid))
+    )
 
   private def cloneRows: Int =
-    getDSLContext
-      .selectCount()
-      .from(WORKFLOW_USER_CLONES)
-      .where(WORKFLOW_USER_CLONES.WID.eq(wid).and(WORKFLOW_USER_CLONES.UID.eq(likerUid)))
-      .fetchOne(0, classOf[Integer])
-      .intValue()
+    getDSLContext.fetchCount(
+      WORKFLOW_USER_CLONES,
+      WORKFLOW_USER_CLONES.WID.eq(wid).and(WORKFLOW_USER_CLONES.UID.eq(likerUid))
+    )
 
   private def userActionRows: Int =
-    getDSLContext
-      .selectCount()
-      .from(USER_ACTION)
-      .where(USER_ACTION.RESOURCE_ID.eq(wid))
-      .fetchOne(0, classOf[Integer])
-      .intValue()
+    getDSLContext.fetchCount(USER_ACTION, USER_ACTION.RESOURCE_ID.eq(wid))
 
   private def isLiked(uid: Int): Boolean =
     isLikedHelper(Integer.valueOf(uid), ids(wid), types(Wf)).asScala.head.isLiked
@@ -140,13 +118,6 @@ class HubResourceSpec
 
   private def hub: HubResource = new HubResource()
 
-  // A request whose remote address is not IPv4-shaped, to exercise the ip guard.
-  private def nonIpv4Req: HttpServletRequest = {
-    val r = stub[HttpServletRequest]
-    (r.getRemoteAddr _).when().returns("::1")
-    r
-  }
-
   /**
     * Inserts a workflow with an explicit wid (the serial sequence is left alone so
     * these ids never collide with anything jOOQ generates). `withOwnerRows` also
@@ -169,14 +140,14 @@ class HubResourceSpec
       .set(WORKFLOW.IS_PUBLIC, java.lang.Boolean.valueOf(isPublic))
       .execute()
     if (withOwnerRows) {
-      getDSLContext
-        .insertInto(WORKFLOW_OF_USER)
-        .set(WORKFLOW_OF_USER.UID, Integer.valueOf(owner))
-        .set(WORKFLOW_OF_USER.WID, Integer.valueOf(wfId))
-        .execute()
-      grantWorkflowAccess(wfId, owner, PrivilegeEnum.WRITE)
+      seedWorkflowOwner(wfId, owner)
     }
     Integer.valueOf(wfId)
+  }
+
+  private def seedWorkflowOwner(wfId: Int, owner: Int): Unit = {
+    insertWorkflowOfUser(owner, wfId)
+    insertWorkflowUserAccess(owner, wfId, PrivilegeEnum.WRITE)
   }
 
   private def seedDataset(
@@ -213,145 +184,74 @@ class HubResourceSpec
     Integer.valueOf(modelId)
   }
 
-  private def grantWorkflowAccess(wfId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
-    getDSLContext
-      .insertInto(WORKFLOW_USER_ACCESS)
-      .set(WORKFLOW_USER_ACCESS.WID, Integer.valueOf(wfId))
-      .set(WORKFLOW_USER_ACCESS.UID, Integer.valueOf(uid))
-      .set(WORKFLOW_USER_ACCESS.PRIVILEGE, privilege)
-      .execute()
-
-  private def grantDatasetAccess(dsId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
-    getDSLContext
-      .insertInto(DATASET_USER_ACCESS)
-      .set(DATASET_USER_ACCESS.DID, Integer.valueOf(dsId))
-      .set(DATASET_USER_ACCESS.UID, Integer.valueOf(uid))
-      .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
-      .execute()
-
-  private def grantModelAccess(modelId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
-    getDSLContext
-      .insertInto(MODEL_USER_ACCESS)
-      .set(MODEL_USER_ACCESS.MID, Integer.valueOf(modelId))
-      .set(MODEL_USER_ACCESS.UID, Integer.valueOf(uid))
-      .set(MODEL_USER_ACCESS.PRIVILEGE, privilege)
-      .execute()
-
-  private def seedWorkflowLike(wfId: Int, uid: Int): Unit =
-    getDSLContext
-      .insertInto(WORKFLOW_USER_LIKES)
-      .set(WORKFLOW_USER_LIKES.WID, Integer.valueOf(wfId))
-      .set(WORKFLOW_USER_LIKES.UID, Integer.valueOf(uid))
-      .execute()
-
-  private def seedDatasetLike(dsId: Int, uid: Int): Unit =
-    getDSLContext
-      .insertInto(DATASET_USER_LIKES)
-      .set(DATASET_USER_LIKES.DID, Integer.valueOf(dsId))
-      .set(DATASET_USER_LIKES.UID, Integer.valueOf(uid))
-      .execute()
-
-  private def seedModelLike(modelId: Int, uid: Int): Unit =
-    getDSLContext
-      .insertInto(MODEL_USER_LIKES)
-      .set(MODEL_USER_LIKES.MID, Integer.valueOf(modelId))
-      .set(MODEL_USER_LIKES.UID, Integer.valueOf(uid))
-      .execute()
-
-  private def seedWorkflowClone(wfId: Int, uid: Int): Unit =
-    getDSLContext
-      .insertInto(WORKFLOW_USER_CLONES)
-      .set(WORKFLOW_USER_CLONES.WID, Integer.valueOf(wfId))
-      .set(WORKFLOW_USER_CLONES.UID, Integer.valueOf(uid))
-      .execute()
-
-  private def seedWorkflowViewCount(wfId: Int, count: Int): Unit =
-    getDSLContext
-      .insertInto(WORKFLOW_VIEW_COUNT)
-      .set(WORKFLOW_VIEW_COUNT.WID, Integer.valueOf(wfId))
-      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
-      .execute()
-
-  private def seedDatasetViewCount(dsId: Int, count: Int): Unit =
-    getDSLContext
-      .insertInto(DATASET_VIEW_COUNT)
-      .set(DATASET_VIEW_COUNT.DID, Integer.valueOf(dsId))
-      .set(DATASET_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
-      .execute()
-
-  private def seedModelViewCount(modelId: Int, count: Int): Unit =
-    getDSLContext
-      .insertInto(MODEL_VIEW_COUNT)
-      .set(MODEL_VIEW_COUNT.MID, Integer.valueOf(modelId))
-      .set(MODEL_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
-      .execute()
-
-  private def workflowLikeUids(wfId: Int): Set[Int] =
-    getDSLContext
-      .select(WORKFLOW_USER_LIKES.UID)
-      .from(WORKFLOW_USER_LIKES)
-      .where(WORKFLOW_USER_LIKES.WID.eq(Integer.valueOf(wfId)))
-      .fetchInto(classOf[Integer])
-      .asScala
-      .map(_.intValue())
-      .toSet
-
-  private def datasetLikeUids(dsId: Int): Set[Int] =
-    getDSLContext
-      .select(DATASET_USER_LIKES.UID)
-      .from(DATASET_USER_LIKES)
-      .where(DATASET_USER_LIKES.DID.eq(Integer.valueOf(dsId)))
-      .fetchInto(classOf[Integer])
-      .asScala
-      .map(_.intValue())
-      .toSet
-
-  private def modelLikeUids(modelId: Int): Set[Int] =
-    getDSLContext
-      .select(MODEL_USER_LIKES.UID)
-      .from(MODEL_USER_LIKES)
-      .where(MODEL_USER_LIKES.MID.eq(Integer.valueOf(modelId)))
-      .fetchInto(classOf[Integer])
-      .asScala
-      .map(_.intValue())
-      .toSet
-
-  private def workflowCloneUids(wfId: Int): Seq[Int] =
-    getDSLContext
-      .select(WORKFLOW_USER_CLONES.UID)
-      .from(WORKFLOW_USER_CLONES)
-      .where(WORKFLOW_USER_CLONES.WID.eq(Integer.valueOf(wfId)))
-      .fetchInto(classOf[Integer])
-      .asScala
-      .map(_.intValue())
-      .toSeq
-
-  private def workflowViewCount(wfId: Int): Option[Int] =
-    Option(
+  private case class GrantRows(
+      table: Table[_ <: Record],
+      id: Field[Integer],
+      user: Field[Integer],
+      privilege: Field[PrivilegeEnum]
+  ) {
+    def insert(entityId: Int, uid: Int, value: PrivilegeEnum): Unit =
       getDSLContext
-        .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
-        .from(WORKFLOW_VIEW_COUNT)
-        .where(WORKFLOW_VIEW_COUNT.WID.eq(Integer.valueOf(wfId)))
-        .fetchOne(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
-    ).map(_.intValue())
+        .insertInto(table)
+        .set(id, Int.box(entityId))
+        .set(user, Int.box(uid))
+        .set(privilege, value)
+        .execute()
+  }
 
-  private def datasetViewCount(dsId: Int): Option[Int] =
-    Option(
-      getDSLContext
-        .select(DATASET_VIEW_COUNT.VIEW_COUNT)
-        .from(DATASET_VIEW_COUNT)
-        .where(DATASET_VIEW_COUNT.DID.eq(Integer.valueOf(dsId)))
-        .fetchOne(DATASET_VIEW_COUNT.VIEW_COUNT)
-    ).map(_.intValue())
+  private case class InteractionRows(
+      table: Table[_ <: Record],
+      id: Field[Integer],
+      value: Field[Integer]
+  ) {
+    def insert(entityId: Int, n: Int): Unit =
+      getDSLContext.insertInto(table).set(id, Int.box(entityId)).set(value, Int.box(n)).execute()
 
-  private def modelViewCount(modelId: Int): Option[Int] =
-    Option(
-      getDSLContext
-        .select(MODEL_VIEW_COUNT.VIEW_COUNT)
-        .from(MODEL_VIEW_COUNT)
-        .where(MODEL_VIEW_COUNT.MID.eq(Integer.valueOf(modelId)))
-        .fetchOne(MODEL_VIEW_COUNT.VIEW_COUNT)
-    ).map(_.intValue())
+    def insertAll(entityId: Int, values: Int*): Unit = values.foreach(insert(entityId, _))
+
+    def delete(entityId: Int): Unit =
+      getDSLContext.deleteFrom(table).where(id.eq(Int.box(entityId))).execute()
+
+    private def select(entityId: Int) =
+      getDSLContext.select(value).from(table).where(id.eq(Int.box(entityId)))
+
+    def all(entityId: Int): Seq[Int] =
+      select(entityId).fetchInto(classOf[Integer]).asScala.map(_.intValue()).toSeq
+
+    def count(entityId: Int): Option[Int] =
+      Option(select(entityId).fetchOne(value)).map(_.intValue())
+  }
+
+  // Fixture routing stays independent of the production EntityTables registries.
+  private val datasetGrants =
+    GrantRows(
+      DATASET_USER_ACCESS,
+      DATASET_USER_ACCESS.DID,
+      DATASET_USER_ACCESS.UID,
+      DATASET_USER_ACCESS.PRIVILEGE
+    )
+  private val modelGrants =
+    GrantRows(
+      MODEL_USER_ACCESS,
+      MODEL_USER_ACCESS.MID,
+      MODEL_USER_ACCESS.UID,
+      MODEL_USER_ACCESS.PRIVILEGE
+    )
+
+  private val workflowLikes =
+    InteractionRows(WORKFLOW_USER_LIKES, WORKFLOW_USER_LIKES.WID, WORKFLOW_USER_LIKES.UID)
+  private val datasetLikes =
+    InteractionRows(DATASET_USER_LIKES, DATASET_USER_LIKES.DID, DATASET_USER_LIKES.UID)
+  private val modelLikes =
+    InteractionRows(MODEL_USER_LIKES, MODEL_USER_LIKES.MID, MODEL_USER_LIKES.UID)
+  private val workflowClones =
+    InteractionRows(WORKFLOW_USER_CLONES, WORKFLOW_USER_CLONES.WID, WORKFLOW_USER_CLONES.UID)
+  private val workflowViews =
+    InteractionRows(WORKFLOW_VIEW_COUNT, WORKFLOW_VIEW_COUNT.WID, WORKFLOW_VIEW_COUNT.VIEW_COUNT)
+  private val datasetViews =
+    InteractionRows(DATASET_VIEW_COUNT, DATASET_VIEW_COUNT.DID, DATASET_VIEW_COUNT.VIEW_COUNT)
+  private val modelViews =
+    InteractionRows(MODEL_VIEW_COUNT, MODEL_VIEW_COUNT.MID, MODEL_VIEW_COUNT.VIEW_COUNT)
 
   /** (uid, resourceType, resourceId, action literal, ip) for every audit row. */
   private def auditRows(): Seq[(Integer, String, Int, String, String)] =
@@ -371,52 +271,29 @@ class HubResourceSpec
       )
       .toSeq
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-    workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
+  override protected def onBeforeAll(): Unit = {
+    val userDao = new UserDao(getDSLContext.configuration())
 
-    userDao.insert(makeUser(ownerUid, "hub_owner"))
-    userDao.insert(makeUser(likerUid, "hub_liker"))
+    userDao.insert(fixtureUser(ownerUid, "hub_owner"))
+    userDao.insert(fixtureUser(likerUid, "hub_liker"))
     // A third liker, needed by the ranking cases below to make "most liked" a
     // strict order (3 > 2 > 1) rather than a tie between two users' likes.
-    userDao.insert(makeUser(thirdUid, "hub_third"))
-    userDao.insert(makeUser(cachedUid, "hub_cached_uid"))
-    userDao.insert(makeUser(lastCachedUid, "hub_uid_127"))
-    userDao.insert(makeUser(firstUncachedUid, "hub_uid_128"))
+    userDao.insert(fixtureUser(thirdUid, "hub_third"))
+    userDao.insert(fixtureUser(cachedUid, "hub_cached_uid"))
+    userDao.insert(fixtureUser(lastCachedUid, "hub_uid_127"))
+    userDao.insert(fixtureUser(firstUncachedUid, "hub_uid_128"))
 
-    val wf = new Workflow
-    wf.setWid(Integer.valueOf(wid))
-    wf.setName("hub_wf_" + UUID.randomUUID().toString.substring(0, 8))
-    wf.setContent("{}")
-    wf.setDescription("hub test")
-    wf.setIsPublic(true)
-    wf.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    wf.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    workflowDao.insert(wf)
+    workflowDao.insert(fixtureWorkflow(wid, "hub_wf_" + uniqueSuffix, "hub test", isPublic = true))
 
-    val ownership = new WorkflowOfUser
-    ownership.setUid(Integer.valueOf(ownerUid))
-    ownership.setWid(Integer.valueOf(wid))
-    workflowOfUserDao.insert(ownership)
-
-    val access = new WorkflowUserAccess
-    access.setUid(Integer.valueOf(ownerUid))
-    access.setWid(Integer.valueOf(wid))
-    access.setPrivilege(PrivilegeEnum.WRITE)
-    workflowUserAccessDao.insert(access)
+    seedWorkflowOwner(wid, ownerUid)
   }
 
-  override protected def afterAll(): Unit = closeConnectionPool()
-
   // Reset the per-entity hub rows so every test starts from a clean slate.
-  override protected def beforeEach(): Unit = {
+  override protected def cleanup(): Unit = {
     val ctx = getDSLContext
-    ctx.deleteFrom(WORKFLOW_USER_LIKES).where(WORKFLOW_USER_LIKES.WID.eq(wid)).execute()
-    ctx.deleteFrom(WORKFLOW_USER_CLONES).where(WORKFLOW_USER_CLONES.WID.eq(wid)).execute()
-    ctx.deleteFrom(WORKFLOW_VIEW_COUNT).where(WORKFLOW_VIEW_COUNT.WID.eq(wid)).execute()
+    workflowLikes.delete(wid)
+    workflowClones.delete(wid)
+    workflowViews.delete(wid)
     ctx.deleteFrom(USER_ACTION).where(USER_ACTION.RESOURCE_ID.eq(wid)).execute()
     // The cases added below seed workflows, datasets and models of their own (ids in the
     // 81xxxx / 82xxxx / 83xxxx / 84xxxx ranges) plus audit rows pointing at them. MockTexeraDB
@@ -432,13 +309,19 @@ class HubResourceSpec
   }
 
   "recordUserAction" should "insert a user_action row for the entity" in {
-    recordUserAction(req, Integer.valueOf(likerUid), Integer.valueOf(wid), Wf, ActionType.Like)
+    recordUserAction(
+      req,
+      Some(Integer.valueOf(likerUid)),
+      Integer.valueOf(wid),
+      Wf,
+      ActionType.Like
+    )
     userActionRows shouldBe 1
   }
 
   it should "persist uid, resource type, resource id, action and an IPv4 address" in {
     val id = seedWorkflow(810101, "wf_audit")
-    recordUserAction(req, Integer.valueOf(likerUid), id, Wf, ActionType.View)
+    recordUserAction(req, Some(Integer.valueOf(likerUid)), id, Wf, ActionType.View)
 
     auditRows() shouldBe Seq(
       (Integer.valueOf(likerUid), "workflow", 810101, "view", "127.0.0.1")
@@ -447,10 +330,17 @@ class HubResourceSpec
 
   it should "leave the ip column null when the remote address is not IPv4-shaped" in {
     val id = seedWorkflow(810102, "wf_audit_v6")
-    recordUserAction(nonIpv4Req, Integer.valueOf(ownerUid), id, Wf, ActionType.Clone)
+    recordUserAction(requestFrom("::1"), Some(Integer.valueOf(ownerUid)), id, Wf, ActionType.Clone)
 
     // Everything but the address is still recorded; only the ip column is skipped.
     auditRows() shouldBe Seq((Integer.valueOf(ownerUid), "workflow", 810102, "clone", null))
+  }
+
+  it should "store a NULL uid when userId is omitted" in {
+    val id = seedWorkflow(810103, "wf_audit_anonymous")
+    recordUserAction(req, entityId = id, entityType = Wf, action = ActionType.View)
+
+    auditRows() shouldBe Seq((null, "workflow", 810103, "view", "127.0.0.1"))
   }
 
   it should "tag each row with its own entity type, keeping equal ids apart" in {
@@ -459,46 +349,26 @@ class HubResourceSpec
     seedDataset(830001, "ds_shared_id")
     val shared = Integer.valueOf(830001)
 
-    recordUserAction(req, Integer.valueOf(ownerUid), shared, Wf, ActionType.Like)
-    recordUserAction(req, Integer.valueOf(ownerUid), shared, Ds, ActionType.Unlike)
+    recordUserAction(req, Some(Integer.valueOf(ownerUid)), shared, Wf, ActionType.Like)
+    recordUserAction(req, Some(Integer.valueOf(ownerUid)), shared, Ds, ActionType.Unlike)
 
     auditRows().map { case (_, resourceType, _, action, _) => (resourceType, action) } shouldBe
       Seq(("workflow", "like"), ("dataset", "unlike"))
   }
 
   "recordLikeAction" should "insert a like the first time and remove it on unlike" in {
-    recordLikeAction(
-      req,
-      Integer.valueOf(likerUid),
-      UserRequest(wid, Wf),
-      isLike = true
-    ) shouldBe true
+    recordLike(likerUid, UserRequest(wid, Wf), isLike = true) shouldBe true
     likeRows shouldBe 1
     isLiked(likerUid) shouldBe true
 
-    recordLikeAction(
-      req,
-      Integer.valueOf(likerUid),
-      UserRequest(wid, Wf),
-      isLike = false
-    ) shouldBe true
+    recordLike(likerUid, UserRequest(wid, Wf), isLike = false) shouldBe true
     likeRows shouldBe 0
     isLiked(likerUid) shouldBe false
   }
 
   it should "return false when liking something already liked" in {
-    recordLikeAction(
-      req,
-      Integer.valueOf(likerUid),
-      UserRequest(wid, Wf),
-      isLike = true
-    ) shouldBe true
-    recordLikeAction(
-      req,
-      Integer.valueOf(likerUid),
-      UserRequest(wid, Wf),
-      isLike = true
-    ) shouldBe false
+    recordLike(likerUid, UserRequest(wid, Wf), isLike = true) shouldBe true
+    recordLike(likerUid, UserRequest(wid, Wf), isLike = true) shouldBe false
     likeRows shouldBe 1
   }
 
@@ -506,60 +376,45 @@ class HubResourceSpec
     val id = seedWorkflow(810201, "wf_like_audit")
     val request = UserRequest(id, Wf)
 
-    recordLikeAction(req, Integer.valueOf(ownerUid), request, isLike = true) shouldBe true
-    recordLikeAction(req, Integer.valueOf(ownerUid), request, isLike = true) shouldBe false
-    recordLikeAction(req, Integer.valueOf(ownerUid), request, isLike = false) shouldBe true
+    recordLike(ownerUid, request, isLike = true) shouldBe true
+    recordLike(ownerUid, request, isLike = true) shouldBe false
+    recordLike(ownerUid, request, isLike = false) shouldBe true
 
     // The rejected duplicate like contributes nothing: two accepted calls, two rows.
     auditRows() shouldBe Seq(
       (Integer.valueOf(ownerUid), "workflow", 810201, "like", "127.0.0.1"),
       (Integer.valueOf(ownerUid), "workflow", 810201, "unlike", "127.0.0.1")
     )
-    workflowLikeUids(810201) shouldBe empty
+    workflowLikes.all(810201).toSet shouldBe empty
   }
 
   it should "return false and audit nothing when unliking an entity that was never liked" in {
     val id = seedWorkflow(810204, "wf_unlike_cold")
 
-    recordLikeAction(
-      req,
-      Integer.valueOf(ownerUid),
-      UserRequest(id, Wf),
-      isLike = false
-    ) shouldBe false
+    recordLike(ownerUid, UserRequest(id, Wf), isLike = false) shouldBe false
 
     auditRows() shouldBe empty
-    workflowLikeUids(810204) shouldBe empty
+    workflowLikes.all(810204).toSet shouldBe empty
   }
 
   it should "only remove the calling user's like, leaving other users' likes intact" in {
     val id = seedWorkflow(810205, "wf_like_two_users")
-    seedWorkflowLike(810205, ownerUid)
-    seedWorkflowLike(810205, likerUid)
+    workflowLikes.insert(810205, ownerUid)
+    workflowLikes.insert(810205, likerUid)
 
-    recordLikeAction(
-      req,
-      Integer.valueOf(ownerUid),
-      UserRequest(id, Wf),
-      isLike = false
-    ) shouldBe true
+    recordLike(ownerUid, UserRequest(id, Wf), isLike = false) shouldBe true
 
-    workflowLikeUids(810205) shouldBe Set(likerUid)
+    workflowLikes.all(810205).toSet shouldBe Set(likerUid)
   }
 
   it should "route the like to the table for its entity type when a workflow and a dataset share an id" in {
     seedWorkflow(830001, "wf_like_shared_id")
     seedDataset(830001, "ds_like_shared_id")
 
-    recordLikeAction(
-      req,
-      Integer.valueOf(ownerUid),
-      UserRequest(Integer.valueOf(830001), Ds),
-      isLike = true
-    ) shouldBe true
+    recordLike(ownerUid, UserRequest(Integer.valueOf(830001), Ds), isLike = true) shouldBe true
 
-    datasetLikeUids(830001) shouldBe Set(ownerUid)
-    workflowLikeUids(830001) shouldBe empty
+    datasetLikes.all(830001).toSet shouldBe Set(ownerUid)
+    workflowLikes.all(830001).toSet shouldBe empty
   }
 
   it should "route the like to the model table when a model shares the id" in {
@@ -567,31 +422,21 @@ class HubResourceSpec
     seedDataset(830002, "ds_like_shared_with_model")
     seedModel(830002, "md_like_shared_id")
 
-    recordLikeAction(
-      req,
-      Integer.valueOf(ownerUid),
-      UserRequest(Integer.valueOf(830002), Md),
-      isLike = true
-    ) shouldBe true
+    recordLike(ownerUid, UserRequest(Integer.valueOf(830002), Md), isLike = true) shouldBe true
 
-    modelLikeUids(830002) shouldBe Set(ownerUid)
-    datasetLikeUids(830002) shouldBe empty
-    workflowLikeUids(830002) shouldBe empty
+    modelLikes.all(830002).toSet shouldBe Set(ownerUid)
+    datasetLikes.all(830002).toSet shouldBe empty
+    workflowLikes.all(830002).toSet shouldBe empty
   }
 
   it should "unlike a model, leaving other likers alone" in {
     seedModel(840101, "md_unlike")
-    seedModelLike(840101, likerUid)
-    seedModelLike(840101, ownerUid)
+    modelLikes.insert(840101, likerUid)
+    modelLikes.insert(840101, ownerUid)
 
-    recordLikeAction(
-      req,
-      Integer.valueOf(ownerUid),
-      UserRequest(Integer.valueOf(840101), Md),
-      isLike = false
-    ) shouldBe true
+    recordLike(ownerUid, UserRequest(Integer.valueOf(840101), Md), isLike = false) shouldBe true
 
-    modelLikeUids(840101) shouldBe Set(likerUid)
+    modelLikes.all(840101).toSet shouldBe Set(likerUid)
   }
 
   "recordCloneAction" should "record a clone row and a user_action row" in {
@@ -607,7 +452,7 @@ class HubResourceSpec
 
     // The asymmetry is deliberate: the audit trail records both attempts while the
     // existence check keeps workflow_user_clones at one row for the (uid, wid) pair.
-    workflowCloneUids(810402) shouldBe Seq(ownerUid)
+    workflowClones.all(810402) shouldBe Seq(ownerUid)
     auditRows() shouldBe Seq(
       (Integer.valueOf(ownerUid), "workflow", 810402, "clone", "127.0.0.1"),
       (Integer.valueOf(ownerUid), "workflow", 810402, "clone", "127.0.0.1")
@@ -628,8 +473,8 @@ class HubResourceSpec
     seedWorkflow(810302, "wf_not_liked")
     seedDataset(820301, "ds_liked")
     seedDataset(820302, "ds_not_liked")
-    seedWorkflowLike(810301, ownerUid)
-    seedDatasetLike(820301, ownerUid)
+    workflowLikes.insert(810301, ownerUid)
+    datasetLikes.insert(820301, ownerUid)
 
     val responses = isLikedHelper(
       Integer.valueOf(ownerUid),
@@ -649,7 +494,7 @@ class HubResourceSpec
 
   it should "keep model likes apart from the other entity types" in {
     seedModel(840501, "md_is_liked")
-    seedModelLike(840501, ownerUid)
+    modelLikes.insert(840501, ownerUid)
     seedDataset(820920, "ds_is_liked")
 
     val responses = isLikedHelper(
@@ -663,7 +508,7 @@ class HubResourceSpec
 
   it should "not report another user's like as the caller's" in {
     seedWorkflow(810303, "wf_liked_by_other")
-    seedWorkflowLike(810303, likerUid)
+    workflowLikes.insert(810303, likerUid)
 
     isLikedHelper(Integer.valueOf(ownerUid), ids(810303), types(Wf)).asScala
       .map(_.isLiked) shouldBe Seq(false)
@@ -678,7 +523,7 @@ class HubResourceSpec
 
   "isLiked" should "resolve the liked flag against the session user, not another user" in {
     seedWorkflow(810304, "wf_session_like")
-    seedWorkflowLike(810304, ownerUid)
+    workflowLikes.insert(810304, ownerUid)
 
     hub.isLiked(session(ownerUid), ids(810304), types(Wf)).asScala.map(_.isLiked) shouldBe Seq(true)
     hub.isLiked(session(likerUid), ids(810304), types(Wf)).asScala.map(_.isLiked) shouldBe Seq(
@@ -741,7 +586,7 @@ class HubResourceSpec
 
   it should "ignore a grant, which is what the per-kind owners endpoints answer instead" in {
     // The bug itself: a grant without anything published must not make you an owner here.
-    grantWorkflowAccess(wid, likerUid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(likerUid, wid, PrivilegeEnum.READ)
 
     hub.getPublicOwners(Wf).asScala should not contain "hub_liker@test.com"
   }
@@ -772,15 +617,8 @@ class HubResourceSpec
   }
 
   "postView" should "increment the view count and record a view action" in {
-    val resource = new HubResource()
-    resource.postView(
-      req,
-      ViewRequest(Integer.valueOf(wid), Integer.valueOf(likerUid), Wf)
-    ) shouldBe 1
-    resource.postView(
-      req,
-      ViewRequest(Integer.valueOf(wid), Integer.valueOf(likerUid), Wf)
-    ) shouldBe 2
+    view(Integer.valueOf(wid), Integer.valueOf(likerUid)) shouldBe 1
+    view(Integer.valueOf(wid), Integer.valueOf(likerUid)) shouldBe 2
     userActionRows shouldBe 2
   }
 
@@ -788,11 +626,32 @@ class HubResourceSpec
     val id = seedWorkflow(810602, "wf_view_audit")
     // The viewer (likerUid) is deliberately not the owner (ownerUid), so an
     // implementation that audited the owner instead would fail here.
-    hub.postView(req, ViewRequest(id, Integer.valueOf(likerUid), Wf))
+    view(id, Integer.valueOf(likerUid))
 
     auditRows() shouldBe Seq(
       (Integer.valueOf(likerUid), "workflow", 810602, "view", "127.0.0.1")
     )
+  }
+
+  it should "record an anonymous view (uid 0 or none) with a NULL uid" in {
+    val id = seedWorkflow(810603, "wf_view_anonymous")
+    view(id, Integer.valueOf(0)) shouldBe 1
+    view(id, null) shouldBe 2
+
+    auditRows() shouldBe Seq(
+      (null, "workflow", 810603, "view", "127.0.0.1"),
+      (null, "workflow", 810603, "view", "127.0.0.1")
+    )
+  }
+
+  it should "leave the count unchanged when the view cannot be recorded" in {
+    val id = seedWorkflow(810605, "wf_view_missing_user")
+    view(id, Integer.valueOf(likerUid)) shouldBe 1
+
+    // A uid with no user row, e.g. an account deleted while another tab was still open.
+    an[Exception] should be thrownBy view(id, Integer.valueOf(999999))
+
+    workflowViews.count(810605) shouldBe Some(1)
   }
 
   it should "keep workflow and dataset view counts apart when the ids collide" in {
@@ -800,12 +659,12 @@ class HubResourceSpec
     seedDataset(830001, "ds_view_shared_id")
     val shared = Integer.valueOf(830001)
 
-    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Wf))
-    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Wf))
-    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Ds))
+    view(shared, Integer.valueOf(ownerUid))
+    view(shared, Integer.valueOf(ownerUid))
+    view(shared, Integer.valueOf(ownerUid), Ds)
 
-    workflowViewCount(830001) shouldBe Some(2)
-    datasetViewCount(830001) shouldBe Some(1)
+    workflowViews.count(830001) shouldBe Some(2)
+    datasetViews.count(830001) shouldBe Some(1)
   }
 
   it should "keep model view counts apart from the dataset and workflow rows" in {
@@ -814,17 +673,25 @@ class HubResourceSpec
     seedModel(830003, "md_view_shared_id")
     val shared = Integer.valueOf(830003)
 
-    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Md))
-    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Md))
-    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Ds))
+    view(shared, Integer.valueOf(ownerUid), Md)
+    view(shared, Integer.valueOf(ownerUid), Md)
+    view(shared, Integer.valueOf(ownerUid), Ds)
 
-    modelViewCount(830003) shouldBe Some(2)
-    datasetViewCount(830003) shouldBe Some(1)
-    workflowViewCount(830003) shouldBe None
+    modelViews.count(830003) shouldBe Some(2)
+    datasetViews.count(830003) shouldBe Some(1)
+    workflowViews.count(830003) shouldBe None
+  }
+
+  private def seedWorkflowWithCounts(wid: Int, name: String): Integer = {
+    val id = seedWorkflow(wid, name)
+    workflowViews.insert(wid, 5)
+    workflowLikes.insertAll(wid, ownerUid, likerUid)
+    workflowClones.insert(wid, ownerUid)
+    id
   }
 
   "getCounts" should "report the like count for the entity" in {
-    recordLikeAction(req, Integer.valueOf(likerUid), UserRequest(wid, Wf), isLike = true)
+    recordLike(likerUid, UserRequest(wid, Wf), isLike = true)
 
     val response =
       new HubResource().getCounts(types(Wf), ids(wid), actions(ActionType.Like)).asScala.head
@@ -840,10 +707,7 @@ class HubResourceSpec
   }
 
   it should "return view, like and clone counts by default" in {
-    val id = seedWorkflow(810801, "wf_counts")
-    seedWorkflowViewCount(810801, 5)
-    Seq(ownerUid, likerUid).foreach(seedWorkflowLike(810801, _))
-    seedWorkflowClone(810801, ownerUid)
+    val id = seedWorkflowWithCounts(810801, "wf_counts")
 
     val responses = hub.getCounts(types(Wf), ids(810801), null).asScala
 
@@ -851,45 +715,30 @@ class HubResourceSpec
     responses.head.entityId shouldBe id
     // Distinct 5 / 2 / 1 so swapping two of the three maps cannot pass.
     responses.head.counts.asScala.toMap shouldBe Map(
-      (ActionType.View: ActionType) -> 5,
-      (ActionType.Like: ActionType) -> 2,
-      (ActionType.Clone: ActionType) -> 1
+      ActionType.View -> 5,
+      ActionType.Like -> 2,
+      ActionType.Clone -> 1
     )
   }
 
   it should "return only the requested action types" in {
-    seedWorkflow(810802, "wf_counts_filtered")
-    seedWorkflowViewCount(810802, 5)
-    Seq(ownerUid, likerUid).foreach(seedWorkflowLike(810802, _))
-    seedWorkflowClone(810802, ownerUid)
+    seedWorkflowWithCounts(810802, "wf_counts_filtered")
 
-    val counts = hub
-      .getCounts(types(Wf), ids(810802), actions(ActionType.Like))
-      .asScala
-      .head
-      .counts
-      .asScala
-      .toMap
+    val counts = countsFor(Wf, 810802, actions(ActionType.Like))
 
     // View and clone data exists for this workflow; the filter must drop both keys.
-    counts shouldBe Map((ActionType.Like: ActionType) -> 2)
+    counts shouldBe Map(ActionType.Like -> 2)
   }
 
   it should "backfill a zero view-count row for an entity that has never been viewed" in {
     seedWorkflow(810803, "wf_counts_backfill")
-    workflowViewCount(810803) shouldBe None
+    workflowViews.count(810803) shouldBe None
 
-    val counts = hub
-      .getCounts(types(Wf), ids(810803), actions(ActionType.View))
-      .asScala
-      .head
-      .counts
-      .asScala
-      .toMap
+    val counts = countsFor(Wf, 810803, actions(ActionType.View))
 
-    counts shouldBe Map((ActionType.View: ActionType) -> 0)
+    counts shouldBe Map(ActionType.View -> 0)
     // The backfill is a real side effect: the row is written by getCounts itself.
-    workflowViewCount(810803) shouldBe Some(0)
+    workflowViews.count(810803) shouldBe Some(0)
   }
 
   it should "not touch the view-count table when view is not among the requested actions" in {
@@ -897,42 +746,38 @@ class HubResourceSpec
 
     hub.getCounts(types(Wf), ids(810804), actions(ActionType.Like))
 
-    workflowViewCount(810804) shouldBe None
+    workflowViews.count(810804) shouldBe None
   }
 
   it should "report zero clones for a dataset rather than failing on the absent clone table" in {
     seedDataset(820801, "ds_counts")
-    seedDatasetViewCount(820801, 7)
-    Seq(ownerUid, likerUid, thirdUid).foreach(seedDatasetLike(820801, _))
+    datasetViews.insert(820801, 7)
+    datasetLikes.insertAll(820801, ownerUid, likerUid, thirdUid)
 
-    val counts = hub.getCounts(types(Ds), ids(820801), null).asScala.head.counts
-
-    counts.asScala.toMap shouldBe Map(
-      (ActionType.View: ActionType) -> 7,
-      (ActionType.Like: ActionType) -> 3,
-      (ActionType.Clone: ActionType) -> 0
+    countsFor(Ds, 820801) shouldBe Map(
+      ActionType.View -> 7,
+      ActionType.Like -> 3,
+      ActionType.Clone -> 0
     )
   }
 
   it should "report view and like counts for a model, and zero clones" in {
     seedModel(840301, "md_counts")
-    seedModelViewCount(840301, 5)
-    Seq(ownerUid, likerUid).foreach(seedModelLike(840301, _))
+    modelViews.insert(840301, 5)
+    modelLikes.insertAll(840301, ownerUid, likerUid)
 
-    val counts = hub.getCounts(types(Md), ids(840301), null).asScala.head.counts
-
-    counts.asScala.toMap shouldBe Map(
-      (ActionType.View: ActionType) -> 5,
-      (ActionType.Like: ActionType) -> 2,
-      (ActionType.Clone: ActionType) -> 0
+    countsFor(Md, 840301) shouldBe Map(
+      ActionType.View -> 5,
+      ActionType.Like -> 2,
+      ActionType.Clone -> 0
     )
   }
 
   it should "answer a mixed batch with one response per requested pair" in {
     seedWorkflow(810805, "wf_mixed")
     seedDataset(820802, "ds_mixed")
-    seedWorkflowLike(810805, ownerUid)
-    Seq(ownerUid, likerUid).foreach(seedDatasetLike(820802, _))
+    workflowLikes.insert(810805, ownerUid)
+    datasetLikes.insertAll(820802, ownerUid, likerUid)
 
     val responses =
       hub.getCounts(types(Wf, Ds), ids(810805, 820802), actions(ActionType.Like)).asScala
@@ -952,12 +797,7 @@ class HubResourceSpec
   "versionedResourcesByIdsQuery" should "carry only the viewer's own grant, never another user's" in {
     val did = seedDataset(820860, "ds_two_grants")
     for ((uid, privilege) <- Seq(ownerUid -> PrivilegeEnum.WRITE, likerUid -> PrivilegeEnum.READ)) {
-      getDSLContext
-        .insertInto(DATASET_USER_ACCESS)
-        .set(DATASET_USER_ACCESS.DID, did)
-        .set(DATASET_USER_ACCESS.UID, Integer.valueOf(uid))
-        .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
-        .execute()
+      datasetGrants.insert(did, uid, privilege)
     }
     val tables = VersionedResourceTables.DatasetTables
     def grantsSeenBy(uid: Integer): Seq[PrivilegeEnum] =
@@ -975,7 +815,7 @@ class HubResourceSpec
   }
 
   "getTops" should "list the liked public entity under the 'like' key" in {
-    recordLikeAction(req, Integer.valueOf(likerUid), UserRequest(wid, Wf), isLike = true)
+    recordLike(likerUid, UserRequest(wid, Wf), isLike = true)
 
     val tops = new HubResource().getTops(Wf, actions(ActionType.Like), null, null)
     tops.keySet.asScala should contain("like")
@@ -1008,7 +848,7 @@ class HubResourceSpec
 
   it should "return an empty clone bucket when clone is asked for explicitly" in {
     seedDataset(820850, "ds_no_clones")
-    seedDatasetLike(820850, likerUid)
+    datasetLikes.insert(820850, likerUid)
 
     hub.getTops(Ds, actions(ActionType.Clone), null, null).get("clone").asScala shouldBe empty
   }
@@ -1017,9 +857,9 @@ class HubResourceSpec
     val hot = seedWorkflow(810701, "wf_hot")
     val warm = seedWorkflow(810702, "wf_warm")
     seedWorkflow(810703, "wf_cold")
-    Seq(ownerUid, likerUid, thirdUid).foreach(seedWorkflowLike(810701, _))
-    Seq(ownerUid, likerUid).foreach(seedWorkflowLike(810702, _))
-    seedWorkflowLike(810703, ownerUid)
+    workflowLikes.insertAll(810701, ownerUid, likerUid, thirdUid)
+    workflowLikes.insertAll(810702, ownerUid, likerUid)
+    workflowLikes.insert(810703, ownerUid)
 
     val liked = hub
       .getTops(Wf, actions(ActionType.Like), null, Integer.valueOf(2))
@@ -1035,8 +875,8 @@ class HubResourceSpec
   it should "exclude non-public workflows even when they are the most liked" in {
     val visible = seedWorkflow(810704, "wf_public_liked", isPublic = true)
     seedWorkflow(810705, "wf_private_liked", isPublic = false)
-    seedWorkflowLike(810704, ownerUid)
-    Seq(ownerUid, likerUid, thirdUid).foreach(seedWorkflowLike(810705, _))
+    workflowLikes.insert(810704, ownerUid)
+    workflowLikes.insertAll(810705, ownerUid, likerUid, thirdUid)
 
     val liked = hub.getTops(Wf, actions(ActionType.Like), null, null).get("like").asScala
 
@@ -1046,7 +886,7 @@ class HubResourceSpec
   it should "fall back to a limit of 8 when the limit is missing or non-positive" in {
     (1 to 9).foreach { i =>
       seedWorkflow(810710 + i, s"wf_top_$i")
-      seedWorkflowLike(810710 + i, ownerUid)
+      workflowLikes.insert(810710 + i, ownerUid)
     }
 
     def topCount(limit: Integer): Int =
@@ -1068,14 +908,24 @@ class HubResourceSpec
   it should "rank the clone bucket independently of the like bucket" in {
     val mostLiked = seedWorkflow(810707, "wf_most_liked")
     val mostCloned = seedWorkflow(810708, "wf_most_cloned")
-    Seq(ownerUid, likerUid).foreach(seedWorkflowLike(810707, _))
-    Seq(ownerUid, likerUid).foreach(seedWorkflowClone(810708, _))
+    workflowLikes.insertAll(810707, ownerUid, likerUid)
+    workflowClones.insertAll(810708, ownerUid, likerUid)
 
     val tops = hub.getTops(Wf, null, null, Integer.valueOf(1)).asScala
 
     tops("like").asScala.map(_.workflow.get.workflow.getWid) shouldBe Seq(mostLiked)
     tops("clone").asScala.map(_.workflow.get.workflow.getWid) shouldBe Seq(mostCloned)
   }
+
+  private def accessByEntity(
+      kinds: java.util.List[EntityType],
+      entityIds: java.util.List[Integer]
+  ): Map[(EntityType, Int), Set[Int]] =
+    hub
+      .userAccess(kinds, entityIds)
+      .asScala
+      .map(r => (r.entityType, r.entityId.intValue()) -> r.userIds.asScala.map(_.intValue()).toSet)
+      .toMap
 
   "userAccess" should "return the user ids granted access to the entity" in {
     val response = new HubResource().userAccess(types(Wf), ids(wid)).asScala.head
@@ -1087,17 +937,11 @@ class HubResourceSpec
     seedWorkflow(810901, "wf_access", withOwnerRows = false)
     seedDataset(820901, "ds_access")
     // Disjoint grantee sets so reading the wrong access table cannot pass.
-    grantWorkflowAccess(810901, ownerUid, PrivilegeEnum.WRITE)
-    grantWorkflowAccess(810901, likerUid, PrivilegeEnum.READ)
-    grantDatasetAccess(820901, thirdUid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(ownerUid, 810901, PrivilegeEnum.WRITE)
+    insertWorkflowUserAccess(likerUid, 810901, PrivilegeEnum.READ)
+    datasetGrants.insert(820901, thirdUid, PrivilegeEnum.READ)
 
-    val byEntity = hub
-      .userAccess(types(Wf, Ds), ids(810901, 820901))
-      .asScala
-      .map(r => (r.entityType, r.entityId.intValue()) -> r.userIds.asScala.map(_.intValue()).toSet)
-      .toMap
-
-    byEntity shouldBe Map(
+    accessByEntity(types(Wf, Ds), ids(810901, 820901)) shouldBe Map(
       (Wf, 810901) -> Set(ownerUid, likerUid),
       (Ds, 820901) -> Set(thirdUid)
     )
@@ -1107,16 +951,10 @@ class HubResourceSpec
     seedModel(840401, "md_access")
     seedDataset(820910, "ds_access_noise")
     // Disjoint grantee sets so reading the wrong access table cannot pass.
-    grantModelAccess(840401, likerUid, PrivilegeEnum.WRITE)
-    grantDatasetAccess(820910, thirdUid, PrivilegeEnum.READ)
+    modelGrants.insert(840401, likerUid, PrivilegeEnum.WRITE)
+    datasetGrants.insert(820910, thirdUid, PrivilegeEnum.READ)
 
-    val byEntity = hub
-      .userAccess(types(Md, Ds), ids(840401, 820910))
-      .asScala
-      .map(r => (r.entityType, r.entityId.intValue()) -> r.userIds.asScala.map(_.intValue()).toSet)
-      .toMap
-
-    byEntity shouldBe Map(
+    accessByEntity(types(Md, Ds), ids(840401, 820910)) shouldBe Map(
       (Md, 840401) -> Set(likerUid),
       (Ds, 820910) -> Set(thirdUid)
     )
@@ -1134,7 +972,7 @@ class HubResourceSpec
 
   it should "emit a single response when the same entity id is requested twice" in {
     seedWorkflow(810903, "wf_dup_request", withOwnerRows = false)
-    grantWorkflowAccess(810903, ownerUid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(ownerUid, 810903, PrivilegeEnum.READ)
 
     val responses = hub.userAccess(types(Wf, Wf), ids(810903, 810903)).asScala
 
@@ -1171,37 +1009,38 @@ class HubResourceSpec
     entry.coverImage shouldBe empty
   }
 
-  // mapWorkflowEntries compares two boxed Integers, so the owner's own request must be
-  // recognised on both sides of the default Integer cache (-128..127).
-  it should "set isOwner for the owner's own request when the uid is outside the Integer cache" in {
-    val id = seedWorkflow(811003, "wf_mine_uncached", owner = ownerUid)
-
-    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head.isOwner shouldBe true
-  }
-
-  it should "set isOwner for the owner's own request when the uid is inside the Integer cache" in {
-    val id = seedWorkflow(811004, "wf_mine_cached", owner = cachedUid)
-
-    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(cachedUid)).head.isOwner shouldBe true
-  }
-
-  // The boundary itself: 127 is the last cached value and 128 the first uncached one.
-  it should "set isOwner for the highest uid inside the Integer cache (127)" in {
-    val id = seedWorkflow(811006, "wf_mine_uid_127", owner = lastCachedUid)
-
-    fetchDashboardWorkflowsByWids(
-      Seq(id),
-      Integer.valueOf(lastCachedUid)
-    ).head.isOwner shouldBe true
-  }
-
-  it should "set isOwner for the lowest uid outside the Integer cache (128)" in {
-    val id = seedWorkflow(811007, "wf_mine_uid_128", owner = firstUncachedUid)
-
-    fetchDashboardWorkflowsByWids(
-      Seq(id),
-      Integer.valueOf(firstUncachedUid)
-    ).head.isOwner shouldBe true
+  // Cover boxed owner identities on both sides of the Integer cache boundary.
+  Seq(
+    (
+      "set isOwner for the owner's own request when the uid is outside the Integer cache",
+      811003,
+      "wf_mine_uncached",
+      ownerUid
+    ),
+    (
+      "set isOwner for the owner's own request when the uid is inside the Integer cache",
+      811004,
+      "wf_mine_cached",
+      cachedUid
+    ),
+    (
+      "set isOwner for the highest uid inside the Integer cache (127)",
+      811006,
+      "wf_mine_uid_127",
+      lastCachedUid
+    ),
+    (
+      "set isOwner for the lowest uid outside the Integer cache (128)",
+      811007,
+      "wf_mine_uid_128",
+      firstUncachedUid
+    )
+  ).foreach {
+    case (description, workflowId, name, uid) =>
+      it should description in {
+        val id = seedWorkflow(workflowId, name, owner = uid)
+        fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(uid)).head.isOwner shouldBe true
+      }
   }
 
   it should "clear isOwner for a different uid and for an anonymous (null) uid" in {
@@ -1217,7 +1056,7 @@ class HubResourceSpec
   // mapWorkflowEntries is what keeps that one false.
   it should "clear isOwner for a workflow with no ownership row, for an authenticated and an anonymous caller" in {
     val id = seedWorkflow(811005, "wf_unowned", withOwnerRows = false)
-    grantWorkflowAccess(id, ownerUid, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(ownerUid, id, PrivilegeEnum.READ)
 
     val entry = fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head
     entry.ownerId shouldBe null
@@ -1227,8 +1066,8 @@ class HubResourceSpec
 
   it should "return one entry per workflow, carrying only the viewer's access level" in {
     val id = seedWorkflow(811008, "wf_shared_twice")
-    grantWorkflowAccess(id, likerUid, PrivilegeEnum.READ)
-    grantWorkflowAccess(id, thirdUid, PrivilegeEnum.WRITE)
+    insertWorkflowUserAccess(likerUid, id, PrivilegeEnum.READ)
+    insertWorkflowUserAccess(thirdUid, id, PrivilegeEnum.WRITE)
 
     def levelsSeenBy(uid: Integer) =
       fetchDashboardWorkflowsByWids(Seq(id), uid).map(_.accessLevel)
@@ -1248,11 +1087,28 @@ class HubResourceSpec
       List("WRITE")
   }
 
-  // Every resolved id hits LakeFS, so an empty list is the only input testable without one.
+  // Every resolved id is sized through LakeFS, and a resource whose repository LakeFS cannot size
+  // is dropped. Connection-refused and 404 both surface as an ApiException, so the second case
+  // behaves the same whether or not a LakeFS answers here.
   "fetchDashboardVersionedResourcesByIds" should "return an empty list for an empty id list" in {
     fetchDashboardVersionedResourcesByIds(
       VersionedResourceTables.DatasetTables,
       Seq.empty,
+      Integer.valueOf(ownerUid)
+    ) shouldBe empty
+  }
+
+  it should "drop a resource whose LakeFS repository cannot be sized" in {
+    val did = seedDataset(820870, "ds_unsized")
+    getDSLContext
+      .update(DATASET)
+      .set(DATASET.REPOSITORY_NAME, "hub-spec-unsized-820870")
+      .where(DATASET.DID.eq(did))
+      .execute()
+
+    fetchDashboardVersionedResourcesByIds(
+      VersionedResourceTables.DatasetTables,
+      Seq(did),
       Integer.valueOf(ownerUid)
     ) shouldBe empty
   }

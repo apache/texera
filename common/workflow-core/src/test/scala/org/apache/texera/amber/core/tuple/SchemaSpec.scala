@@ -24,6 +24,27 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class SchemaSpec extends AnyFlatSpec {
 
+  private val allTypeSpecs: List[(String, AttributeType)] = List(
+    "stringAttr" -> AttributeType.STRING,
+    "integerAttr" -> AttributeType.INTEGER,
+    "longAttr" -> AttributeType.LONG,
+    "doubleAttr" -> AttributeType.DOUBLE,
+    "booleanAttr" -> AttributeType.BOOLEAN,
+    "timestampAttr" -> AttributeType.TIMESTAMP,
+    "binaryAttr" -> AttributeType.BINARY
+  )
+
+  private val idNameSpecs: List[(String, AttributeType)] = List(
+    "id" -> AttributeType.INTEGER,
+    "name" -> AttributeType.STRING
+  )
+
+  private def attrs(specs: (String, AttributeType)*): List[Attribute] =
+    specs.map { case (name, tpe) => new Attribute(name, tpe) }.toList
+
+  private def schemaOf(specs: (String, AttributeType)*): Schema =
+    Schema(attrs(specs: _*))
+
   "Schema" should "create an empty schema" in {
     val schema = Schema()
     assert(schema.getAttributes.isEmpty)
@@ -31,103 +52,52 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "create a schema with attributes of all types" in {
-    val schema = Schema(
-      List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("integerAttr", AttributeType.INTEGER),
-        new Attribute("longAttr", AttributeType.LONG),
-        new Attribute("doubleAttr", AttributeType.DOUBLE),
-        new Attribute("booleanAttr", AttributeType.BOOLEAN),
-        new Attribute("timestampAttr", AttributeType.TIMESTAMP),
-        new Attribute("binaryAttr", AttributeType.BINARY)
-      )
-    )
-    assert(
-      schema.getAttributes == List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("integerAttr", AttributeType.INTEGER),
-        new Attribute("longAttr", AttributeType.LONG),
-        new Attribute("doubleAttr", AttributeType.DOUBLE),
-        new Attribute("booleanAttr", AttributeType.BOOLEAN),
-        new Attribute("timestampAttr", AttributeType.TIMESTAMP),
-        new Attribute("binaryAttr", AttributeType.BINARY)
-      )
-    )
-    assert(
-      schema.getAttributeNames == List(
-        "stringAttr",
-        "integerAttr",
-        "longAttr",
-        "doubleAttr",
-        "booleanAttr",
-        "timestampAttr",
-        "binaryAttr"
-      )
-    )
+    val schema = schemaOf(allTypeSpecs: _*)
+    assert(schema.getAttributes == attrs(allTypeSpecs: _*))
+    assert(schema.getAttributeNames == allTypeSpecs.map(_._1))
   }
 
   it should "add a single attribute using add(Attribute)" in {
     val schema = Schema()
     val updatedSchema = schema.add(new Attribute("id", AttributeType.INTEGER))
 
-    assert(updatedSchema.getAttributes == List(new Attribute("id", AttributeType.INTEGER)))
+    assert(updatedSchema.getAttributes == attrs("id" -> AttributeType.INTEGER))
   }
 
   it should "add multiple attributes using add(Attribute*)" in {
-    val schema = Schema()
-    val updatedSchema = schema.add(
-      new Attribute("stringAttr", AttributeType.STRING),
-      new Attribute("integerAttr", AttributeType.INTEGER),
-      new Attribute("longAttr", AttributeType.LONG)
+    val expected = attrs(
+      "stringAttr" -> AttributeType.STRING,
+      "integerAttr" -> AttributeType.INTEGER,
+      "longAttr" -> AttributeType.LONG
     )
+    val updatedSchema = Schema().add(expected: _*)
 
-    assert(
-      updatedSchema.getAttributes == List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("integerAttr", AttributeType.INTEGER),
-        new Attribute("longAttr", AttributeType.LONG)
-      )
-    )
+    assert(updatedSchema.getAttributes == expected)
   }
 
   it should "add attributes from another schema using add(Schema)" in {
-    val schema1 = Schema(List(new Attribute("id", AttributeType.INTEGER)))
-    val schema2 = Schema(List(new Attribute("name", AttributeType.STRING)))
+    val schema1 = schemaOf("id" -> AttributeType.INTEGER)
+    val schema2 = schemaOf("name" -> AttributeType.STRING)
 
     val mergedSchema = schema1.add(schema2)
 
-    assert(
-      mergedSchema.getAttributes == List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
+    assert(mergedSchema.getAttributes == attrs(idNameSpecs: _*))
   }
 
   it should "add an attribute with name and type using add(String, AttributeType)" in {
-    val schema = Schema()
-    val updatedSchema = schema.add("id", AttributeType.INTEGER)
+    val updatedSchema = Schema().add("id", AttributeType.INTEGER)
 
-    assert(updatedSchema.getAttributes == List(new Attribute("id", AttributeType.INTEGER)))
+    assert(updatedSchema.getAttributes == attrs("id" -> AttributeType.INTEGER))
   }
 
   it should "remove an existing attribute" in {
-    val schema = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
+    val updatedSchema = schemaOf(idNameSpecs: _*).remove("id")
 
-    val updatedSchema = schema.remove("id")
-
-    assert(updatedSchema.getAttributes == List(new Attribute("name", AttributeType.STRING)))
+    assert(updatedSchema.getAttributes == attrs("name" -> AttributeType.STRING))
   }
 
   it should "throw an exception when removing a non-existent attribute" in {
-    val schema = Schema(
-      List(new Attribute("id", AttributeType.INTEGER))
-    )
+    val schema = schemaOf("id" -> AttributeType.INTEGER)
 
     val exception = intercept[IllegalArgumentException] {
       schema.remove("name")
@@ -136,20 +106,13 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "retrieve an attribute by name" in {
-    val schema = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
-
-    val attribute = schema.getAttribute("id")
+    val attribute = schemaOf(idNameSpecs: _*).getAttribute("id")
 
     assert(attribute == new Attribute("id", AttributeType.INTEGER))
   }
 
   it should "throw an exception when retrieving a non-existent attribute" in {
-    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val schema = schemaOf("id" -> AttributeType.INTEGER)
 
     val exception = intercept[RuntimeException] {
       schema.getAttribute("name")
@@ -158,37 +121,25 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "return a partial schema for attributes of all types" in {
-    val schema = Schema(
-      List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("integerAttr", AttributeType.INTEGER),
-        new Attribute("booleanAttr", AttributeType.BOOLEAN),
-        new Attribute("doubleAttr", AttributeType.DOUBLE)
-      )
+    val schema = schemaOf(
+      "stringAttr" -> AttributeType.STRING,
+      "integerAttr" -> AttributeType.INTEGER,
+      "booleanAttr" -> AttributeType.BOOLEAN,
+      "doubleAttr" -> AttributeType.DOUBLE
     )
 
     val partialSchema = schema.getPartialSchema(List("stringAttr", "booleanAttr"))
 
     assert(
-      partialSchema.getAttributes == List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("booleanAttr", AttributeType.BOOLEAN)
+      partialSchema.getAttributes == attrs(
+        "stringAttr" -> AttributeType.STRING,
+        "booleanAttr" -> AttributeType.BOOLEAN
       )
     )
   }
 
   it should "convert to raw schema and back for attributes of all types" in {
-    val schema = Schema(
-      List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("integerAttr", AttributeType.INTEGER),
-        new Attribute("longAttr", AttributeType.LONG),
-        new Attribute("doubleAttr", AttributeType.DOUBLE),
-        new Attribute("booleanAttr", AttributeType.BOOLEAN),
-        new Attribute("timestampAttr", AttributeType.TIMESTAMP),
-        new Attribute("binaryAttr", AttributeType.BINARY)
-      )
-    )
+    val schema = schemaOf(allTypeSpecs: _*)
 
     val rawSchema = schema.toRawSchema
     assert(
@@ -208,11 +159,9 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "check if attributes exist in schema" in {
-    val schema = Schema(
-      List(
-        new Attribute("stringAttr", AttributeType.STRING),
-        new Attribute("integerAttr", AttributeType.INTEGER)
-      )
+    val schema = schemaOf(
+      "stringAttr" -> AttributeType.STRING,
+      "integerAttr" -> AttributeType.INTEGER
     )
 
     assert(schema.containsAttribute("stringAttr"))
@@ -220,19 +169,14 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "return the index of an attribute by name" in {
-    val schema = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
+    val schema = schemaOf(idNameSpecs: _*)
 
     assert(schema.getIndex("id") == 0)
     assert(schema.getIndex("name") == 1)
   }
 
   it should "throw an exception when getting the index of a non-existent attribute" in {
-    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val schema = schemaOf("id" -> AttributeType.INTEGER)
 
     val exception = intercept[RuntimeException] {
       schema.getIndex("name")
@@ -241,35 +185,16 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "compare schemas for equality" in {
-    val schema1 = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
-    val schema2 = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
-    val schema3 = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER)
-      )
-    )
+    val schema1 = schemaOf(idNameSpecs: _*)
+    val schema2 = schemaOf(idNameSpecs: _*)
+    val schema3 = schemaOf("id" -> AttributeType.INTEGER)
 
     assert(schema1 == schema2)
     assert(schema1 != schema3)
   }
 
   it should "return a proper string representation" in {
-    val schema = Schema(
-      List(
-        new Attribute("id", AttributeType.INTEGER),
-        new Attribute("name", AttributeType.STRING)
-      )
-    )
+    val schema = schemaOf(idNameSpecs: _*)
 
     assert(
       schema.toString == "Schema[Attribute[name=id, type=integer], Attribute[name=name, type=string]]"
@@ -277,34 +202,30 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "produce equal, deterministic hash codes for equal schemas" in {
-    val a = Schema(
-      List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
-    )
-    val b = Schema(
-      List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
-    )
+    val a = schemaOf(idNameSpecs: _*)
+    val b = schemaOf(idNameSpecs: _*)
     assert(a.hashCode == a.hashCode)
     assert(a == b && a.hashCode == b.hashCode)
     assert(Schema().hashCode == Schema().hashCode)
   }
 
   it should "not be equal to a non-Schema object" in {
-    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val schema = schemaOf("id" -> AttributeType.INTEGER)
     assert(!schema.equals("not a schema"))
     assert(!schema.equals(42))
     assert(!schema.equals(null))
   }
 
   it should "throw when add(Iterable) contains a name already in the schema" in {
-    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val schema = schemaOf("id" -> AttributeType.INTEGER)
     val ex = intercept[RuntimeException] {
-      schema.add(List(new Attribute("id", AttributeType.STRING)))
+      schema.add(attrs("id" -> AttributeType.STRING))
     }
     assert(ex.getMessage == "Cannot add attributes with duplicate names: id")
   }
 
   it should "throw when add(Attribute) name already exists" in {
-    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val schema = schemaOf("id" -> AttributeType.INTEGER)
     val ex = intercept[RuntimeException] {
       schema.add(new Attribute("id", AttributeType.LONG))
     }
@@ -312,31 +233,15 @@ class SchemaSpec extends AnyFlatSpec {
   }
 
   it should "round-trip through Jackson via the @JsonCreator constructor" in {
-    val schema =
-      Schema(
-        List(
-          new Attribute("id", AttributeType.INTEGER),
-          new Attribute("name", AttributeType.STRING)
-        )
-      )
+    val schema = schemaOf(idNameSpecs: _*)
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(schema), classOf[Schema])
     assert(restored == schema)
   }
 
   it should "reject duplicate adds and remove attributes case-insensitively while failing on absent removals" in {
-    val schema = Schema(
-      List(
-        new Attribute("Id", AttributeType.INTEGER),
-        new Attribute("Name", AttributeType.STRING)
-      )
-    )
+    val schema = schemaOf("Id" -> AttributeType.INTEGER, "Name" -> AttributeType.STRING)
     val dupEx = intercept[RuntimeException] {
-      schema.add(
-        List(
-          new Attribute("ID", AttributeType.STRING),
-          new Attribute("Extra", AttributeType.STRING)
-        )
-      )
+      schema.add(attrs("ID" -> AttributeType.STRING, "Extra" -> AttributeType.STRING))
     }
     assert(dupEx.getMessage == "Cannot add attributes with duplicate names: id")
 

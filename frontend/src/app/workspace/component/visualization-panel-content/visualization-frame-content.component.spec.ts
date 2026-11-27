@@ -68,6 +68,10 @@ describe("VisualizationFrameContentComponent", () => {
     fixture.detectChanges(); // triggers ngAfterContentInit -> drawChart()
   }
 
+  function renderedSrcdoc(): string {
+    return (fixture.nativeElement.querySelector("iframe") as HTMLIFrameElement).getAttribute("srcdoc")!;
+  }
+
   describe("drawChart() guard clauses", () => {
     it("is a no-op when operatorId is undefined", () => {
       buildComponent(undefined);
@@ -110,6 +114,64 @@ describe("VisualizationFrameContentComponent", () => {
       const iframe = fixture.nativeElement.querySelector("iframe") as HTMLIFrameElement;
       expect(iframe.getAttribute("srcdoc")).toContain("fresh");
       expect(iframe.getAttribute("srcdoc")).not.toContain("stale");
+    });
+
+    // The iframe reads script text raw, so an escaped "&gt;" would break the script.
+    it("keeps <, > and & inside an inline script as written", () => {
+      const script = 'if (a > b && b < a) { label = "R&D"; }';
+      snapshotProvider = () =>
+        makeResultSnapshot(`<html><body><div>chart</div><script>${script}</script></body></html>`);
+
+      buildComponent("op-1");
+
+      const srcdoc = renderedSrcdoc();
+      expect(srcdoc).toContain(`<script>${script}</script>`);
+    });
+
+    // Style text is raw too: an escaped "&gt;" would turn a child combinator into an invalid rule.
+    it("keeps > inside an inline style as written", () => {
+      const css = "div > span { color: red; }";
+      snapshotProvider = () =>
+        makeResultSnapshot(`<html><head><style>${css}</style></head><body><div>chart</div></body></html>`);
+
+      buildComponent("op-1");
+
+      expect(renderedSrcdoc()).toContain(`<style>${css}</style>`);
+    });
+
+    // Elsewhere escapes must survive, or a literal "<b>" in a result would turn into markup.
+    it("keeps <, > and & escaped in text outside a script", () => {
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>a &lt;b&gt; &amp; c</div></body></html>");
+
+      buildComponent("op-1");
+
+      const srcdoc = renderedSrcdoc();
+      expect(srcdoc).toContain("a &lt;b&gt; &amp; c");
+      expect(new DOMParser().parseFromString(srcdoc, "text/html").body.querySelector("b")).toBeNull();
+    });
+
+    it("still sizes the page and its first div to the frame", () => {
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>chart</div></body></html>");
+
+      buildComponent("op-1");
+
+      const srcdoc = renderedSrcdoc();
+      const doc = new DOMParser().parseFromString(srcdoc, "text/html");
+      expect(doc.documentElement.style.height).toBe("100%");
+      expect(doc.body.style.height).toBe("95%");
+      expect(doc.body.querySelector("div")!.style.height).toBe("100%");
+    });
+
+    it("keeps the result's doctype, and adds none when it has none", () => {
+      snapshotProvider = () => makeResultSnapshot("<!DOCTYPE html><html><body><div>chart</div></body></html>");
+      buildComponent("op-1");
+      const withDoctype = renderedSrcdoc();
+      expect(withDoctype.toLowerCase().startsWith("<!doctype html>")).toBe(true);
+
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>chart</div></body></html>");
+      buildComponent("op-1");
+      const without = renderedSrcdoc();
+      expect(without.toLowerCase()).not.toContain("<!doctype");
     });
   });
 

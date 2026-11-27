@@ -92,6 +92,12 @@ class TestTable:
             ],
         )
 
+    @staticmethod
+    def _assert_table_round_trips(source, target_table, target_tuples):
+        table = Table(source)
+        assert table == target_table
+        assert list(table.as_tuples()) == target_tuples
+
     def test_table_creation(self, target_table, a_timestamp):
         assert target_table["field1"][0] == 1
         assert target_table["field1"][1] == 2
@@ -117,22 +123,19 @@ class TestTable:
         assert Table(target_data_frame) == target_table
 
     def test_table_from_list_of_tuples(self, target_table, target_tuples):
-        table = Table(target_tuples)
-        assert table == target_table
-        assert list(table.as_tuples()) == target_tuples
+        self._assert_table_round_trips(target_tuples, target_table, target_tuples)
 
     def test_table_from_list_of_series(
-        self, target_table, a_timestamp, target_raw_tuples, target_tuples
+        self, target_table, target_raw_tuples, target_tuples
     ):
-        table = Table([pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples])
-
-        assert table == target_table
-        assert list(table.as_tuples()) == target_tuples
+        self._assert_table_round_trips(
+            [pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples],
+            target_table,
+            target_tuples,
+        )
 
     def test_table_from_table(self, target_table, target_tuples):
-        table = Table(target_table)
-        assert table == target_table
-        assert list(table.as_tuples()) == target_tuples
+        self._assert_table_round_trips(target_table, target_table, target_tuples)
 
     def test_use_table_as_data_frame(self, target_table, target_data_frame):
         df = target_table

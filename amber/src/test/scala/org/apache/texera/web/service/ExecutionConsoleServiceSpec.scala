@@ -21,11 +21,9 @@ package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Future => TwitterFuture}
-import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
+import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   ConsoleMessageType,
@@ -37,17 +35,16 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   TypedValue
 }
 import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.executionruntimestate.{
   EvaluatedValueList,
   ExecutionConsoleStore,
   OperatorConsole
 }
 import org.apache.texera.web.WebsocketInput
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import org.apache.texera.web.model.websocket.request.python.DebugCommandRequest
 import org.apache.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
+import org.apache.texera.web.service.RecordingExecutionClient.recordBatches
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -60,7 +57,6 @@ import org.scalatest.time.{Millis, Span}
 import java.time.Instant
 import java.util.concurrent.ExecutorService
 import scala.collection.mutable.ListBuffer
-import scala.reflect.ClassTag
 
 /**
   * The `ConsoleMessageProcessor` object is covered by the first half of this suite. The service
@@ -90,226 +86,101 @@ class ExecutionConsoleServiceSpec
   val smallBufferSize: Int = 2
   val messageDisplayLength: Int = 100
 
+  private def message(
+      workerId: String = "Worker:WF1-udf1-main-0",
+      title: String = "hello",
+      msgType: ConsoleMessageType = ConsoleMessageType.PRINT,
+      source: String = "src",
+      content: String = "content"
+  ): ConsoleMessage =
+    new ConsoleMessage(workerId, Timestamp(Instant.now), msgType, source, title, content)
+
+  private def addMessages(bufferSize: Int, titles: String*): ExecutionConsoleStore =
+    titles.zipWithIndex.foldLeft(new ExecutionConsoleStore()) {
+      case (store, (title, idx)) =>
+        ConsoleMessageProcessor.addMessageToOperatorConsole(
+          store,
+          "op1",
+          message(
+            workerId = "worker1",
+            source = "test",
+            title = title,
+            content = s"content ${idx + 1}"
+          ),
+          bufferSize
+        )
+    }
+
   "processConsoleMessage" should "truncate message title when it exceeds display length" in {
-    // Create a long message title that exceeds display length
     val longTitle = "a" * (messageDisplayLength + 10)
     val expectedTruncatedTitle = "a" * (messageDisplayLength - 3) + "..."
-
-    // Create a console message with a long title
-    val consoleMessage = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      longTitle,
-      "message content"
+    val processedMessage = ConsoleMessageProcessor.processConsoleMessage(
+      message(
+        workerId = "worker1",
+        source = "test",
+        title = longTitle,
+        content = "message content"
+      ),
+      messageDisplayLength
     )
-
-    // Call the method under test
-    val processedMessage =
-      ConsoleMessageProcessor.processConsoleMessage(consoleMessage, messageDisplayLength)
-
-    // Verify the title was truncated
     processedMessage.title shouldBe expectedTruncatedTitle
   }
 
   it should "not truncate message title when it does not exceed display length" in {
-    // Create a short message title that doesn't exceed display length
     val shortTitle = "Short Title"
-
-    // Create a console message with a short title
-    val consoleMessage = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      shortTitle,
-      "message content"
+    val processedMessage = ConsoleMessageProcessor.processConsoleMessage(
+      message(
+        workerId = "worker1",
+        source = "test",
+        title = shortTitle,
+        content = "message content"
+      ),
+      messageDisplayLength
     )
-
-    // Call the method under test
-    val processedMessage =
-      ConsoleMessageProcessor.processConsoleMessage(consoleMessage, messageDisplayLength)
-
-    // Verify the title was not truncated
     processedMessage.title shouldBe shortTitle
   }
 
   "addMessageToOperatorConsole" should "add message to buffer when buffer is not full" in {
-    // Create a test console store
-    val consoleStore = new ExecutionConsoleStore()
-    val opId = "op1"
-
-    // Create console messages
-    val message1 = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      "Message 1",
-      "content 1"
-    )
-
-    val message2 = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      "Message 2",
-      "content 2"
-    )
-
-    // Add first message
-    val storeWithMessage1 =
-      ConsoleMessageProcessor.addMessageToOperatorConsole(
-        consoleStore,
-        opId,
-        message1,
-        standardBufferSize
-      )
-
-    // Add second message
-    val storeWithMessage2 = ConsoleMessageProcessor.addMessageToOperatorConsole(
-      storeWithMessage1,
-      opId,
-      message2,
-      standardBufferSize
-    )
-
-    // Verify both messages are in the buffer
-    val opInfo = storeWithMessage2.operatorConsole(opId)
+    val opInfo = addMessages(standardBufferSize, "Message 1", "Message 2").operatorConsole("op1")
     opInfo.consoleMessages.size shouldBe 2
     opInfo.consoleMessages.head.title shouldBe "Message 1"
     opInfo.consoleMessages(1).title shouldBe "Message 2"
   }
 
   it should "remove oldest message when buffer is full" in {
-    // Create a test console store
-    val consoleStore = new ExecutionConsoleStore()
-    val opId = "op1"
-
-    // Create console messages
-    val message1 = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      "Message 1",
-      "content 1"
-    )
-
-    val message2 = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      "Message 2",
-      "content 2"
-    )
-
-    val message3 = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      "Message 3",
-      "content 3"
-    )
-
-    // Fill the buffer
-    val storeWithMessage1 =
-      ConsoleMessageProcessor.addMessageToOperatorConsole(
-        consoleStore,
-        opId,
-        message1,
-        smallBufferSize
-      )
-    val storeWithMessage2 =
-      ConsoleMessageProcessor.addMessageToOperatorConsole(
-        storeWithMessage1,
-        opId,
-        message2,
-        smallBufferSize
-      )
-
-    // Add one more message which should remove the oldest
-    val storeWithMessage3 =
-      ConsoleMessageProcessor.addMessageToOperatorConsole(
-        storeWithMessage2,
-        opId,
-        message3,
-        smallBufferSize
-      )
-
-    // Verify the first message was removed and only the second and third remain
-    val opInfo = storeWithMessage3.operatorConsole(opId)
+    val opInfo =
+      addMessages(smallBufferSize, "Message 1", "Message 2", "Message 3").operatorConsole("op1")
     opInfo.consoleMessages.size shouldBe 2
     opInfo.consoleMessages.head.title shouldBe "Message 2"
     opInfo.consoleMessages(1).title shouldBe "Message 3"
   }
 
   "the complete message processing flow" should "handle messages correctly" in {
-    // Create a test console store
-    val consoleStore = new ExecutionConsoleStore()
     val opId = "op1"
-
-    // Create a message with a title that needs truncation
     val longTitle = "a" * (messageDisplayLength + 10)
-    val consoleMessage = new ConsoleMessage(
-      "worker1",
-      Timestamp(Instant.now),
-      ConsoleMessageType.PRINT,
-      "test",
-      longTitle,
-      "message content"
+    val processedMessage = ConsoleMessageProcessor.processConsoleMessage(
+      message(
+        workerId = "worker1",
+        source = "test",
+        title = longTitle,
+        content = "message content"
+      ),
+      messageDisplayLength
     )
-
-    // Process the message first
-    val processedMessage =
-      ConsoleMessageProcessor.processConsoleMessage(consoleMessage, messageDisplayLength)
-
-    // Then update the store
     val updatedStore = ConsoleMessageProcessor.addMessageToOperatorConsole(
-      consoleStore,
+      new ExecutionConsoleStore(),
       opId,
       processedMessage,
       standardBufferSize
     )
-
-    // Verify correct processing
     val opInfo = updatedStore.operatorConsole(opId)
     opInfo.consoleMessages.size shouldBe 1
-
-    // Check that title was truncated
-    val expectedTruncatedTitle = "a" * (messageDisplayLength - 3) + "..."
-    opInfo.consoleMessages.head.title shouldBe expectedTruncatedTitle
+    opInfo.consoleMessages.head.title shouldBe ("a" * (messageDisplayLength - 3) + "...")
   }
   // ---------------------------------------------------------------- instance
 
-  /** Empty-plan client that captures the ConsoleMessage callback the service registers. */
-  private final class TestAmberClient(
-      override val coordinatorInterface: CoordinatorServiceFs2Grpc[TwitterFuture, Unit]
-  ) extends AmberClient(
-        system,
-        new WorkflowContext(),
-        PhysicalPlan(Set.empty, Set.empty),
-        CoordinatorConfig(None, None, None, None),
-        _ => ()
-      ) {
-    var consoleCallback: ConsoleMessage => Unit = _
-
-    override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
-      if (ct.runtimeClass == classOf[ConsoleMessage]) {
-        consoleCallback = callback.asInstanceOf[ConsoleMessage => Unit]
-      }
-      Disposable.empty()
-    }
-
-    def dispose(): Unit = super.shutdown()
-  }
-
   private final class Fixture(
-      val client: TestAmberClient,
+      val client: RecordingExecutionClient,
       val coordinator: CoordinatorServiceFs2Grpc[TwitterFuture, Unit],
       val stateStore: ExecutionStateStore,
       val wsInput: WebsocketInput,
@@ -321,24 +192,13 @@ class ExecutionConsoleServiceSpec
     }
   }
 
-  private def fixture(): Fixture = {
+  private def withFixture(body: Fixture => Unit): Unit = {
     val coordinator = mock[CoordinatorServiceFs2Grpc[TwitterFuture, Unit]]
-    val client = new TestAmberClient(coordinator)
+    val client = new RecordingExecutionClient(system, Some(coordinator))
     val stateStore = new ExecutionStateStore
     val wsInput = new WebsocketInput(ListBuffer.empty[Throwable] += _)
     val service = new ExecutionConsoleService(client, stateStore, wsInput, new WorkflowContext())
-    new Fixture(client, coordinator, stateStore, wsInput, service)
-  }
-
-  private def message(
-      workerId: String = "Worker:WF1-udf1-main-0",
-      title: String = "hello",
-      msgType: ConsoleMessageType = ConsoleMessageType.PRINT
-  ): ConsoleMessage =
-    new ConsoleMessage(workerId, Timestamp(Instant.now), msgType, "src", title, "content")
-
-  private def withFixture(body: Fixture => Unit): Unit = {
-    val f = fixture()
+    val f = new Fixture(client, coordinator, stateStore, wsInput, service)
     try body(f)
     finally f.close()
   }
@@ -374,14 +234,10 @@ class ExecutionConsoleServiceSpec
     withFixture { f =>
       // One batch is published per state update. Subscribing up front and reading the batch for the
       // SECOND message is what shows the delta: the first message must not appear in it again.
-      val batches = ListBuffer.empty[Iterable[TexeraWebSocketEvent]]
-      val sub = f.stateStore.consoleStore.getWebsocketEventObservable
-        .subscribe((batch: Iterable[TexeraWebSocketEvent]) => batches += batch)
-
-      try {
-        f.client.consoleCallback(message(title = "first"))
-        f.client.consoleCallback(message(title = "second"))
-      } finally sub.dispose()
+      val batches = recordBatches(f.stateStore.consoleStore) {
+        f.client.fire(message(title = "first"))
+        f.client.fire(message(title = "second"))
+      }
 
       val titles =
         batches.last.collect { case e: ConsoleUpdateEvent => e.messages.map(_.title) }.flatten
@@ -398,11 +254,7 @@ class ExecutionConsoleServiceSpec
       val val3 =
         EvaluatedValue(Some(TypedValue("z", "r3", "3", "int", expandable = false)), Seq.empty)
 
-      val batches = ListBuffer.empty[Iterable[TexeraWebSocketEvent]]
-      val sub = f.stateStore.consoleStore.getWebsocketEventObservable
-        .subscribe((batch: Iterable[TexeraWebSocketEvent]) => batches += batch)
-
-      try {
+      val batches = recordBatches(f.stateStore.consoleStore) {
         f.stateStore.consoleStore.updateState { store =>
           store.addOperatorConsole(
             "udf1" -> OperatorConsole(evaluateExprResults =
@@ -416,7 +268,7 @@ class ExecutionConsoleServiceSpec
             "udf1" -> current.addEvaluateExprResults("z" -> EvaluatedValueList(Seq(val3)))
           )
         }
-      } finally sub.dispose()
+      }
 
       val firstEval = batches.head.collect {
         case e: PythonExpressionEvaluateResponse => e.expression -> e.values
@@ -434,7 +286,7 @@ class ExecutionConsoleServiceSpec
     // The worker id carries the physical layer and worker index; the frontend console is keyed by
     // the logical operator, so anything else silently strands the output.
     withFixture { f =>
-      f.client.consoleCallback(message(workerId = "Worker:WF1-udf1-main-0"))
+      f.client.fire(message(workerId = "Worker:WF1-udf1-main-0"))
 
       f.stateStore.consoleStore.getState.operatorConsole.keys should contain("udf1")
     }
@@ -444,7 +296,7 @@ class ExecutionConsoleServiceSpec
     withFixture { f =>
       val long = "b" * (f.service.consoleMessageDisplayLength + 50)
 
-      f.client.consoleCallback(message(title = long))
+      f.client.fire(message(title = long))
 
       val stored = f.stateStore.consoleStore.getState.operatorConsole("udf1").consoleMessages
       stored.map(_.title.length) shouldBe Seq(f.service.consoleMessageDisplayLength)
@@ -498,7 +350,7 @@ class ExecutionConsoleServiceSpec
 
   "unsubscribeAll" should "shutdown consoleWriterThread" in {
     withFixture { f =>
-      f.client.consoleCallback(message(title = "test"))
+      f.client.fire(message(title = "test"))
 
       val threadField = classOf[ExecutionConsoleService].getDeclaredField("consoleWriterThread")
       threadField.setAccessible(true)

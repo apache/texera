@@ -39,6 +39,9 @@ services:
   notebook-migration-service:
     environment:
       OTEL_SDK_DISABLED: "false"
+  result-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
   workflow-compiling-service:
     environment:
       OTEL_SDK_DISABLED: "false"

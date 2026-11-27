@@ -35,8 +35,9 @@ import { DashboardWorkflowComputingUnit } from "../../../../../common/type/workf
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { ComputingUnitMetadataComponent } from "../../../../../common/util/computing-unit.util";
+import { makeDashboardComputingUnit } from "../../../../../common/testing/computing-unit-test-fixtures";
 
-function bareComponent(entry: DashboardWorkflowComputingUnit): UserComputingUnitListItemComponent {
+function bareComponent(entry?: DashboardWorkflowComputingUnit): UserComputingUnitListItemComponent {
   const item = new UserComputingUnitListItemComponent(
     {} as any,
     {} as any,
@@ -46,38 +47,13 @@ function bareComponent(entry: DashboardWorkflowComputingUnit): UserComputingUnit
     {} as any,
     {} as any
   );
-  item.entry = entry;
+  if (entry !== undefined) {
+    item.entry = entry;
+  }
   return item;
 }
 
-function makeEntry(overrides: Partial<DashboardWorkflowComputingUnit> = {}): DashboardWorkflowComputingUnit {
-  return {
-    computingUnit: {
-      cuid: 1,
-      uid: 1,
-      name: "unit-1",
-      creationTime: 0,
-      terminateTime: undefined,
-      type: "local",
-      uri: "",
-      resource: {
-        cpuLimit: "1",
-        memoryLimit: "1Gi",
-        gpuLimit: "0",
-        jvmMemorySize: "0",
-        shmSize: "0",
-        nodeAddresses: [],
-      },
-    },
-    status: "Running",
-    metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
-    isOwner: true,
-    accessPrivilege: "WRITE",
-    ownerAvatar: "",
-    ownerName: "owner",
-    ...overrides,
-  };
-}
+const makeEntry = makeDashboardComputingUnit;
 
 describe("UserComputingUnitListItemComponent", () => {
   let fixture: ComponentFixture<UserComputingUnitListItemComponent>;
@@ -160,25 +136,15 @@ describe("UserComputingUnitListItemComponent", () => {
   });
 
   describe("entry and unit getters", () => {
-    function bare(): UserComputingUnitListItemComponent {
-      return new UserComputingUnitListItemComponent(
-        {} as any,
-        {} as any,
-        {} as any,
-        {} as any,
-        {} as any,
-        {} as any,
-        {} as any
-      );
-    }
-
     it("throws when entry is accessed before being set", () => {
-      expect(() => bare().entry).toThrowError("entry property must be provided to UserComputingUnitListItemComponent.");
+      expect(() => bareComponent().entry).toThrowError(
+        "entry property must be provided to UserComputingUnitListItemComponent."
+      );
     });
 
     it("returns the entry once set", () => {
       const entry = makeEntry();
-      const item = bare();
+      const item = bareComponent();
       item.entry = entry;
       expect(item.entry).toBe(entry);
     });
@@ -188,11 +154,10 @@ describe("UserComputingUnitListItemComponent", () => {
     });
 
     it("throws when the entry has no computing unit", () => {
-      const item = bare();
-      item.entry = {
+      const item = bareComponent({
         ...makeEntry(),
         computingUnit: undefined as unknown as DashboardWorkflowComputingUnit["computingUnit"],
-      };
+      });
       expect(() => item.unit).toThrowError(
         "Incorrect type of DashboardEntry provided to UserComputingUnitListItemComponent. Entry must be computing unit."
       );
@@ -412,14 +377,7 @@ describe("UserComputingUnitListItemComponent", () => {
       const coreEntry = bareComponent(makeEntry());
       expect(coreEntry.getCpuLimitUnit()).toBe("CPU");
 
-      const milliEntry = bareComponent(
-        makeEntry({
-          computingUnit: {
-            ...makeEntry().computingUnit,
-            resource: { ...makeEntry().computingUnit.resource, cpuLimit: "2000m" },
-          },
-        })
-      );
+      const milliEntry = bareComponent(makeEntry({ computingUnit: { resource: { cpuLimit: "2000m" } } }));
       expect(milliEntry.getCpuLimitUnit()).toBe("m");
     });
 
@@ -430,13 +388,9 @@ describe("UserComputingUnitListItemComponent", () => {
 
   describe("getCpuValue / getMemoryValue with real usage", () => {
     function entryWith(cpuLimit: string, memoryLimit: string, cpuUsage: string, memoryUsage: string) {
-      const base = makeEntry();
       return makeEntry({
         metrics: { cpuUsage, memoryUsage },
-        computingUnit: {
-          ...base.computingUnit,
-          resource: { ...base.computingUnit.resource, cpuLimit, memoryLimit },
-        },
+        computingUnit: { resource: { cpuLimit, memoryLimit } },
       });
     }
 
@@ -455,16 +409,10 @@ describe("UserComputingUnitListItemComponent", () => {
 
   describe("fallback getters when metrics/resource are absent", () => {
     it("returns N/A for every usage and limit getter", () => {
-      const base = makeEntry();
-      const item = bareComponent(
-        makeEntry({
-          metrics: undefined,
-          computingUnit: {
-            ...base.computingUnit,
-            resource: undefined as unknown as DashboardWorkflowComputingUnit["computingUnit"]["resource"],
-          },
-        })
-      );
+      const entry = makeEntry({ metrics: undefined });
+      entry.computingUnit.resource =
+        undefined as unknown as DashboardWorkflowComputingUnit["computingUnit"]["resource"];
+      const item = bareComponent(entry);
 
       expect(item.getCurrentComputingUnitCpuUsage()).toBe("N/A");
       expect(item.getCurrentComputingUnitMemoryUsage()).toBe("N/A");
@@ -611,12 +559,8 @@ describe("UserComputingUnitListItemComponent", () => {
     });
 
     it("the metrics popover adds the GPU, JVM and shared-memory rows when those limits are set", () => {
-      const base = makeEntry();
       component.entry = makeEntry({
-        computingUnit: {
-          ...base.computingUnit,
-          resource: { ...base.computingUnit.resource, gpuLimit: "2", jvmMemorySize: "2Gi", shmSize: "1Gi" },
-        },
+        computingUnit: { resource: { gpuLimit: "2", jvmMemorySize: "2Gi", shmSize: "1Gi" } },
       });
       fixture.detectChanges();
 

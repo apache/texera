@@ -49,6 +49,7 @@ import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../servic
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
+import JSZip from "jszip";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
@@ -791,6 +792,31 @@ describe("MenuComponent", () => {
       expect(convert).toHaveBeenCalled();
       expect(convert.mock.calls[0][0].operators).toHaveLength(1);
     });
+
+    it("keeps the module the script imports for the download", () => {
+      vi.spyOn(component["workflowToPythonService"], "convertToPython").mockReturnValue(
+        of({ type: "success", pythonCode: "print(1)", helpersModule: "def f(): pass" } as any)
+      );
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+
+      component.onClickExportAsPython();
+
+      expect(component.pythonHelpersModuleForModal).toBe("def f(): pass");
+    });
+
+    it("keeps the inputs the script reads under a new name", () => {
+      const renamedSources = [{ from: "Script.py", to: "Script-2.py" }];
+      vi.spyOn(component["workflowToPythonService"], "convertToPython").mockReturnValue(
+        of({ type: "success", pythonCode: "print(1)", renamedSources } as any)
+      );
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+
+      component.onClickExportAsPython();
+
+      expect(component.pythonRenamedSourcesForModal).toEqual(renamedSources);
+    });
   });
 
   describe("hasOperators", () => {
@@ -1123,6 +1149,58 @@ describe("MenuComponent", () => {
     vi.unstubAllGlobals();
   });
 
+  it("copyPythonCodeToClipboard says where the helper module is when the script imports one", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+    component.pythonCodeForModal = "from texera_helpers import f";
+    component.pythonHelpersModuleForModal = "def f(): pass";
+
+    await component.copyPythonCodeToClipboard();
+
+    expect(writeText).toHaveBeenCalledWith("from texera_helpers import f");
+    expect(successSpy).toHaveBeenCalledWith(
+      "Python script copied to clipboard. It needs the texera_helpers.py in the zip download next to it."
+    );
+    vi.unstubAllGlobals();
+  });
+
+  describe("downloadPythonZip", () => {
+    const download = async () => {
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
+      await component.downloadPythonZip();
+      const [blob, name] = saveAs.mock.calls[0] as [Blob, string];
+      // jsdom's Blob has no arrayBuffer(), so it is read the way a browser without one would.
+      const bytes = await new Promise<ArrayBuffer>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.readAsArrayBuffer(blob);
+      });
+      return { name, zip: await JSZip.loadAsync(bytes) };
+    };
+
+    it("zips the script with the module it imports, under the workflow name", async () => {
+      component.currentWorkflowName = "my-workflow";
+      component.pythonCodeForModal = "from texera_helpers import f";
+      component.pythonHelpersModuleForModal = "def f(): pass";
+
+      const { name, zip } = await download();
+
+      expect(name).toBe("my-workflow.zip");
+      expect(await zip.file("script.py")?.async("string")).toBe("from texera_helpers import f");
+      expect(await zip.file("texera_helpers.py")?.async("string")).toBe("def f(): pass");
+    });
+
+    it("zips the script alone when it imports nothing", async () => {
+      component.pythonCodeForModal = "print(1)";
+      component.pythonHelpersModuleForModal = undefined;
+
+      const { zip } = await download();
+
+      expect(Object.keys(zip.files)).toEqual(["script.py"]);
+    });
+  });
+
   // The export flags are reset when a menu is destroyed -- right on leaving the workspace, wrong on
   // a hand-over between a workflow's two views, where the results are kept. A menu mounting on
   // retained results asks for them to be recomputed rather than offering a dead button.
@@ -1138,14 +1216,6 @@ describe("MenuComponent", () => {
   });
 
   describe("version history", () => {
-    it("onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions", () => {
-      const displaySpy = vi.spyOn(workflowVersionService, "displayWorkflowVersions").mockImplementation(() => {});
-
-      component.onClickGetAllVersions();
-
-      expect(displaySpy).toHaveBeenCalledTimes(1);
-    });
-
     it("closeParticularVersionDisplay delegates to workflowVersionService", () => {
       const closeSpy = vi.spyOn(workflowVersionService, "closeParticularVersionDisplay").mockImplementation(() => {});
 

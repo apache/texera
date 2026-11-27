@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.contourPlot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -107,19 +108,14 @@ class ContourPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |import plotly.io as pio
        |
        |class ProcessTableOperator(UDFTableOperator):
-       |    def render_error(self, error_msg) -> str:
-       |        return '''<h1>Contour plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${runtimeError("Contour plot is not available.", typed = true)}
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        # A row missing any of the three has no point to contribute, and
        |        # griddata refuses a NaN coordinate outright.
        |        table = table.dropna(subset=[$x, $y, $z])
-       |        if table.empty:
-       |            yield {'html-content': self.render_error("Table should not have any empty/null values or fields.")}
-       |            return
+       |${emptyTableGuard("Table should not have any empty/null values or fields.", bodyIndent = 4)}
        |
        |        x = table[$x].values
        |        y = table[$y].values
@@ -148,8 +144,7 @@ class ContourPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            colorbar_title=$z
        |        ))
        |        fig.update_layout(title='Contour Plot')
-       |        html = pio.to_html(fig, include_plotlyjs='cdn', full_html=False)
-       |        yield {'html-content': html}
+       |${plotlyHtmlYield(module = "pio", extraArgs = "full_html=False")}
        |""".encode
   }
 

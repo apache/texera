@@ -27,109 +27,41 @@ from pytexera import UDFBatchOperator, UDFSourceOperator, UDFTableOperator
 from pytexera.udf.udf_operator import _UiParameterSupport
 
 
-class InjectedParametersOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {
-            "count": "7",
-            "enabled": "1",
-            "created_at": "2024-01-01T00:00:00",
-        }
+class _PassthroughUdfOperator(UDFOperatorV2):
+    injected_params: dict = {}
 
-    def open(self):
-        self.count_parameter = self.UiParameter("count", AttributeType.INT)
-        self.enabled_parameter = self.UiParameter(
-            name="enabled", type=AttributeType.BOOL
-        )
-        self.created_at_parameter = self.UiParameter(
-            "created_at", type=AttributeType.TIMESTAMP
-        )
+    def _texera_injected_ui_parameters(self):
+        return dict(self.injected_params)
 
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         yield tuple_
 
 
-class ResourceParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"MODEL": "/mnt/texera-mounts/model-1/abc123"}
+def _make_param_op(injected: dict, *specs, name: str = "ParamOperator"):
+    attrs = {"injected_params": injected}
+    if specs:
 
-    def open(self):
-        self.model_parameter = self.UiParameter(
-            "MODEL", AttributeType.STRING, value=Resource.MODEL
-        )
+        def open(self):
+            for attr_name, param_args, param_kwargs in specs:
+                param = self.UiParameter(*param_args, **param_kwargs)
+                if attr_name:
+                    setattr(self, attr_name, param)
 
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
-
-
-class ConflictingParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"duplicate": "1"}
-
-    def open(self):
-        self.UiParameter("duplicate", AttributeType.INT)
-        self.UiParameter("duplicate", AttributeType.STRING)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
+        attrs["open"] = open
+    return type(name, (_PassthroughUdfOperator,), attrs)
 
 
-class RepeatedParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"duplicate": "1"}
-
-    def open(self):
-        self.first_parameter = self.UiParameter("duplicate", AttributeType.INT)
-        self.second_parameter = self.UiParameter("duplicate", AttributeType.INT)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
+def _capture_warnings(monkeypatch) -> list[str]:
+    warning_calls = []
+    monkeypatch.setattr(
+        udf_operator.logger,
+        "warning",
+        lambda msg, *args, **kwargs: warning_calls.append(msg.format(*args)),
+    )
+    return warning_calls
 
 
-class FirstIndependentParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"count": "1"}
-
-    def open(self):
-        self.count_parameter = self.UiParameter("count", AttributeType.INT)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
-
-
-class SecondIndependentParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"count": "2"}
-
-    def open(self):
-        self.count_parameter = self.UiParameter("count", AttributeType.INT)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
-
-
-class MissingParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"sent": "1"}
-
-    def open(self):
-        self.missing_parameter = self.UiParameter("missing", AttributeType.INT)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
-
-
-class UnusedParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"used": "1", "unused": "2"}
-
-    def open(self):
-        self.used_parameter = self.UiParameter("used", AttributeType.INT)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
-
-
-class SuperOpenParameterOperator(UDFOperatorV2):
+class SuperOpenParameterOperator(_PassthroughUdfOperator):
     def __init__(self):
         self.hook_call_count = 0
 
@@ -141,32 +73,21 @@ class SuperOpenParameterOperator(UDFOperatorV2):
         super().open()
         self.count_parameter = self.UiParameter("count", AttributeType.INT)
 
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
 
-
-class SuperOpenConflictingParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"duplicate": "1"}
+class SuperOpenConflictingParameterOperator(_PassthroughUdfOperator):
+    injected_params = {"duplicate": "1"}
 
     def open(self):
         self.UiParameter("duplicate", AttributeType.INT)
         super().open()
         self.UiParameter("duplicate", AttributeType.STRING)
 
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
 
-
-class InvalidValueParameterOperator(UDFOperatorV2):
-    def _texera_injected_ui_parameters(self):
-        return {"count": "not-a-number"}
-
-    def open(self):
-        self.count_parameter = self.UiParameter("count", AttributeType.INT)
-
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        yield tuple_
+InvalidValueParameterOperator = _make_param_op(
+    {"count": "not-a-number"},
+    ("count_parameter", ("count", AttributeType.INT), {}),
+    name="InvalidValueParameterOperator",
+)
 
 
 class NoOpenParameterSupport(_UiParameterSupport):
@@ -199,7 +120,20 @@ class BaseHookBatchOperator(UDFBatchOperator):
 
 class TestUiParameterSupport:
     def test_injected_values_are_applied_before_open(self):
-        operator = InjectedParametersOperator()
+        operator = _make_param_op(
+            {
+                "count": "7",
+                "enabled": "1",
+                "created_at": "2024-01-01T00:00:00",
+            },
+            ("count_parameter", ("count", AttributeType.INT), {}),
+            ("enabled_parameter", (), {"name": "enabled", "type": AttributeType.BOOL}),
+            (
+                "created_at_parameter",
+                ("created_at",),
+                {"type": AttributeType.TIMESTAMP},
+            ),
+        )()
 
         operator.open()
 
@@ -210,7 +144,11 @@ class TestUiParameterSupport:
         )
 
     def test_duplicate_parameter_names_with_conflicting_types_raise(self):
-        operator = ConflictingParameterOperator()
+        operator = _make_param_op(
+            {"duplicate": "1"},
+            (None, ("duplicate", AttributeType.INT), {}),
+            (None, ("duplicate", AttributeType.STRING), {}),
+        )()
 
         with pytest.raises(ValueError) as exc_info:
             operator.open()
@@ -218,7 +156,11 @@ class TestUiParameterSupport:
         assert "Duplicate UiParameter name 'duplicate'" in str(exc_info.value)
 
     def test_duplicate_parameter_names_with_same_type_succeed(self):
-        operator = RepeatedParameterOperator()
+        operator = _make_param_op(
+            {"duplicate": "1"},
+            ("first_parameter", ("duplicate", AttributeType.INT), {}),
+            ("second_parameter", ("duplicate", AttributeType.INT), {}),
+        )()
 
         operator.open()
 
@@ -319,13 +261,11 @@ class TestUiParameterSupport:
             _UiParameterSupport._parse("value", object())
 
     def test_missing_injected_name_returns_none_and_warns(self, monkeypatch):
-        operator = MissingParameterOperator()
-        warning_calls = []
-        monkeypatch.setattr(
-            udf_operator.logger,
-            "warning",
-            lambda msg, *args, **kwargs: warning_calls.append(msg.format(*args)),
-        )
+        operator = _make_param_op(
+            {"sent": "1"},
+            ("missing_parameter", ("missing", AttributeType.INT), {}),
+        )()
+        warning_calls = _capture_warnings(monkeypatch)
 
         operator.open()
 
@@ -336,13 +276,11 @@ class TestUiParameterSupport:
         )
 
     def test_unused_injected_name_warns(self, monkeypatch):
-        operator = UnusedParameterOperator()
-        warning_calls = []
-        monkeypatch.setattr(
-            udf_operator.logger,
-            "warning",
-            lambda msg, *args, **kwargs: warning_calls.append(msg.format(*args)),
-        )
+        operator = _make_param_op(
+            {"used": "1", "unused": "2"},
+            ("used_parameter", ("used", AttributeType.INT), {}),
+        )()
+        warning_calls = _capture_warnings(monkeypatch)
 
         operator.open()
 
@@ -352,7 +290,7 @@ class TestUiParameterSupport:
         ]
 
     def test_ui_parameter_argument_errors(self):
-        operator = MissingParameterOperator()
+        operator = _PassthroughUdfOperator()
 
         with pytest.raises(TypeError, match="provided multiple times"):
             operator.UiParameter("count", AttributeType.INT, type=AttributeType.INT)
@@ -364,7 +302,14 @@ class TestUiParameterSupport:
             operator.UiParameter("count", object())
 
     def test_resource_parameter_receives_its_mount_directory(self):
-        operator = ResourceParameterOperator()
+        operator = _make_param_op(
+            {"MODEL": "/mnt/texera-mounts/model-1/abc123"},
+            (
+                "model_parameter",
+                ("MODEL", AttributeType.STRING),
+                {"value": Resource.MODEL},
+            ),
+        )()
 
         operator.open()
 
@@ -372,13 +317,13 @@ class TestUiParameterSupport:
         assert operator.model_parameter.resource is Resource.MODEL
 
     def test_resource_parameter_rejects_anything_but_a_resource(self):
-        operator = MissingParameterOperator()
+        operator = _PassthroughUdfOperator()
 
         with pytest.raises(TypeError, match="must be a Resource"):
             operator.UiParameter("MODEL", AttributeType.STRING, value="model")
 
     def test_resource_parameter_must_be_a_string(self):
-        operator = MissingParameterOperator()
+        operator = _PassthroughUdfOperator()
 
         # What the UDF receives is a directory path.
         with pytest.raises(TypeError, match="must be AttributeType.STRING"):
@@ -402,17 +347,13 @@ class TestUiParameterSupport:
             operator.open()
 
     def test_wrapped_open_uses_instance_local_state(self):
-        assert (
-            getattr(
-                FirstIndependentParameterOperator.open,
-                "__texera_ui_params_wrapped__",
-                False,
-            )
-            is True
-        )
+        count_spec = ("count_parameter", ("count", AttributeType.INT), {})
+        first_cls = _make_param_op({"count": "1"}, count_spec, name="FirstOp")
+        second_cls = _make_param_op({"count": "2"}, count_spec, name="SecondOp")
+        assert getattr(first_cls.open, "__texera_ui_params_wrapped__", False) is True
 
-        first_operator = FirstIndependentParameterOperator()
-        second_operator = SecondIndependentParameterOperator()
+        first_operator = first_cls()
+        second_operator = second_cls()
 
         first_operator.open()
         second_operator.open()

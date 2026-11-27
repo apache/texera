@@ -27,10 +27,27 @@ import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+import org.apache.texera.web.storage.StateStore
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
 import scala.reflect.ClassTag
+
+object RecordingExecutionClient {
+
+  /** Collects every websocket event batch emitted by `store` while `body` runs. */
+  def recordBatches[S](
+      store: StateStore[S]
+  )(body: => Unit): Seq[Iterable[TexeraWebSocketEvent]] = {
+    val batches = mutable.ListBuffer.empty[Iterable[TexeraWebSocketEvent]]
+    val subscription = store.getWebsocketEventObservable
+      .subscribe((batch: Iterable[TexeraWebSocketEvent]) => batches += batch)
+    try body
+    finally subscription.dispose()
+    batches.toSeq
+  }
+}
 
 /**
   * Empty-plan `AmberClient` for execution-service unit specs: captures registered callbacks,

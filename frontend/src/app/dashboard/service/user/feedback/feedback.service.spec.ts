@@ -17,12 +17,12 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
 import { firstValueFrom } from "rxjs";
 
 import { FeedbackService } from "./feedback.service";
 import { AppSettings } from "../../../../common/app-setting";
+import { flushHttpRequest, setupHttpServiceTest } from "../../../../common/testing/http-service-test-utils";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { Feedback, FeedbackCount } from "../../../type/feedback.interface";
 
@@ -33,12 +33,7 @@ describe("FeedbackService", () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [FeedbackService, ...commonTestProviders],
-    });
-    service = TestBed.inject(FeedbackService);
-    http = TestBed.inject(HttpTestingController);
+    ({ service, httpMock: http } = setupHttpServiceTest(FeedbackService, commonTestProviders));
     vi.spyOn(AppSettings, "getApiEndpoint").mockReturnValue(API);
   });
 
@@ -48,37 +43,27 @@ describe("FeedbackService", () => {
 
   it("submitFeedback POSTs the message to /feedback", () => {
     service.submitFeedback("hello world").subscribe();
-    const req = http.expectOne(`${API}/feedback`);
-    expect(req.request.method).toBe("POST");
-    expect(req.request.body).toEqual({ message: "hello world" });
-    req.flush(null);
+    flushHttpRequest(http, `${API}/feedback`, "POST", null, { body: { message: "hello world" } });
   });
 
   it("getMyFeedback GETs /feedback and returns the list", async () => {
     const expected: ReadonlyArray<Feedback> = [{ fid: 1, uid: 7, message: "m", creationTime: 123 }];
     const pending = firstValueFrom(service.getMyFeedback());
-    const req = http.expectOne(`${API}/feedback`);
-    expect(req.request.method).toBe("GET");
-    req.flush(expected);
+    flushHttpRequest(http, `${API}/feedback`, "GET", expected);
     expect(await pending).toEqual(expected);
   });
 
   it("getFeedbackCounts GETs /feedback/counts", async () => {
     const expected: ReadonlyArray<FeedbackCount> = [{ uid: 7, count: 3 }];
     const pending = firstValueFrom(service.getFeedbackCounts());
-    const req = http.expectOne(`${API}/feedback/counts`);
-    expect(req.request.method).toBe("GET");
-    req.flush(expected);
+    flushHttpRequest(http, `${API}/feedback/counts`, "GET", expected);
     expect(await pending).toEqual(expected);
   });
 
   it("getUserFeedback GETs /feedback/user with a user_id query param", async () => {
     const expected: ReadonlyArray<Feedback> = [{ fid: 2, uid: 42, message: "x", creationTime: 9 }];
     const pending = firstValueFrom(service.getUserFeedback(42));
-    const req = http.expectOne(r => r.url === `${API}/feedback/user`);
-    expect(req.request.method).toBe("GET");
-    expect(req.request.params.get("user_id")).toBe("42");
-    req.flush(expected);
+    flushHttpRequest(http, r => r.url === `${API}/feedback/user`, "GET", expected, { params: { user_id: "42" } });
     expect(await pending).toEqual(expected);
   });
 });

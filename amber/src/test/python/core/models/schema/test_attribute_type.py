@@ -171,4 +171,4 @@ class TestParseTimestamp:
     def test_an_instant_localtime_accepts_still_asks_it(self, windows_localtime):
         assert parse_timestamp("2024-05-06T07:08:09+02:00") == datetime.datetime(
             2024, 5, 6, 5, 8, 9
-        ).replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+        ).replace(tzinfo=datetime.UTC).astimezone().replace(tzinfo=None)

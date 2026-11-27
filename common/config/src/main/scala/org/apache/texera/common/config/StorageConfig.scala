@@ -49,6 +49,24 @@ object StorageConfig {
   val icebergPostgresCatalogPassword: String =
     conf.getString("storage.iceberg.catalog.postgres.password")
 
+  // Iceberg catalog cache specifics
+  // 0 would make the cache build a catalog on every call and leave it open (Guava evicts it at
+  // once by size, which the cache does not close), and a negative value would fail only at the
+  // first catalog access. Fail fast at load time instead, naming the variable to fix.
+  private[config] def requireAtLeastOne(value: Int, envVar: String): Int = {
+    require(value >= 1, s"$envVar must be at least 1, got $value")
+    value
+  }
+
+  val icebergCatalogCacheMaxSize: Int = requireAtLeastOne(
+    conf.getInt("storage.iceberg.catalog.cache.max-size"),
+    "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE"
+  )
+  val icebergCatalogCacheIdleExpiryMinutes: Int = requireAtLeastOne(
+    conf.getInt("storage.iceberg.catalog.cache.idle-expiry-minutes"),
+    "STORAGE_ICEBERG_CATALOG_CACHE_IDLE_EXPIRY_MINUTES"
+  )
+
   // Iceberg Table specifics
   val icebergTableResultNamespace: String = conf.getString("storage.iceberg.table.result-namespace")
   val icebergTableConsoleMessagesNamespace: String =
@@ -105,21 +123,6 @@ object StorageConfig {
       .resolve("user-resources")
       .resolve("workflow-results")
 
-  // JDBC
-  val ENV_JDBC_URL = "STORAGE_JDBC_URL"
-  val ENV_JDBC_USERNAME = "STORAGE_JDBC_USERNAME"
-  val ENV_JDBC_PASSWORD = "STORAGE_JDBC_PASSWORD"
-
-  // Iceberg Catalog
-  val ENV_ICEBERG_CATALOG_TYPE = "STORAGE_ICEBERG_CATALOG_TYPE"
-  val ENV_ICEBERG_CATALOG_REST_URI = "STORAGE_ICEBERG_CATALOG_REST_URI"
-
-  // Iceberg Postgres Catalog
-  val ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME =
-    "STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME"
-  val ENV_ICEBERG_CATALOG_POSTGRES_USERNAME = "STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME"
-  val ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD = "STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD"
-
   // Staged file cleanup
   val ENV_CLEANUP_ENABLED = "STORAGE_CLEANUP_ENABLED"
   val ENV_CLEANUP_RETENTION_HOURS = "STORAGE_CLEANUP_RETENTION_HOURS"
@@ -127,12 +130,6 @@ object StorageConfig {
 
   // Per-user warehouses
   val ENV_WAREHOUSE_ENABLED = "STORAGE_WAREHOUSE_ENABLED"
-
-  // S3
-  val ENV_S3_ENDPOINT = "STORAGE_S3_ENDPOINT"
-  val ENV_S3_REGION = "STORAGE_S3_REGION"
-  val ENV_S3_AUTH_USERNAME = "STORAGE_S3_AUTH_USERNAME"
-  val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
 
   // Jupyter. Internal for server-side calls, public for the browser iframe. Equal
   // unless a deployment overrides one.

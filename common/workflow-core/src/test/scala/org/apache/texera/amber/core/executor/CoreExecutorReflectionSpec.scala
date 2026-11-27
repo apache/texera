@@ -427,35 +427,20 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
 }
 
 private object CoreExecutorReflectionSpec {
+
+  /** Emits nothing; the fixtures below differ only in their constructors and settings. */
+  abstract class EmptyExec extends OperatorExecutor {
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
+  }
+
   // Public so reflection inside ExecFactory can reach the no-arg constructor.
-  class NoArgExec extends OperatorExecutor {
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
-  }
+  class NoArgExec extends EmptyExec
 
-  class StringArgExec(val desc: String) extends OperatorExecutor {
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
-  }
+  class StringArgExec(val desc: String) extends EmptyExec
 
-  class IdxCountExec(val idx: Int, val workerCount: Int) extends OperatorExecutor {
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
-  }
+  class IdxCountExec(val idx: Int, val workerCount: Int) extends EmptyExec
 
-  class StringIdxCountExec(val desc: String, val idx: Int, val workerCount: Int)
-      extends OperatorExecutor {
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
-  }
+  class StringIdxCountExec(val desc: String, val idx: Int, val workerCount: Int) extends EmptyExec
 
   /** A setting with one Int property. */
   class LimitSetting extends StateReferencing {
@@ -468,20 +453,12 @@ private object CoreExecutorReflectionSpec {
   }
 
   /** Parses its setting in the class body; only a `(String, Int, Int)` constructor. */
-  class LimitExec(descString: String, val idx: Int, val workerCount: Int) extends OperatorExecutor {
+  class LimitExec(descString: String, val idx: Int, val workerCount: Int) extends EmptyExec {
     val setting: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
   }
 
-  class NameExec(descString: String) extends OperatorExecutor {
+  class NameExec(descString: String) extends EmptyExec {
     val setting: NameSetting = objectMapper.readValue(descString, classOf[NameSetting])
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
   }
 
   /** Equal to every setting of its class with the same limit, as a descriptor's equals is. */
@@ -495,21 +472,13 @@ private object CoreExecutorReflectionSpec {
   }
 
   /** Parses its descString twice, so it has two candidate settings, equal but not the same. */
-  class TwoSettingsExec(descString: String) extends OperatorExecutor {
+  class TwoSettingsExec(descString: String) extends EmptyExec {
     val first: EqualLimitSetting = objectMapper.readValue(descString, classOf[EqualLimitSetting])
     val second: EqualLimitSetting = objectMapper.readValue(descString, classOf[EqualLimitSetting])
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
   }
 
-  abstract class LimitExecBase(descString: String) extends OperatorExecutor {
+  abstract class LimitExecBase(descString: String) extends EmptyExec {
     val setting: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
   }
 
   /** Its setting is declared only in its superclass. */
@@ -521,10 +490,5 @@ private object CoreExecutorReflectionSpec {
   }
 
   /** Only a `(Long)` constructor — neither factory branch matches. */
-  class LongArgExec(val n: Long) extends OperatorExecutor {
-    override def processTuple(
-        tuple: org.apache.texera.amber.core.tuple.Tuple,
-        port: Int
-    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
-  }
+  class LongArgExec(val n: Long) extends EmptyExec
 }

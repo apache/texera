@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.s3.model._
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.core.sync.RequestBody
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, InputStream}
 import scala.jdk.CollectionConverters._
 
 /**
@@ -167,12 +167,9 @@ object S3StorageClient {
     // Helper to read a full buffer from input stream
     def readChunk(): Int = {
       var offset = 0
-      var read = 0
-      while (
-        offset < buffer.length && {
-          read = inputStream.read(buffer, offset, buffer.length - offset); read > 0
-        }
-      ) {
+      while (offset < buffer.length) {
+        val read = inputStream.read(buffer, offset, buffer.length - offset)
+        if (read <= 0) return offset
         offset += read
       }
       offset
@@ -197,27 +194,32 @@ object S3StorageClient {
 
     var uploadSuccess = false
     try {
-      // Upload all parts using an iterator
-      val allParts = Iterator
-        .iterate((1, firstChunkSize)) { case (partNum, _) => (partNum + 1, readChunk()) }
-        .takeWhile { case (_, size) => size > 0 }
-        .map {
-          case (partNumber, chunkSize) =>
-            val eTag = s3Client
-              .uploadPart(
-                UploadPartRequest
-                  .builder()
-                  .bucket(bucketName)
-                  .key(objectKey)
-                  .uploadId(uploadId)
-                  .partNumber(partNumber)
-                  .build(),
-                RequestBody.fromBytes(buffer.take(chunkSize))
-              )
-              .eTag()
-            CompletedPart.builder().partNumber(partNumber).eTag(eTag).build()
-        }
-        .toList
+      val allParts = new java.util.ArrayList[CompletedPart]()
+      var partNumber = 1
+      var chunkSize = firstChunkSize
+      while (chunkSize > 0) {
+        val partBytes = java.util.Arrays.copyOf(buffer, chunkSize)
+        val eTag = s3Client
+          .uploadPart(
+            UploadPartRequest
+              .builder()
+              .bucket(bucketName)
+              .key(objectKey)
+              .uploadId(uploadId)
+              .partNumber(partNumber)
+              .build(),
+            // Keep one private snapshot for this part and every SDK retry.
+            RequestBody.fromContentProvider(
+              () => new ByteArrayInputStream(partBytes),
+              partBytes.length.toLong,
+              "application/octet-stream"
+            )
+          )
+          .eTag()
+        allParts.add(CompletedPart.builder().partNumber(partNumber).eTag(eTag).build())
+        partNumber += 1
+        chunkSize = readChunk()
+      }
 
       val result = s3Client
         .completeMultipartUpload(
@@ -226,7 +228,7 @@ object S3StorageClient {
             .bucket(bucketName)
             .key(objectKey)
             .uploadId(uploadId)
-            .multipartUpload(CompletedMultipartUpload.builder().parts(allParts.asJava).build())
+            .multipartUpload(CompletedMultipartUpload.builder().parts(allParts).build())
             .build()
         )
         .eTag()

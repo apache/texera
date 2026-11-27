@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,3 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.apache.texera.amber.core.storage.result.iceberg
+
+import org.apache.iceberg.Table
+import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
+
+/**
+  * Test helper: lets the first `succeeding` `loadTable` calls through and fails the rest, as an
+  * unreachable catalog would. A missing table is not a failure: `delegate` still reports it.
+  */
+class FailingCatalog(delegate: Catalog, succeeding: Int) extends CountingCatalog(delegate) {
+  override def loadTable(identifier: TableIdentifier): Table = {
+    if (loadTableCalls.get() >= succeeding) {
+      throw new RuntimeException("catalog unavailable")
+    }
+    super.loadTable(identifier)
+  }
+}

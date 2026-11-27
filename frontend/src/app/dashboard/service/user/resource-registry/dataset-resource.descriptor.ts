@@ -59,6 +59,5 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
   // The endpoint toggles, so `next` is the caller's expectation rather than a payload.
   setPublished = (id: number) => this.datasetService.updateDatasetPublicity(id);
   coverUrl = (id: number) => this.datasetService.getDatasetCoverUrl(id).pipe(map(({ url }) => url));
-  setCover = (id: number, path: string) => this.datasetService.updateDatasetCoverImage(id, path);
   // No dataset-id endpoint exists, so `retrieveIds` stays absent and the id filter hides itself.
 }

@@ -29,13 +29,30 @@ import scala.jdk.CollectionConverters._
 
 class TupleUtilsSpec extends AnyFlatSpec with Matchers {
 
+  private def schemaOf(specs: (String, AttributeType)*): Schema =
+    new Schema(specs.map { case (name, tpe) => new Attribute(name, tpe) }: _*)
+
+  private def tupleOf(fields: (String, AttributeType, Any)*): Tuple = {
+    val schema = schemaOf(fields.map { case (n, t, _) => n -> t }: _*)
+    fields
+      .foldLeft(Tuple.builder(schema)) { case (b, (n, t, v)) => b.add(n, t, v) }
+      .build()
+  }
+
+  private def singleFieldJson(
+      name: String,
+      tpe: AttributeType,
+      value: Any
+  ): JsonNode = {
+    val result = TupleUtils.convertTuplesToJson(List(tupleOf((name, tpe, value))))
+    result should have size 1
+    result.head.get(name)
+  }
+
   // --- tuple2json ------------------------------------------------------------
 
   "TupleUtils.tuple2json" should "emit one JSON field per schema attribute, in the schema's declared order" in {
-    val schema = new Schema(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("name", AttributeType.STRING)
-    )
+    val schema = schemaOf("id" -> AttributeType.INTEGER, "name" -> AttributeType.STRING)
     val node = TupleUtils.tuple2json(schema, Array[Any](Int.box(7), "alice"))
     // Field iteration order on Jackson ObjectNode follows insertion order,
     // which mirrors the schema's getAttributeNames order.
@@ -45,7 +62,7 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "emit JSON null for null field values" in {
-    val schema = new Schema(new Attribute("v", AttributeType.STRING))
+    val schema = schemaOf("v" -> AttributeType.STRING)
     val node = TupleUtils.tuple2json(schema, Array[Any](null))
     assert(node.get("v").isNull)
   }
@@ -54,10 +71,7 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
     // Re-ordering the schema must change which slot of fieldVals each
     // attribute pulls from, because tuple2json indexes fieldVals via
     // schema.getIndex(attrName).
-    val schema = new Schema(
-      new Attribute("b", AttributeType.STRING),
-      new Attribute("a", AttributeType.STRING)
-    )
+    val schema = schemaOf("b" -> AttributeType.STRING, "a" -> AttributeType.STRING)
     val node = TupleUtils.tuple2json(schema, Array[Any]("first", "second"))
     assert(node.get("b").asText() == "first")
     assert(node.get("a").asText() == "second")
@@ -71,19 +85,6 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   // --- convertTuplesToJson ---------------------------------------------------
 
   "convertTuplesToJson" should "convert tuples with various field types correctly" in {
-    // Create a schema with different attribute types
-    val attributes = List(
-      new Attribute("stringCol", AttributeType.STRING),
-      new Attribute("intCol", AttributeType.INTEGER),
-      new Attribute("boolCol", AttributeType.BOOLEAN),
-      new Attribute("nullCol", AttributeType.ANY),
-      new Attribute("longStringCol", AttributeType.STRING),
-      new Attribute("shortBinaryCol", AttributeType.BINARY),
-      new Attribute("longBinaryCol", AttributeType.BINARY)
-    )
-
-    val schema = new Schema(attributes)
-
     // Create a string longer than maxStringLength (100)
     val longString = "a" * 150
 
@@ -92,16 +93,15 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
     val longBinaryData = Array.tabulate[Byte](100)(_.toByte)
 
     // Create a tuple with all the test data
-    val tuple = Tuple
-      .builder(schema)
-      .add("stringCol", AttributeType.STRING, "regular string")
-      .add("intCol", AttributeType.INTEGER, 42)
-      .add("boolCol", AttributeType.BOOLEAN, true)
-      .add("nullCol", AttributeType.ANY, null)
-      .add("longStringCol", AttributeType.STRING, longString)
-      .add("shortBinaryCol", AttributeType.BINARY, shortBinaryData)
-      .add("longBinaryCol", AttributeType.BINARY, longBinaryData)
-      .build()
+    val tuple = tupleOf(
+      ("stringCol", AttributeType.STRING, "regular string"),
+      ("intCol", AttributeType.INTEGER, 42),
+      ("boolCol", AttributeType.BOOLEAN, true),
+      ("nullCol", AttributeType.ANY, null),
+      ("longStringCol", AttributeType.STRING, longString),
+      ("shortBinaryCol", AttributeType.BINARY, shortBinaryData),
+      ("longBinaryCol", AttributeType.BINARY, longBinaryData)
+    )
 
     // Convert to JSON
     val result = TupleUtils.convertTuplesToJson(List(tuple))
@@ -148,26 +148,9 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle collections with multiple tuples" in {
-    // Create a simple schema
-    val attributes = List(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("name", AttributeType.STRING)
-    )
-
-    val schema = new Schema(attributes)
-
     // Create multiple tuples
-    val tuple1 = Tuple
-      .builder(schema)
-      .add("id", AttributeType.INTEGER, 1)
-      .add("name", AttributeType.STRING, "Alice")
-      .build()
-
-    val tuple2 = Tuple
-      .builder(schema)
-      .add("id", AttributeType.INTEGER, 2)
-      .add("name", AttributeType.STRING, "Bob")
-      .build()
+    val tuple1 = tupleOf(("id", AttributeType.INTEGER, 1), ("name", AttributeType.STRING, "Alice"))
+    val tuple2 = tupleOf(("id", AttributeType.INTEGER, 2), ("name", AttributeType.STRING, "Bob"))
 
     // Convert to JSON
     val results = TupleUtils.convertTuplesToJson(List(tuple1, tuple2))
@@ -181,71 +164,25 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle string exactly at the maximum length" in {
-    val attributes = List(
-      new Attribute("exactLengthString", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
-
     // Create string exactly at maxStringLength (100)
     val exactLengthString = "x" * 100
+    val text =
+      singleFieldJson("exactLengthString", AttributeType.STRING, exactLengthString).asText()
 
-    val tuple = Tuple
-      .builder(schema)
-      .add("exactLengthString", AttributeType.STRING, exactLengthString)
-      .build()
-
-    val result = TupleUtils.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    jsonNode.get("exactLengthString").asText() shouldBe exactLengthString
-    jsonNode.get("exactLengthString").asText() should have length 100
+    text shouldBe exactLengthString
+    text should have length 100
   }
 
   it should "handle empty binary data" in {
-    val attributes = List(
-      new Attribute("emptyBinary", AttributeType.BINARY)
-    )
-    val schema = new Schema(attributes)
-
-    // Empty binary data
-    val emptyBinaryData = Array[Byte]()
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("emptyBinary", AttributeType.BINARY, emptyBinaryData)
-      .build()
-
-    val result = TupleUtils.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    val emptyBinaryString = jsonNode.get("emptyBinary").asText()
+    val emptyBinaryString =
+      singleFieldJson("emptyBinary", AttributeType.BINARY, Array[Byte]()).asText()
     emptyBinaryString should include("size = 0 bytes")
   }
 
   it should "handle binary data from a single byte array" in {
-    val attributes = List(
-      new Attribute("singleBufferBinary", AttributeType.BINARY)
-    )
-    val schema = new Schema(attributes)
-
-    // Create binary data from a single byte array
-    val singleBufferData = "Hello, world!".getBytes()
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("singleBufferBinary", AttributeType.BINARY, singleBufferData)
-      .build()
-
-    val result = TupleUtils.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    val binaryString = jsonNode.get("singleBufferBinary").asText()
+    val binaryString =
+      singleFieldJson("singleBufferBinary", AttributeType.BINARY, "Hello, world!".getBytes())
+        .asText()
     binaryString should (
       startWith("<binary") and
         include("size = 13 bytes") // "Hello, world!" is 13 bytes
@@ -253,19 +190,11 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle various numeric types correctly" in {
-    val attributes = List(
-      new Attribute("intValue", AttributeType.INTEGER),
-      new Attribute("doubleValue", AttributeType.DOUBLE),
-      new Attribute("longValue", AttributeType.LONG)
+    val tuple = tupleOf(
+      ("intValue", AttributeType.INTEGER, Int.MaxValue),
+      ("doubleValue", AttributeType.DOUBLE, 3.14159),
+      ("longValue", AttributeType.LONG, Long.MaxValue)
     )
-    val schema = new Schema(attributes)
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("intValue", AttributeType.INTEGER, Int.MaxValue)
-      .add("doubleValue", AttributeType.DOUBLE, 3.14159)
-      .add("longValue", AttributeType.LONG, Long.MaxValue)
-      .build()
 
     val result = TupleUtils.convertTuplesToJson(List(tuple))
 
@@ -278,20 +207,10 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle multiple binary fields within the same tuple" in {
-    val attributes = List(
-      new Attribute("binaryField1", AttributeType.BINARY),
-      new Attribute("binaryField2", AttributeType.BINARY)
+    val tuple = tupleOf(
+      ("binaryField1", AttributeType.BINARY, Array[Byte](10, 20, 30)),
+      ("binaryField2", AttributeType.BINARY, Array[Byte](40, 50, 60))
     )
-    val schema = new Schema(attributes)
-
-    val binaryData1 = Array[Byte](10, 20, 30)
-    val binaryData2 = Array[Byte](40, 50, 60)
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("binaryField1", AttributeType.BINARY, binaryData1)
-      .add("binaryField2", AttributeType.BINARY, binaryData2)
-      .build()
 
     val result = TupleUtils.convertTuplesToJson(List(tuple))
 
@@ -312,10 +231,7 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "not truncate long strings when isVisualization is true" in {
-    val attributes = List(
-      new Attribute("longStringCol", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
+    val schema = schemaOf("longStringCol" -> AttributeType.STRING)
 
     // Create a string longer than maxStringLength (100)
     val longString = "a" * 150
@@ -447,24 +363,16 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle direct comparison between non-visualization and visualization mode" in {
-    val attributes = List(
-      new Attribute("col1", AttributeType.STRING),
-      new Attribute("col2", AttributeType.STRING),
-      new Attribute("col3", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
-
     // Create strings of various lengths
     val shortString = "short string" // under maxStringLength
     val exactLengthString = "x" * 100 // exactly maxStringLength
     val longString = "y" * 200 // over maxStringLength
 
-    val tuple = Tuple
-      .builder(schema)
-      .add("col1", AttributeType.STRING, shortString)
-      .add("col2", AttributeType.STRING, exactLengthString)
-      .add("col3", AttributeType.STRING, longString)
-      .build()
+    val tuple = tupleOf(
+      ("col1", AttributeType.STRING, shortString),
+      ("col2", AttributeType.STRING, exactLengthString),
+      ("col3", AttributeType.STRING, longString)
+    )
 
     // Convert with both modes
     val resultDefault = TupleUtils.convertTuplesToJson(List(tuple), false)
@@ -489,10 +397,7 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "apply visualization flag correctly to mixed collections" in {
-    val attributes = List(
-      new Attribute("value", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
+    val schema = schemaOf("value" -> AttributeType.STRING)
 
     // Create a collection with both short and long strings
     val tuples = List(
@@ -527,34 +432,25 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
   // hits it). The next two cases pin both branches exactly.
 
   it should "render the full bit string for a binary field of 13 bits or fewer" in {
-    val schema = new Schema(List(new Attribute("b", AttributeType.BINARY)))
     // 1 byte = 8 bits <= 10 (leading) + 3 (trailing), so no truncation/ellipsis.
-    val tuple = Tuple.builder(schema).add("b", AttributeType.BINARY, Array[Byte](5)).build()
-
-    val text = TupleUtils.convertTuplesToJson(List(tuple)).head.get("b").asText()
+    val text = singleFieldJson("b", AttributeType.BINARY, Array[Byte](5)).asText()
     text shouldBe "<binary 00000101, size = 1 bytes>"
   }
 
   it should "render leading-10 and trailing-3 preview bits with an ellipsis for larger binary fields" in {
-    val schema = new Schema(List(new Attribute("b", AttributeType.BINARY)))
     // 3 bytes = 24 bits > 13: preview = first 10 bits + "..." + last 3 bits.
     // bytes 0xFF,0x00,0xAA -> "11111111 00000000 10101010"
     //   leading 10 bits  = "1111111100"
     //   trailing 3 bits  = "010"
     val bytes = Array[Byte](0xff.toByte, 0x00.toByte, 0xaa.toByte)
-    val tuple = Tuple.builder(schema).add("b", AttributeType.BINARY, bytes).build()
-
-    val text = TupleUtils.convertTuplesToJson(List(tuple)).head.get("b").asText()
+    val text = singleFieldJson("b", AttributeType.BINARY, bytes).asText()
     text shouldBe "<binary 1111111100...010, size = 3 bytes>"
   }
 
   // TIMESTAMP passes through to the shared objectMapper unchanged.
   it should "pass timestamp fields through unchanged to the shared serializer" in {
-    val schema = new Schema(List(new Attribute("ts", AttributeType.TIMESTAMP)))
     val ts = Timestamp.valueOf("2023-01-15 08:30:45.123")
-    val tuple = Tuple.builder(schema).add("ts", AttributeType.TIMESTAMP, ts).build()
-
-    val node = TupleUtils.convertTuplesToJson(List(tuple)).head.get("ts")
+    val node = singleFieldJson("ts", AttributeType.TIMESTAMP, ts)
     node shouldBe objectMapper.valueToTree[JsonNode](ts)
   }
 }

@@ -25,7 +25,9 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
+import { mintTestToken } from "./api/test-token";
 import { env } from "./config/env";
+import { AgentState } from "./types/agent";
 
 const API = env.API_PREFIX;
 
@@ -33,21 +35,10 @@ let app: ReturnType<typeof buildApp>;
 let port: number;
 const openSockets: WebSocket[] = [];
 
-function mintTestToken(): string {
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(
-    JSON.stringify({
-      sub: "tester",
-      userId: 1,
-      email: "tester@example.com",
-      role: "REGULAR",
-      exp: Math.floor(Date.now() / 1000) + 3600,
-    })
-  ).toString("base64url");
-  return `${header}.${payload}.test-signature`;
-}
-
 const TOKEN = mintTestToken();
+const OTHER_USER_TOKEN = mintTestToken(2);
+// TOKEN's claims under a signature the dashboard service did not make.
+const FORGED_TOKEN = mintTestToken(1, "not-the-secret");
 
 async function createAgent(): Promise<string> {
   const res = await app.handle(
@@ -111,8 +102,10 @@ function collect(ws: WebSocket): Collector {
   };
 }
 
-function connect(agentId: string): { ws: WebSocket; messages: Collector } {
-  const ws = new WebSocket(`ws://localhost:${port}${API}/agents/${agentId}/react`);
+// A browser cannot set headers on a WebSocket, so the token rides in the query.
+function connect(agentId: string, token: string | null = TOKEN): { ws: WebSocket; messages: Collector } {
+  const query = token ? `?access-token=${token}` : "";
+  const ws = new WebSocket(`ws://localhost:${port}${API}/agents/${agentId}/react${query}`);
   openSockets.push(ws);
   return { ws, messages: collect(ws) };
 }
@@ -169,8 +162,49 @@ describe(`WS ${API}/agents/:id/react`, () => {
     expect(err.error).toBe("Agent not found");
   });
 
-  test("a stop command broadcasts a STOPPING status frame", async () => {
+  // An agent answers only to its owner: the answer for anyone else is the one for
+  // an agent that does not exist, and the socket never joins the agent's clients.
+  test.each([
+    ["another user's token", OTHER_USER_TOKEN],
+    ["the owner's claims under a forged signature", FORGED_TOKEN],
+    ["no token", null],
+    ["a token that is not a JWT", "not-a-jwt"],
+  ])("refuses a socket carrying %s", async (_label, token) => {
     const id = await createAgent();
+    const { ws, messages } = connect(id, token);
+    const closed = new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Agent not found");
+    await closed;
+    expect(_getAgentForTests(id)!.getClients().size).toBe(0);
+  });
+
+  test("ignores a prompt sent on a socket that does not belong to the owner", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    let ran = false;
+    (agent as any).sendMessage = async () => {
+      ran = true;
+      return { response: "", messages: [], usage: {}, stopped: false };
+    };
+
+    const { ws, messages } = connect(id, OTHER_USER_TOKEN);
+    // Send as soon as the socket opens, before the server's close reaches the client.
+    ws.addEventListener(
+      "open",
+      () => ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "run as the owner" })),
+      { once: true }
+    );
+    await new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
+    await messages.waitFor(m => m.type === "WsServerErrorEvent");
+
+    expect(ran).toBe(false);
+  });
+
+  test("a stop command mid-run broadcasts a STOPPING status frame", async () => {
+    const id = await createAgent();
+    (_getAgentForTests(id)! as any).state = "GENERATING";
     const { ws, messages } = connect(id);
     await waitOpen(ws);
     await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
@@ -179,6 +213,19 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
     expect(status.state).toBe("STOPPING");
+  });
+
+  test("a stop command on an idle agent leaves it AVAILABLE for the next prompt", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientStopCommand" }));
+
+    const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
+    expect(status.state).toBe("AVAILABLE");
+    expect(_getAgentForTests(id)!.getState()).toBe(AgentState.AVAILABLE);
   });
 
   test("a prompt with empty content yields an error frame", async () => {
@@ -297,6 +344,53 @@ describe(`WS ${API}/agents/:id/react`, () => {
     // is not left stuck on GENERATING.
     const resting = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
     expect(resting.state).toBe("AVAILABLE");
+  });
+
+  test("a prompt sent while a run is in flight is rejected, not interleaved (#8711)", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)! as any;
+
+    // Pin an initial warehouse so we can assert the busy-rejected prompt below
+    // never reaches setDelegateWarehouse and re-points it mid-run (#8711).
+    agent.setDelegateConfig({ userToken: "t", workflowId: 1, warehouseId: 7 });
+
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    let callCount = 0;
+    agent.sendMessage = async function (this: any) {
+      callCount++;
+      this.state = "GENERATING";
+      await gate;
+      this.state = "AVAILABLE";
+      return {
+        response: "done",
+        messages: [],
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        stopped: false,
+      };
+    };
+    agent.getReActSteps = () => [];
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "first", warehouseId: 7 }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
+    expect(agent.getDelegateConfig()?.warehouseId).toBe(7);
+
+    // Second prompt, mid-run, picks a *different* warehouse. It must be
+    // rejected before setDelegateWarehouse runs, so the in-flight run keeps
+    // writing to warehouse 7, not 99.
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "second", warehouseId: 99 }));
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Agent is busy processing another message");
+    expect(callCount).toBe(1);
+    expect(agent.getDelegateConfig()?.warehouseId).toBe(7);
+
+    release();
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+    expect(agent.getDelegateConfig()?.warehouseId).toBe(7);
   });
 
   test("a message for an agent that no longer exists yields an error frame", async () => {

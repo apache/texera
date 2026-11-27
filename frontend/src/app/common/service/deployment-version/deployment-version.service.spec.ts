@@ -17,11 +17,12 @@
  * under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { TestBed, fakeAsync, tick } from "@angular/core/testing";
+import { HttpTestingController } from "@angular/common/http/testing";
+import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NzNotificationRef, NzNotificationService } from "ng-zorro-antd/notification";
 import { Subject } from "rxjs";
+import { setupHttpServiceTest } from "../../testing/http-service-test-utils";
 import { NotificationService } from "../notification/notification.service";
 import { DeploymentVersionService, VERSION_MANIFEST_URL, VERSION_POLL_INTERVAL_MS } from "./deployment-version.service";
 
@@ -36,18 +37,13 @@ describe("DeploymentVersionService", () => {
 
   beforeEach(() => {
     notificationClick = new Subject<MouseEvent>();
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        NotificationService,
-        // ng-zorro's lower-level services are not under test; stub them so the
-        // real NotificationService can be constructed and spied on.
-        { provide: NzNotificationService, useValue: { blank: vi.fn(), remove: vi.fn() } },
-        { provide: NzMessageService, useValue: {} },
-      ],
-    });
-    service = TestBed.inject(DeploymentVersionService);
-    httpMock = TestBed.inject(HttpTestingController);
+    ({ service, httpMock } = setupHttpServiceTest(DeploymentVersionService, [
+      NotificationService,
+      // ng-zorro's lower-level services are not under test; stub them so the
+      // real NotificationService can be constructed and spied on.
+      { provide: NzNotificationService, useValue: { blank: vi.fn(), remove: vi.fn() } },
+      { provide: NzMessageService, useValue: {} },
+    ]));
     notification = TestBed.inject(NotificationService);
     blankSpy = vi.spyOn(notification, "blank").mockReturnValue({
       onClick: notificationClick,
@@ -86,48 +82,38 @@ describe("DeploymentVersionService", () => {
   });
 
   describe("checkForUpdate (malformed manifest)", () => {
-    it("ignores a manifest with no buildNumber field", () => {
-      const out = check();
-      takeManifestRequest().flush({});
-      expect(out.value).toBe(false);
-    });
-
-    it("ignores an empty-string buildNumber", () => {
-      const out = check();
-      takeManifestRequest().flush({ buildNumber: "" });
-      expect(out.value).toBe(false);
-    });
-
-    it("ignores a non-string buildNumber", () => {
-      const out = check();
-      takeManifestRequest().flush({ buildNumber: 12345 });
-      expect(out.value).toBe(false);
-    });
-
-    it("ignores a null response body", () => {
-      const out = check();
-      takeManifestRequest().flush(null);
-      expect(out.value).toBe(false);
+    (
+      [
+        ["ignores a manifest with no buildNumber field", {}],
+        ["ignores an empty-string buildNumber", { buildNumber: "" }],
+        ["ignores a non-string buildNumber", { buildNumber: 12345 }],
+        ["ignores a null response body", null],
+      ] as const
+    ).forEach(([label, body]) => {
+      it(label, () => {
+        const out = check();
+        takeManifestRequest().flush(body);
+        expect(out.value).toBe(false);
+      });
     });
   });
 
   describe("checkForUpdate (transport failures stay silent)", () => {
-    it("returns false on a network error", () => {
-      const out = check();
-      takeManifestRequest().error(new ProgressEvent("error"));
-      expect(out.value).toBe(false);
-    });
-
-    it("returns false on a 404 (manifest not deployed)", () => {
-      const out = check();
-      takeManifestRequest().flush("not found", { status: 404, statusText: "Not Found" });
-      expect(out.value).toBe(false);
-    });
-
-    it("returns false on a 500 server error", () => {
-      const out = check();
-      takeManifestRequest().flush("boom", { status: 500, statusText: "Server Error" });
-      expect(out.value).toBe(false);
+    (
+      [
+        ["returns false on a network error", r => r.error(new ProgressEvent("error"))],
+        [
+          "returns false on a 404 (manifest not deployed)",
+          r => r.flush("not found", { status: 404, statusText: "Not Found" }),
+        ],
+        ["returns false on a 500 server error", r => r.flush("boom", { status: 500, statusText: "Server Error" })],
+      ] as [string, (req: ReturnType<typeof takeManifestRequest>) => void][]
+    ).forEach(([label, respond]) => {
+      it(label, () => {
+        const out = check();
+        respond(takeManifestRequest());
+        expect(out.value).toBe(false);
+      });
     });
   });
 

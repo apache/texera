@@ -20,124 +20,67 @@
 <nz-space-compact
   class="filter-button-group"
   ngbDropdown>
+  @for (date of dateDropdowns; track date.field) {
   <a
-    [nzDropdownMenu]="mtimeSearchOptions"
+    [nzDropdownMenu]="dateMenu"
     nz-dropdown
     nzTrigger="click"
-    [nzOverlayStyle]="{'border-style': 'double'}"
-    class="modification-time-button">
+    [nzOverlayStyle]="{ 'border-style': 'double' }"
+    [class]="date.cssClass">
     <button
-      id="mtimeSort"
+      [id]="date.id"
       ngbDropdownToggle
       nz-button
-      title="Modification Time">
+      [title]="date.title">
       <i
         nz-icon
-        nzType="form"
+        [nzType]="date.icon"
         nzTheme="outline"></i>
     </button>
   </a>
-
-  <nz-dropdown-menu #mtimeSearchOptions="nzDropdownMenu">
+  <nz-dropdown-menu #dateMenu="nzDropdownMenu">
     <nz-range-picker
       nzInline
-      [(ngModel)]="selectedMtime"
-      (ngModelChange)="buildMasterFilterList()"
+      [ngModel]="date.field === 'mtime' ? selectedMtime : selectedCtime"
+      (ngModelChange)="onDateRangeChange(date.field, $event)"
       ngDefaultControl></nz-range-picker>
   </nz-dropdown-menu>
-
-  <a
-    [nzDropdownMenu]="ctimeSearchOptions"
-    nz-dropdown
-    nzTrigger="click"
-    [nzOverlayStyle]="{'border-style': 'double'}"
-    class="search-creation-time-button">
-    <button
-      id="ctimeSort"
-      ngbDropdownToggle
-      nz-button
-      title="Creation Time">
-      <i
-        nz-icon
-        nzType="calendar"
-        nzTheme="outline"></i>
-    </button>
-  </a>
-  <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
-    <nz-range-picker
-      nzInline
-      [(ngModel)]="selectedCtime"
-      (ngModelChange)="buildMasterFilterList()"
-      ngDefaultControl></nz-range-picker>
-  </nz-dropdown-menu>
-
+  } @for (facet of facetDropdowns; track facet.field) { @if (facet.field === "owner" || (isLogin && hasIdFilter)) {
   <a
     [hidden]="!isLogin"
-    [nzDropdownMenu]="ownerSearchOptions"
+    [nzDropdownMenu]="facetMenu"
     nz-dropdown
     nzTrigger="click"
-    [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-    class="search-owners-button">
+    [nzOverlayStyle]="{ 'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double' }"
+    [class]="facet.cssClass">
     <button
-      id="sortOwner"
+      [id]="facet.id"
       ngbDropdownToggle
       nz-button
-      title="Owner">
+      [title]="facet.title">
       <i
         nz-icon
         nzTheme="outline"
-        nzType="user"></i>
+        [nzType]="facet.icon"></i>
     </button>
   </a>
-  <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
-    <ul
-      nz-menu
-      *ngFor="let owner of owners">
+  }
+  <nz-dropdown-menu #facetMenu="nzDropdownMenu">
+    @for (entry of facet.field === "owner" ? owners : wids; track entry) {
+    <ul nz-menu>
       <li nz-menu-item>
         <label
           nz-checkbox
           ngDefaultControl
-          [(ngModel)]="owner.checked"
-          (ngModelChange)="updateSelectedOwners()"
-          >{{owner.userName}}</label
+          [(ngModel)]="entry.checked"
+          (ngModelChange)="facet.field === 'owner' ? updateSelectedOwners() : updateSelectedIDs()"
+          >{{ facetEntryLabel(entry) }}</label
         >
       </li>
     </ul>
+    }
   </nz-dropdown-menu>
-
-  <a
-    *ngIf="this.isLogin && hasIdFilter"
-    [nzDropdownMenu]="IDSearchOptions"
-    nz-dropdown
-    nzTrigger="click"
-    [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-    class="search-wids-button">
-    <button
-      id="sortID"
-      ngbDropdownToggle
-      nz-button
-      title="Workflow ID">
-      <i
-        nz-icon
-        nzTheme="outline"
-        nzType="ordered-list"></i>
-    </button>
-  </a>
-  <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
-    <ul
-      nz-menu
-      *ngFor="let wid of wids">
-      <li nz-menu-item>
-        <label
-          nz-checkbox
-          ngDefaultControl
-          [(ngModel)]="wid.checked"
-          (ngModelChange)="updateSelectedIDs()"
-          >{{wid.id}}</label
-        >
-      </li>
-    </ul>
-  </nz-dropdown-menu>
+  }
 
   <a
     [nzDropdownMenu]="operatorSearchOptions"

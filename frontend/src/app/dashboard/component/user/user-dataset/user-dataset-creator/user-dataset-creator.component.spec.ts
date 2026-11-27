@@ -17,25 +17,13 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
-import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { NzModalRef } from "ng-zorro-antd/modal";
 import { of, Subject, throwError } from "rxjs";
 import { UserDatasetCreatorComponent } from "./user-dataset-creator.component";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { commonTestProviders } from "../../../../../common/testing/test-utils";
-
-// Minimal stand-in for the "input" formly type (the real one comes from the app's
-// UI formly module). Registering it lets formly materialize the declared fields
-// into real form controls — with their validators — on render.
-@Component({ template: "", standalone: true })
-class StubFormlyInputComponent extends FieldType<FieldTypeConfig> {}
+import { createFormlyModalFixture } from "../../formly-modal-test-fixture";
 
 describe("UserDatasetCreatorComponent", () => {
   let modalClose: ReturnType<typeof vi.fn>;
@@ -49,34 +37,27 @@ describe("UserDatasetCreatorComponent", () => {
     notifySuccess = vi.fn();
     notifyError = vi.fn();
 
-    await TestBed.configureTestingModule({
-      imports: [
-        UserDatasetCreatorComponent,
-        BrowserAnimationsModule,
-        FormsModule,
-        ReactiveFormsModule,
-        FormlyModule.forRoot({
-          types: ["input", "checkbox", "textarea", "array"].map(name => ({
-            name,
-            component: StubFormlyInputComponent,
-          })),
-        }),
-        HttpClientTestingModule,
-      ],
-      providers: [
-        { provide: NzModalRef, useValue: { close: modalClose } },
-        { provide: DatasetService, useValue: { createDataset } },
-        { provide: NotificationService, useValue: { success: notifySuccess, error: notifyError } },
-        ...commonTestProviders,
-      ],
-    }).compileComponents();
+    return createFormlyModalFixture(
+      UserDatasetCreatorComponent,
+      ["input", "checkbox", "textarea", "array"],
+      modalClose,
+      {
+        providers: [
+          { provide: DatasetService, useValue: { createDataset } },
+          { provide: NotificationService, useValue: { success: notifySuccess, error: notifyError } },
+        ],
+      }
+    );
+  }
 
-    return TestBed.createComponent(UserDatasetCreatorComponent);
+  async function render() {
+    const fixture = await createFixture();
+    fixture.detectChanges();
+    return fixture;
   }
 
   it("should create and render the formly form", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
 
     expect(fixture.componentInstance).toBeTruthy();
     // Formly materializes the declared fields into real form controls on render.
@@ -84,15 +65,13 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("ngOnInit builds the name, description and contributors fields", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
 
     expect(fixture.componentInstance.fields.map(f => f.key)).toEqual(["name", "description", "contributors"]);
   });
 
   it("onClickCreate does nothing when the required name is empty (invalid form)", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
     const component = fixture.componentInstance;
 
     expect(component.form.valid).toBe(false); // name is required and empty
@@ -103,8 +82,7 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("onClickCreate creates a dataset with a sanitized name and closes the modal on success", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
     const component = fixture.componentInstance;
     component.form.get("name")?.setValue("My Dataset");
     component.form.get("description")?.setValue("desc");
@@ -126,8 +104,7 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("onClickCreate reports both the typed and the sanitized name when the name had to be rewritten", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
     const component = fixture.componentInstance;
     // Padded on both sides, and the only junk at the end is the whitespace itself.
     // That is what separates the four candidate trims: only stripping the leading
@@ -151,8 +128,7 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("onClickCreate reports a name that needed no rewriting just once", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
     const component = fixture.componentInstance;
     // Already lower-case, alphanumeric and hyphenated: sanitization is a no-op.
     component.form.get("name")?.setValue("already-clean-1");
@@ -165,8 +141,7 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("onClickCreate notifies with the stored name and closes with null when dataset creation fails", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
     const component = fixture.componentInstance;
     component.form.get("name")?.setValue("My Dataset");
     createDataset.mockReturnValue(throwError(() => ({ error: { message: "duplicate name" } })));
@@ -182,8 +157,7 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("onClickCreate locks the form while the creation request is still outstanding", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
     const component = fixture.componentInstance;
     component.form.get("name")?.setValue("My Dataset");
     // Never emits: the request is still in flight when we look at the flag.
@@ -198,8 +172,7 @@ describe("UserDatasetCreatorComponent", () => {
   });
 
   it("onClickCancel closes the modal with null", async () => {
-    const fixture = await createFixture();
-    fixture.detectChanges();
+    const fixture = await render();
 
     fixture.componentInstance.onClickCancel();
 

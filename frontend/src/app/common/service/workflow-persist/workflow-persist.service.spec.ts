@@ -24,13 +24,11 @@ import {
   WORKFLOW_BASE_URL,
   WORKFLOW_ID_URL,
   WORKFLOW_OWNER_URL,
-  WORKFLOW_SEARCH_URL,
   WORKFLOW_PERSIST_URL,
   WORKFLOW_CREATE_URL,
   WORKFLOW_DUPLICATE_URL,
   WORKFLOW_DELETE_URL,
   WORKFLOW_SET_DEFAULT_VIEW_URL,
-  WORKFLOW_LIST_URL,
   WORKFLOW_UPDATENAME_URL,
   WORKFLOW_UPDATEDESCRIPTION_URL,
   WORKFLOW_OWNER_NAME,
@@ -44,7 +42,6 @@ import { Workflow, WorkflowContent } from "../../type/workflow";
 import { AppSettings } from "../../app-setting";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
-import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { NotificationService } from "../notification/notification.service";
 import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { last } from "rxjs/operators";
@@ -144,33 +141,6 @@ describe("WorkflowPersistService", () => {
     req.flush(["alice@example.com", "bob@example.com"]);
 
     expect(result).toEqual(["alice@example.com", "bob@example.com"]);
-  });
-
-  it("searchWorkflows issues a GET to the search url and maps each entry", () => {
-    const params: SearchFilterParameters = {
-      createDateStart: null,
-      createDateEnd: null,
-      modifiedDateStart: null,
-      modifiedDateEnd: null,
-      owners: [],
-      ids: [],
-      operators: [],
-    };
-    const keywords = ["test"];
-    const entry = { workflow: { wid: 1, name: "w", content: '{"operators":[]}' } } as unknown as DashboardWorkflow;
-
-    let result: DashboardWorkflow[] | undefined;
-    service.searchWorkflows(keywords, params).subscribe(r => (result = r));
-
-    const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SEARCH_URL}?${toQueryStrings(keywords, params)}`);
-    expect(req.request.method).toBe("GET");
-    req.flush([entry]);
-
-    expect(result?.length).toBe(1);
-    // the mapping adds a `dashboardWorkflowEntry`; parseWorkflowInfo mutates the shared workflow
-    // in place, so the entry's own `workflow.content` is parsed too.
-    expect(result?.[0]).toHaveProperty("dashboardWorkflowEntry");
-    expect(result?.[0]?.workflow?.content).toEqual({ operators: [] });
   });
 
   describe("uncovered persist/retrieve/duplicate/delete endpoints", () => {
@@ -499,21 +469,6 @@ describe("WorkflowPersistService", () => {
 
       httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`).flush([]);
       expect(emitted).toBe(false);
-    });
-
-    it("retrieveWorkflowsBySessionUser GETs the list url and maps each entry", () => {
-      const entry = { workflow: { wid: 1, name: "w", content: '{"operators":[]}' } } as unknown as DashboardWorkflow;
-
-      let result: DashboardWorkflow[] | undefined;
-      service.retrieveWorkflowsBySessionUser().subscribe(r => (result = r));
-
-      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_LIST_URL}`);
-      expect(req.request.method).toBe("GET");
-      req.flush([entry]);
-
-      expect(result?.length).toBe(1);
-      expect(result?.[0]).toHaveProperty("dashboardWorkflowEntry");
-      expect(result?.[0]?.workflow?.content).toEqual({ operators: [] });
     });
 
     it("deleteWorkflow POSTs the wids to the delete url", () => {

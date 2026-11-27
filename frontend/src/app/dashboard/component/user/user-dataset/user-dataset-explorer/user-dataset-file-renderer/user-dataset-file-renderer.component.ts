@@ -23,7 +23,6 @@ import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subscription } from "rxjs";
 import * as Papa from "papaparse";
-import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
 import readXlsxFile from "read-excel-file";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
@@ -78,6 +77,21 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.MSEXCEL]: 10 * 1024 * 1024, // 10 MB for Excel spreadsheets
   [MIME_TYPES.MP4]: 50 * 1024 * 1024, // 50 MB for MP4 videos
   [MIME_TYPES.MP3]: 10 * 1024 * 1024, // 10 MB for MP3 audio files
+};
+
+const SAFE_URL_VIEWERS: Partial<Record<string, "displayImage" | "displayMP4" | "displayMP3">> = {
+  [MIME_TYPES.PNG]: "displayImage",
+  [MIME_TYPES.JPEG]: "displayImage",
+  [MIME_TYPES.WEBP]: "displayImage",
+  [MIME_TYPES.GIF]: "displayImage",
+  [MIME_TYPES.MP4]: "displayMP4",
+  [MIME_TYPES.MP3]: "displayMP3",
+};
+
+const TEXT_VIEWERS: Partial<Record<string, "displayMarkdown" | "displayJson" | "displayPlainText">> = {
+  [MIME_TYPES.MD]: "displayMarkdown",
+  [MIME_TYPES.JSON]: "displayJson",
+  [MIME_TYPES.TXT]: "displayPlainText",
 };
 
 @UntilDestroy()
@@ -198,14 +212,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.turnOffAllDisplay();
 
     // Pre-check - file size
-    const mimeType = getMimeType(this.filePath);
-    if (!this.isPreviewSupported(mimeType)) {
-      this.onFileTypePreviewUnsupported();
-      return;
-    }
-    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType];
-    if (this.fileSize != null && this.fileSize > limit) {
-      this.onFileSizeNotLoadable();
+    if (this.rejectInvalidPreview(getMimeType(this.filePath), this.fileSize)) {
       return;
     }
 
@@ -219,88 +226,69 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
           next: blob => {
             this.isLoading = false;
             const blobMimeType = getMimeType(this.filePath);
-            if (!this.isPreviewSupported(blobMimeType)) {
-              this.onFileTypePreviewUnsupported();
-              return;
-            }
-            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType];
-            const fileSize = blob.size;
-            if (fileSize > MaxSize) {
-              this.onFileSizeNotLoadable();
-              this.notificationService.warning(`File ${this.filePath} is too large to be previewed`);
+            if (this.rejectInvalidPreview(blobMimeType, blob.size, true)) {
               return;
             }
             this.currentFile = new File([blob], this.filePath, { type: blob.type });
-            // Handle different file types
-            switch (blobMimeType) {
-              case MIME_TYPES.PNG:
-              case MIME_TYPES.JPEG:
-              case MIME_TYPES.WEBP:
-              case MIME_TYPES.GIF:
-                this.displayImage = true;
-                this.loadSafeURL(blob);
-                break;
-              case MIME_TYPES.MP4:
-                this.displayMP4 = true;
-                this.loadSafeURL(blob);
-                break;
-
-              case MIME_TYPES.MP3:
-                this.displayMP3 = true;
-                this.loadSafeURL(blob);
-                break;
-
-              case MIME_TYPES.MSEXCEL:
-                readXlsxFile(blob).then(rows => {
-                  if (!isCurrent()) return;
-                  let parsedData: string[][] = [];
-                  rows.forEach(row => {
-                    // Convert each cell in the row to a string
-                    let stringRow = row.map(cell => (cell ? cell.toString() : ""));
-                    // Add the string array to the main array
-                    parsedData.push(stringRow);
-                  });
-                  if (parsedData.length > 0) {
-                    this.loadTabularFile(parsedData);
-                    this.displayXlsx = true;
-                  }
-                });
-                break;
-              case MIME_TYPES.CSV:
-                this.displayCSV = true;
-                // Handle CSV display
-                Papa.parse(this.currentFile, {
-                  complete: (results: ParseResult<any>) => {
-                    if (!isCurrent()) return;
-                    if (results.data.length > 0) {
-                      this.loadTabularFile(results.data);
-                    }
-                  },
-                  error: error => {
-                    if (!isCurrent()) return;
-                    console.error("Error parsing file:", error);
-                    this.onFileLoadingError();
-                  },
-                });
-                break;
-              case MIME_TYPES.MD:
-                this.displayMarkdown = true;
-                this.readFileAsText(blob, isCurrent);
-                break;
-              case MIME_TYPES.JSON:
-                this.displayJson = true;
-                this.readFileAsText(blob, isCurrent);
-                break;
-              case MIME_TYPES.TXT:
-              default:
-                this.displayPlainText = true;
-                this.readFileAsText(blob, isCurrent);
-                break;
-            }
+            this.activateViewer(blobMimeType, blob, this.currentFile, isCurrent);
           },
           error: () => this.onFileLoadingError(),
         });
     }
+  }
+
+  private rejectInvalidPreview(mimeType: string, size?: number, notifyOversize = false): boolean {
+    if (!this.isPreviewSupported(mimeType)) {
+      this.onFileTypePreviewUnsupported();
+      return true;
+    }
+    const maxSize = MIME_TYPE_SIZE_LIMITS_MB[mimeType];
+    if (size != null && size > maxSize) {
+      this.onFileSizeNotLoadable();
+      if (notifyOversize) {
+        this.notificationService.warning(`File ${this.filePath} is too large to be previewed`);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private activateViewer(blobMimeType: string, blob: Blob, file: File, isCurrent: () => boolean): void {
+    const mediaFlag = SAFE_URL_VIEWERS[blobMimeType];
+    if (mediaFlag) {
+      this[mediaFlag] = true;
+      this.loadSafeURL(blob);
+      return;
+    }
+    if (blobMimeType === MIME_TYPES.MSEXCEL) {
+      readXlsxFile(blob).then(rows => {
+        if (!isCurrent()) return;
+        const parsedData = rows.map(row => row.map(cell => (cell ? cell.toString() : "")));
+        if (parsedData.length > 0) {
+          this.loadTabularFile(parsedData);
+          this.displayXlsx = true;
+        }
+      });
+      return;
+    }
+    if (blobMimeType === MIME_TYPES.CSV) {
+      this.displayCSV = true;
+      Papa.parse(file, {
+        complete: (results: Papa.ParseResult<any>) => {
+          if (isCurrent() && results.data.length > 0) {
+            this.loadTabularFile(results.data);
+          }
+        },
+        error: error => {
+          if (!isCurrent()) return;
+          console.error("Error parsing file:", error);
+          this.onFileLoadingError();
+        },
+      });
+      return;
+    }
+    this[TEXT_VIEWERS[blobMimeType] ?? "displayPlainText"] = true;
+    this.readFileAsText(blob, isCurrent);
   }
 
   turnOffAllDisplay() {

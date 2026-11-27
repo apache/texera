@@ -27,6 +27,17 @@ import { NgFor } from "@angular/common";
 
 const NANOSECONDS_TO_SECONDS = 1_000_000_000;
 
+const RUNTIME_METRICS = [
+  ["Input Tuple Count", "inputTupleCount"],
+  ["Input Tuple Size (bytes)", "inputTupleSize"],
+  ["Output Tuple Count", "outputTupleCount"],
+  ["Output Tuple Size (bytes)", "outputTupleSize"],
+  ["Total Data Processing Time (s)", "dataProcessingTime"],
+  ["Total Control Processing Time (s)", "controlProcessingTime"],
+  ["Total Idle Time (s)", "idleTime"],
+  ["Number of Workers", "numWorkers"],
+] as const satisfies ReadonlyArray<readonly [string, keyof WorkflowRuntimeStatistics]>;
+
 interface ChartData {
   x: number[];
   y: number[];
@@ -45,16 +56,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
 
   private groupedStatistics?: Record<string, WorkflowRuntimeStatistics[]>;
-  public metrics: string[] = [
-    "Input Tuple Count",
-    "Input Tuple Size (bytes)",
-    "Output Tuple Count",
-    "Output Tuple Size (bytes)",
-    "Total Data Processing Time (s)",
-    "Total Control Processing Time (s)",
-    "Total Idle Time (s)",
-    "Number of Workers",
-  ];
+  public metrics: string[] = RUNTIME_METRICS.map(([label]) => label);
 
   ngOnInit(): void {
     if (!this.workflowRuntimeStatistics) {
@@ -75,7 +77,8 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Groups statistics by operator ID, converting times from nanoseconds to seconds,
-   * and adjusts timestamps relative to the initial timestamp.
+   * and adjusts timestamps relative to the initial timestamp. The grouped rows keep the
+   * same field names, so their time fields hold seconds, not the API's nanoseconds.
    */
   private groupStatisticsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
     if (!this.workflowRuntimeStatistics || this.workflowRuntimeStatistics.length === 0) {
@@ -96,10 +99,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
         const processedStat = {
           ...stat,
-          dataProcessingTime: stat.totalDataProcessingTime / NANOSECONDS_TO_SECONDS,
-          controlProcessingTime: stat.totalControlProcessingTime / NANOSECONDS_TO_SECONDS,
-          idleTime: stat.totalIdleTime / NANOSECONDS_TO_SECONDS,
-          numberOfWorkers: stat.numberOfWorkers,
+          dataProcessingTime: stat.dataProcessingTime / NANOSECONDS_TO_SECONDS,
+          controlProcessingTime: stat.controlProcessingTime / NANOSECONDS_TO_SECONDS,
+          idleTime: stat.idleTime / NANOSECONDS_TO_SECONDS,
           timestamp: stat.timestamp - initialTimestamp,
         };
 
@@ -123,36 +125,21 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       return [];
     }
 
-    const metricKeys = [
-      "inputTupleCount",
-      "inputTupleSize",
-      "outputTupleCount",
-      "outputTupleSize",
-      "dataProcessingTime",
-      "controlProcessingTime",
-      "idleTime",
-      "numberOfWorkers",
-    ];
-
-    const yValuesKey = metricKeys[metricIndex] || "numberOfWorkers";
-
-    return Object.entries(this.groupedStatistics)
-      .map(([operatorId, stats]) => {
-        const [operatorName] = operatorId.split("-");
-        const uuidLast6Digits = operatorId.slice(-6);
-
-        if (operatorName.startsWith("sink")) {
-          return null;
-        }
-
-        return {
+    const yValuesKey = RUNTIME_METRICS[metricIndex]?.[1] ?? "numWorkers";
+    return Object.entries(this.groupedStatistics).flatMap<ChartData>(([operatorId, stats]) => {
+      const [operatorName] = operatorId.split("-");
+      if (operatorName.startsWith("sink")) {
+        return [];
+      }
+      return [
+        {
           x: stats.map(stat => stat.timestamp / 1000),
           y: stats.map(stat => stat[yValuesKey]),
           mode: "lines",
-          name: `${operatorName}-${uuidLast6Digits}`,
-        };
-      })
-      .filter((data): data is ChartData => data !== null);
+          name: `${operatorName}-${operatorId.slice(-6)}`,
+        },
+      ];
+    });
   }
 
   /**
@@ -167,22 +154,12 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       return;
     }
 
+    const title = this.metrics[metricIndex];
     const layout = {
-      title: {
-        text: this.metrics[metricIndex],
-      },
-      xaxis: {
-        title: {
-          text: "Time (s)",
-        },
-      },
-      yaxis: {
-        title: {
-          text: this.metrics[metricIndex],
-        },
-      },
+      title: { text: title },
+      xaxis: { title: { text: "Time (s)" } },
+      yaxis: { title: { text: title } },
     };
-
     Plotly.newPlot("chart", dataset, layout);
   }
 }
