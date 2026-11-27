@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.executor
 
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.core.workflow.PortIdentity
 
@@ -34,6 +35,15 @@ trait SourceOperatorExecutor extends OperatorExecutor {
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
 
   def produceTuple(): Iterator[TupleLike]
+
+  /**
+    * Source operators whose data is already columnar (e.g. an Arrow file) can
+    * override this to hand out Arrow batches directly, skipping the per-row Tuple
+    * decode. The default returns None, meaning this source has no native columnar
+    * path and the engine uses produceTuple. The caller owns and closes each
+    * returned root. Honored only when the columnar wire is enabled.
+    */
+  def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = None
 
   override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
     // We assume there is only one input port for source operators. The current assumption
