@@ -64,6 +64,7 @@ class PieChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
 
   def manipulateTable(): PythonTemplateBuilder = {
     assert(value.nonEmpty, "Value Column cannot be empty")
+    assert(name.nonEmpty, "Name Column cannot be empty")
     pyb"""
          |        table.dropna(subset = [$value, $name], inplace = True) #remove missing values
          |"""
@@ -71,6 +72,7 @@ class PieChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(value.nonEmpty, "Value Column cannot be empty")
+    assert(name.nonEmpty, "Name Column cannot be empty")
     pyb"""
        |        fig = px.pie(table, names=$name, values=$value)
        |        fig.update_traces(textposition='inside', textinfo='percent+label')
