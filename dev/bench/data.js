@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795698073649,
+  "lastUpdate": 1795783572003,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -24285,6 +24285,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 511.8070167982558,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "f3fbe19f92e53a9b37cfe2eef32ae1666b28613c",
+          "message": "test(frontend): share workspace spec fixtures (#9536)\n\n### What changes were proposed in this PR?\nConsolidate repeated TestBed mounting, mock-reader, stream-stub,\nconsole-frame, and result-exportation fixtures across 7 Angular\nworkspace unit-test specs under `frontend/src/app/workspace/` (**+1,355\n/ −2,116 lines**) without modifying production code or test assertions:\n\n- **Computing unit selection\n(`computing-unit-selection.component.spec.ts`):** Extracts\n`createMetaStream`, `makeLockedPve`, `bootWithSelectedStream`, unified\n`bootWithMetadata` / `openEditModal` / `makeWarehouse` fixtures, and\ninline-edit helpers across all 214 cases.\n- **Hugging Face media uploads\n(`hugging-face-audio-upload.component.spec.ts`,\n`hugging-face-image-upload.component.spec.ts`):** Consolidates mock\nfile-reader fixtures, media selection helpers, and clear/error\nassertions across the audio (30 cases) and image (46 cases) upload\nspecs.\n- **Result exportation (`result-exportation.component.spec.ts`,\n`workflow-result-export.service.spec.ts`):** Extracts dialog TestBed\nmounting, dataset/flag builders, operator setup, alert assertions,\navailability checks, and table-driven blocked/warning/error scenarios\nacross the component (44 cases) and service (35 cases) specs.\n- **Console frame & port property editor\n(`console-frame.component.spec.ts`,\n`port-property-edit-frame.component.spec.ts`):** Shares TestBed\nconfiguration, timing/scroll/click probes, and console entry fixtures in\n`ConsoleFrameComponent` (51 cases), plus port graph stubs,\nproperty/display-name event emitters, and Quill editor Enter-commit\nhelpers in `PortPropertyEditFrameComponent` (36 cases).\n\n### Any related issues, documentation, discussions?\nCloses #9535.\n\n### How was this PR tested?\nVerified on Node 24 (`yarn-4.14.1.cjs install --immutable\n--inline-builds`) after final commit `1d46fcfa73`:\n\n```bash\nnode ./node_modules/prettier-eslint-cli/dist/index.js --list-different \\\n  src/app/workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component.spec.ts \\\n  src/app/workspace/component/hugging-face-image-upload/hugging-face-image-upload.component.spec.ts \\\n  src/app/workspace/component/power-button/computing-unit-selection.component.spec.ts \\\n  src/app/workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component.spec.ts \\\n  src/app/workspace/component/result-exportation/result-exportation.component.spec.ts \\\n  src/app/workspace/component/result-panel/console-frame/console-frame.component.spec.ts \\\n  src/app/workspace/service/workflow-result-export/workflow-result-export.service.spec.ts\nnode ./node_modules/eslint/bin/eslint.js \\\n  src/app/workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component.spec.ts \\\n  src/app/workspace/component/hugging-face-image-upload/hugging-face-image-upload.component.spec.ts \\\n  src/app/workspace/component/power-button/computing-unit-selection.component.spec.ts \\\n  src/app/workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component.spec.ts \\\n  src/app/workspace/component/result-exportation/result-exportation.component.spec.ts \\\n  src/app/workspace/component/result-panel/console-frame/console-frame.component.spec.ts \\\n  src/app/workspace/service/workflow-result-export/workflow-result-export.service.spec.ts\nnode ./node_modules/typescript/bin/tsc -p src/tsconfig.app.json --noEmit\nnode ./node_modules/typescript/bin/tsc -p src/tsconfig.spec.json --noEmit\n```\nObserved result: `prettier-eslint --list-different`, `eslint`, and both\nstrict `tsc --noEmit` checks exited `0`.\n\n```bash\nnode --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng.js test --watch=false --progress=false \\\n  --include src/app/workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component.spec.ts \\\n  --include src/app/workspace/component/hugging-face-image-upload/hugging-face-image-upload.component.spec.ts \\\n  --include src/app/workspace/component/power-button/computing-unit-selection.component.spec.ts \\\n  --include src/app/workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component.spec.ts \\\n  --include src/app/workspace/component/result-exportation/result-exportation.component.spec.ts \\\n  --include src/app/workspace/component/result-panel/console-frame/console-frame.component.spec.ts \\\n  --include src/app/workspace/service/workflow-result-export/workflow-result-export.service.spec.ts\n```\nObserved result: `7` test files passed (`456` passed, `0` failed, `0`\nskipped).\n\n```bash\nnode --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng.js test --watch=false --progress=false\n```\nObserved result: `255` test files passed (`7,387` passed, `1` skipped in\n`operator-property-edit-frame.component.spec.ts`, `0` failed).\n\n### Was this PR authored or co-authored using generative AI tooling?\nGenerated-by: Antigravity (Gemini 4 Neon)",
+          "timestamp": "2026-11-27T00:40:22Z",
+          "url": "https://github.com/apache/texera/commit/f3fbe19f92e53a9b37cfe2eef32ae1666b28613c"
+        },
+        "date": 1795783571057,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 894.1912686453036,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1727.0833900174696,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1916.2416593027428,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1214.2227358481532,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1820.1186661874935,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1924.5434214074749,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1252.4384169721216,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1838.9744019311036,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1906.2607254955517,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1048.75373253682,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1447.3252543103092,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1498.8296244727364,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1111.0174362932019,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1454.7796940728085,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1472.9845605947673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1090.4063065437006,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1416.2266059133456,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1432.8327884533414,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 662.339044905905,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 762.0024012058122,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 766.4762514048448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 631.3763532515491,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 745.3620341877208,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 740.0500617018465,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 620.1855780436921,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 727.8812036940268,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 722.5108561745191,
             "unit": "tuples/sec"
           }
         ]
