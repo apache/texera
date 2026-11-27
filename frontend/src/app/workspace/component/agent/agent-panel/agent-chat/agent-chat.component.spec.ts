@@ -79,8 +79,6 @@ function makeAgentInfo(overrides: Partial<AgentInfo> = {}): AgentInfo {
     id: AGENT_ID,
     name: "Test Agent",
     modelType: "gpt-test",
-    isBaselineMode: false,
-    createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };
 }

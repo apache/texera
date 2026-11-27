@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { of, throwError } from "rxjs";
+import { Observable, of, take, throwError } from "rxjs";
 import { AgentService, AgentInfo, AgentSettingsApi, ModelType, OperatorExecutionSummary } from "./agent.service";
 import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -30,6 +30,12 @@ import { TOKEN_KEY } from "../../../common/service/user/auth.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+
+function readSnapshot<T>(source: Observable<T>): T | undefined {
+  let current: T | undefined;
+  source.pipe(take(1)).subscribe(value => (current = value));
+  return current;
+}
 
 /**
  * Minimal WebSocket double. Installed with vi.stubGlobal so the service's
@@ -282,63 +288,6 @@ describe("AgentService", () => {
     });
   });
 
-  describe("getAgent", () => {
-    it("serves cache hits without issuing a request", () => {
-      seedAgent("agent-1");
-      let got: AgentInfo | undefined;
-
-      service.getAgent("agent-1").subscribe(a => (got = a));
-
-      httpMock.expectNone(r => r.url === "/api/agents/agent-1");
-      expect(got?.id).toBe("agent-1");
-      expect(got?.name).toBe("Bob");
-    });
-
-    it("fetches, maps and caches an unknown agent", () => {
-      let got: AgentInfo | undefined;
-      service.getAgent("agent-9").subscribe(a => (got = a));
-
-      httpMock
-        .expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-9")
-        .flush({
-          id: "agent-9",
-          name: "Eve",
-          modelType: "o3",
-          state: "GENERATING",
-          createdAt: "2026-06-11T00:00:00.000Z",
-          delegate: {
-            userToken: "secret",
-            userInfo: { uid: 1, name: "u", email: "u@example.com", role: "REGULAR" },
-            workflowId: 42,
-            workflowName: "wf",
-          },
-        });
-
-      expect(got?.createdAt).toBeInstanceOf(Date);
-      expect(got?.createdAt.getTime()).toBe(new Date("2026-06-11T00:00:00.000Z").getTime());
-      expect(got?.state).toBe(AgentState.GENERATING);
-      expect(got?.delegate?.workflowId).toBe(42);
-      expect((got?.delegate as any).userToken).toBeUndefined();
-
-      // Second lookup is a cache hit.
-      let again: AgentInfo | undefined;
-      service.getAgent("agent-9").subscribe(a => (again = a));
-      httpMock.expectNone(r => r.url === "/api/agents/agent-9");
-      expect(again).toBe(got);
-    });
-
-    it("maps a 404 to a descriptive error", () => {
-      let message: string | undefined;
-      service.getAgent("ghost").subscribe({ error: (e: unknown) => (message = (e as Error).message) });
-
-      httpMock
-        .expectOne(r => r.method === "GET" && r.url === "/api/agents/ghost")
-        .flush("not found", { status: 404, statusText: "Not Found" });
-
-      expect(message).toBe("Agent with ID ghost not found");
-    });
-  });
-
   describe("getAllAgents", () => {
     it("maps backend agents and evicts stale local ones", () => {
       seedAgent("agent-1");
@@ -366,9 +315,10 @@ describe("AgentService", () => {
         });
 
       expect(result?.map(a => a.id)).toEqual(["agent-2"]);
+      expect(result?.[0]).toMatchObject({ name: "Eve", modelType: "o3" });
       expect(result?.[0].state).toBe(AgentState.GENERATING);
-      expect(result?.[0].createdAt).toBeInstanceOf(Date);
       expect(result?.[0].delegate?.workflowId).toBe(7);
+      expect((result?.[0].delegate as any).userToken).toBeUndefined();
       // agent-1 was not on the backend: cache and tracking are gone.
       expect((service as any).agents.has("agent-1")).toBe(false);
       expect((service as any).agentStateTracking.has("agent-1")).toBe(false);
@@ -787,7 +737,7 @@ describe("AgentService", () => {
         expect(step.operatorAccess).toBeInstanceOf(Map);
         expect(step.operatorAccess?.get(0)?.viewedOperatorIds).toEqual(["v1"]);
 
-        expect(service.getHeadId("agent-1")).toBe("h1");
+        expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBe("h1");
         expect(workflow!.content).toEqual({ operators: ["op"] });
         expect((service as any).agentStateTracking.get("agent-1").wsWorkflowActive).toBe(true);
 
@@ -812,7 +762,7 @@ describe("AgentService", () => {
         });
         expect(steps.length).toBe(1);
         expect(steps[0].isEnd).toBe(false);
-        expect(service.getHeadId("agent-1")).toBe("s1");
+        expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBe("s1");
 
         // Same messageId + stepId: the existing step is replaced, not appended.
         emit(ws, {
@@ -821,7 +771,7 @@ describe("AgentService", () => {
         });
         expect(steps.length).toBe(1);
         expect(steps[0].isEnd).toBe(true);
-        expect(service.getVisibleSteps("agent-1").length).toBe(1);
+        expect(readSnapshot(service.getReActStepsObservable("agent-1"))?.length).toBe(1);
 
         // A new step with afterWorkflowContent also updates the workflow.
         emit(ws, {
@@ -835,7 +785,7 @@ describe("AgentService", () => {
           },
         });
         expect(steps.length).toBe(2);
-        expect(service.getHeadId("agent-1")).toBe("s2");
+        expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBe("s2");
         expect(workflow!.content).toEqual({ operators: [1] });
         expect((service as any).agentStateTracking.get("agent-1").wsWorkflowActive).toBe(true);
       });
@@ -910,7 +860,7 @@ describe("AgentService", () => {
         emit(FakeWebSocket.latest(), { type: "WsServerStepEvent" });
 
         expect(steps).toEqual([]);
-        expect(service.getHeadId("agent-1")).toBeNull();
+        expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBeNull();
       });
 
       it("advances HEAD to the synthesised id when the step carries none", () => {
@@ -924,7 +874,7 @@ describe("AgentService", () => {
 
         // convertApiReActStep falls back to `${messageId}-${stepId || 0}`, which is
         // always a non-empty string, so a step never fails the HEAD guard.
-        expect(service.getHeadId("agent-1")).toBe("m9-0");
+        expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBe("m9-0");
       });
 
       it("ignores a status event that carries no state", () => {
@@ -1106,47 +1056,6 @@ describe("AgentService", () => {
     });
   });
 
-  describe("getReActStepsByOperatorAccess", () => {
-    it("collects viewing and modifying steps exactly once each", () => {
-      let result: { viewedBy: ReActStep[]; modifiedBy: ReActStep[] } | undefined;
-      service.getReActStepsByOperatorAccess("agent-1", "op-7").subscribe(r => (result = r));
-
-      httpMock
-        .expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/react-steps")
-        .flush({
-          state: "AVAILABLE",
-          steps: [
-            {
-              messageId: "viewer",
-              timestamp: "2026-06-11T00:00:00.000Z",
-              // Two accesses mention op-7: the step must appear only once.
-              operatorAccess: {
-                "0": { viewedOperatorIds: ["op-7"], addedOperatorIds: [], modifiedOperatorIds: [] },
-                "1": { viewedOperatorIds: ["op-7"], addedOperatorIds: [], modifiedOperatorIds: [] },
-              },
-            },
-            {
-              messageId: "modifier",
-              timestamp: "2026-06-11T00:00:00.000Z",
-              operatorAccess: {
-                "0": { viewedOperatorIds: [], addedOperatorIds: [], modifiedOperatorIds: ["op-7"] },
-              },
-            },
-            {
-              messageId: "bystander",
-              timestamp: "2026-06-11T00:00:00.000Z",
-              operatorAccess: {
-                "0": { viewedOperatorIds: ["other"], addedOperatorIds: [], modifiedOperatorIds: [] },
-              },
-            },
-          ],
-        });
-
-      expect(result?.viewedBy.map(s => s.messageId)).toEqual(["viewer"]);
-      expect(result?.modifiedBy.map(s => s.messageId)).toEqual(["modifier"]);
-    });
-  });
-
   describe("agent request routing and fallbacks", () => {
     it("attaches X-Agent-Workflow-Id when the agent's tracking has a workflowId", () => {
       service.ensureWorkflowPolling("agent-1", 42);
@@ -1215,21 +1124,7 @@ describe("AgentService", () => {
       expect(notification.error).toHaveBeenCalledWith("nope");
     });
 
-    it("posts operator ids and converts the returned steps", () => {
-      service.ensureWorkflowPolling("agent-1", 42);
-      let result: { steps: ReActStep[] } | undefined;
-      service.getStepsByOperatorIds("agent-1", ["op-1"]).subscribe(r => (result = r));
-
-      const req = httpMock.expectOne(r => r.method === "POST" && r.url === "/api/agents/agent-1/steps-by-operators");
-      expect(req.request.body).toEqual({ operatorIds: ["op-1"] });
-      expect(req.request.headers.get("X-Agent-Workflow-Id")).toBe("42");
-      req.flush({ steps: [{ messageId: "m1", timestamp: "2026-06-11T00:00:00.000Z" }] });
-
-      expect(result?.steps.length).toBe(1);
-      expect(result?.steps[0].id).toBe("m1-0");
-    });
-
-    it("falls back for system-info, operator-types and steps-by-operators failures", () => {
+    it("falls back for system-info and operator-types failures", () => {
       let systemInfo: { systemPrompt: string; tools: unknown[] } | undefined;
       service.getSystemInfo("agent-1").subscribe(s => (systemInfo = s));
       httpMock
@@ -1243,25 +1138,6 @@ describe("AgentService", () => {
         .expectOne(r => r.url === "/api/agents/agent-1/operator-types")
         .flush("boom", { status: 500, statusText: "Server Error" });
       expect(operatorTypes).toEqual([]);
-
-      let steps: { steps: ReActStep[] } | undefined;
-      service.getStepsByOperatorIds("agent-1", ["op-1"]).subscribe(s => (steps = s));
-      httpMock
-        .expectOne(r => r.url === "/api/agents/agent-1/steps-by-operators")
-        .flush("boom", { status: 500, statusText: "Server Error" });
-      expect(steps).toEqual({ steps: [] });
-    });
-  });
-
-  describe("canvas annotation toggles", () => {
-    it("togglePortShapes drives showPortShapes$ and the synchronous getter", () => {
-      const seen: boolean[] = [];
-      service.showPortShapes$.subscribe(v => seen.push(v));
-
-      service.togglePortShapes(false);
-
-      expect(seen).toEqual([true, false]);
-      expect(service.getShowPortShapes()).toBe(false);
     });
   });
 
@@ -1292,35 +1168,23 @@ describe("AgentService", () => {
       expect((service as any).agentStateTracking.has("ghost")).toBe(false);
     });
 
-    it("isAgentConnected is false for an unavailable/unknown agent and true otherwise", () => {
-      let unknown: boolean | undefined;
-      service.isAgentConnected("ghost").subscribe(v => (unknown = v));
-      expect(unknown).toBe(false);
-
-      service.getAgentStateObservable("agent-1").subscribe();
-      (service as any).agentStateTracking.get("agent-1").stateSubject.next(AgentState.AVAILABLE);
-      let connected: boolean | undefined;
-      service.isAgentConnected("agent-1").subscribe(v => (connected = v));
-      expect(connected).toBe(true);
-    });
-
-    it("getHeadId / getHeadIdObservable return the tracked HEAD, or null when untracked", () => {
+    it("getHeadIdObservable returns the tracked HEAD, or null when untracked", () => {
       const emitted: (string | null)[] = [];
       service.getHeadIdObservable("agent-1").subscribe(v => emitted.push(v));
       (service as any).agentStateTracking.get("agent-1").headIdSubject.next("m1-2");
 
       expect(emitted).toEqual([null, "m1-2"]);
-      expect(service.getHeadId("agent-1")).toBe("m1-2");
-      expect(service.getHeadId("ghost")).toBeNull();
+      expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBe("m1-2");
+      expect(readSnapshot(service.getHeadIdObservable("ghost"))).toBeNull();
     });
 
-    it("getVisibleSteps returns the tracked snapshot, or [] when untracked", () => {
+    it("getReActStepsObservable returns the tracked steps, or [] when untracked", () => {
       service.getReActStepsObservable("agent-1").subscribe();
       const step = { messageId: "m1", stepId: 0 } as unknown as ReActStep;
       (service as any).agentStateTracking.get("agent-1").reActStepsSubject.next([step]);
 
-      expect(service.getVisibleSteps("agent-1")).toEqual([step]);
-      expect(service.getVisibleSteps("ghost")).toEqual([]);
+      expect(readSnapshot(service.getReActStepsObservable("agent-1"))).toEqual([step]);
+      expect(readSnapshot(service.getReActStepsObservable("ghost"))).toEqual([]);
     });
 
     it("getWorkflowObservable emits the tracked workflow, or null when untracked", () => {
@@ -1333,28 +1197,6 @@ describe("AgentService", () => {
       let untracked: Workflow | null | undefined = stubWorkflow;
       service.getWorkflowObservable("ghost").subscribe(w => (untracked = w));
       expect(untracked).toBeNull();
-    });
-
-    it("getAgentWorkflowId walks the delegate chain: missing agent, no delegate, full", () => {
-      expect(service.getAgentWorkflowId("ghost")).toBeUndefined();
-
-      (service as any).agents.set("no-delegate", { id: "no-delegate", name: "x" });
-      expect(service.getAgentWorkflowId("no-delegate")).toBeUndefined();
-
-      seedAgent("with-wf", 42);
-      expect(service.getAgentWorkflowId("with-wf")).toBe(42);
-    });
-
-    it("getAgentCount reports the number of registered agents", () => {
-      let empty: number | undefined;
-      service.getAgentCount().subscribe(c => (empty = c));
-      expect(empty).toBe(0);
-
-      seedAgent("agent-1");
-      seedAgent("agent-2");
-      let count: number | undefined;
-      service.getAgentCount().subscribe(c => (count = c));
-      expect(count).toBe(2);
     });
   });
 
@@ -1375,22 +1217,6 @@ describe("AgentService", () => {
     it("is a no-op when the agent has no tracking", () => {
       // No tracking entry exists for this id, so the method must return without throwing.
       expect(() => service.setHoveredMessage("ghost", { messageId: "m1" } as unknown as ReActStep)).not.toThrow();
-    });
-  });
-
-  describe("getReActStepsByOperatorAccess without operator access", () => {
-    it("skips steps whose operatorAccess is absent", () => {
-      let result: { viewedBy: ReActStep[]; modifiedBy: ReActStep[] } | undefined;
-      service.getReActStepsByOperatorAccess("agent-1", "op-7").subscribe(r => (result = r));
-
-      httpMock
-        .expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/react-steps")
-        .flush({
-          state: "AVAILABLE",
-          steps: [{ messageId: "no-access", timestamp: "2026-06-11T00:00:00.000Z" }],
-        });
-
-      expect(result).toEqual({ viewedBy: [], modifiedBy: [] });
     });
   });
 

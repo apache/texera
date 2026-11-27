@@ -37,8 +37,8 @@ import {
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { AppSettings } from "../../../common/app-setting";
-import { AgentState, ReActStep, ModelMessage } from "./agent-types";
-import { Workflow, WorkflowContent } from "../../../common/type/workflow";
+import { AgentState, ReActStep } from "./agent-types";
+import { Workflow } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { AuthService } from "../../../common/service/user/auth.service";
@@ -74,8 +74,6 @@ export interface AgentInfo {
   id: string;
   name: string;
   modelType: string;
-  isBaselineMode: boolean;
-  createdAt: Date;
   /** State is fetched from API */
   state?: AgentState;
   delegate?: {
@@ -167,16 +165,6 @@ interface ApiReActStepsResponse {
   state: string;
 }
 
-interface ApiMessageResponse {
-  response: string;
-  steps: any[];
-  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
-  stats: any;
-  stopped: boolean;
-  error?: string;
-  workflow: any;
-}
-
 interface LiteLLMModel {
   id: string;
   object: string;
@@ -238,14 +226,6 @@ export class AgentService {
 
   /** Cached model types */
   private modelTypes$: Observable<ModelType[]> | null = null;
-
-  // ============================================================================
-  // Canvas annotation state (port shapes, step badges)
-  // ============================================================================
-
-  /** Whether to show output port shapes (rows, columns) on operators */
-  private showPortShapesSubject = new BehaviorSubject<boolean>(true);
-  public showPortShapes$ = this.showPortShapesSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -385,8 +365,6 @@ export class AgentService {
       id: api.id,
       name: api.name,
       modelType: api.modelType,
-      isBaselineMode: false,
-      createdAt: new Date(api.createdAt),
       state: this.mapStateToAgentState(api.state),
       delegate: api.delegate
         ? {
@@ -693,14 +671,6 @@ export class AgentService {
   }
 
   /**
-   * Get the workflow ID associated with an agent.
-   */
-  public getAgentWorkflowId(agentId: string): number | undefined {
-    const agent = this.agents.get(agentId);
-    return agent?.delegate?.workflowId;
-  }
-
-  /**
    * Create a new agent with the specified model type.
    * The user's JWT travels in the Authorization header (added by the JWT
    * interceptor), which the agent service requires for delegate mode.
@@ -743,28 +713,6 @@ export class AgentService {
           this.notificationService.error(errorMsg);
           return throwError(() => new Error(errorMsg));
         })
-      );
-    });
-  }
-
-  /**
-   * Get an agent by ID.
-   */
-  public getAgent(agentId: string): Observable<AgentInfo> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (agent) {
-        return of(agent);
-      }
-
-      // Fetch from API if not in cache
-      return this.http.get<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents/${agentId}`, this.agentHeaders(agentId)).pipe(
-        map(response => {
-          const agentInfo = this.mapApiAgentInfo(response);
-          this.agents.set(response.id, agentInfo);
-          return agentInfo;
-        }),
-        catchError(() => throwError(() => new Error(`Agent with ID ${agentId} not found`)))
       );
     });
   }
@@ -855,13 +803,6 @@ export class AgentService {
       .split("-")
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
-  }
-
-  /**
-   * Get the count of active agents.
-   */
-  public getAgentCount(): Observable<number> {
-    return of(this.agents.size);
   }
 
   /**
@@ -984,34 +925,11 @@ export class AgentService {
   }
 
   /**
-   * Check if an agent is connected.
-   */
-  public isAgentConnected(agentId: string): Observable<boolean> {
-    return this.getAgentState(agentId).pipe(map(state => state !== AgentState.UNAVAILABLE));
-  }
-
-  /**
    * Get HEAD step ID observable for an agent.
    */
   public getHeadIdObservable(agentId: string): Observable<string | null> {
     const tracking = this.getOrCreateStateTracking(agentId);
     return tracking.headIdSubject.asObservable();
-  }
-
-  /**
-   * Get current HEAD step ID for an agent.
-   */
-  public getHeadId(agentId: string): string | null {
-    const tracking = this.agentStateTracking.get(agentId);
-    return tracking ? tracking.headIdSubject.getValue() : null;
-  }
-
-  /**
-   * Get visible steps for an agent (current snapshot).
-   */
-  public getVisibleSteps(agentId: string): ReActStep[] {
-    const tracking = this.agentStateTracking.get(agentId);
-    return tracking ? tracking.reActStepsSubject.getValue() : [];
   }
 
   /**
@@ -1077,36 +995,6 @@ export class AgentService {
   ): Observable<{ viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }> {
     const tracking = this.getOrCreateStateTracking(agentId);
     return tracking.hoveredMessageSubject.asObservable();
-  }
-
-  /**
-   * Get ReActSteps that viewed or modified a specific operator.
-   */
-  public getReActStepsByOperatorAccess(
-    agentId: string,
-    operatorId: string
-  ): Observable<{ viewedBy: ReActStep[]; modifiedBy: ReActStep[] }> {
-    return this.getReActSteps(agentId).pipe(
-      map(allSteps => {
-        const viewedBy: ReActStep[] = [];
-        const modifiedBy: ReActStep[] = [];
-
-        for (const step of allSteps) {
-          if (step.operatorAccess) {
-            step.operatorAccess.forEach(access => {
-              if (access.viewedOperatorIds.includes(operatorId) && !viewedBy.includes(step)) {
-                viewedBy.push(step);
-              }
-              if (access.modifiedOperatorIds.includes(operatorId) && !modifiedBy.includes(step)) {
-                modifiedBy.push(step);
-              }
-            });
-          }
-        }
-
-        return { viewedBy, modifiedBy };
-      })
-    );
   }
 
   /**
@@ -1189,50 +1077,6 @@ export class AgentService {
         Array<{ type: string; description: string }>
       >(`${this.AGENT_API_BASE}/agents/${agentId}/operator-types`, this.agentHeaders(agentId))
       .pipe(catchError(() => of([])));
-  }
-
-  // ============================================================================
-  // Context Filtering Methods
-  // ============================================================================
-
-  /**
-   * Get ReActSteps relevant to the specified operator IDs.
-   * Fetches from the backend which filters steps based on which operators they affected.
-   *
-   * @param agentId - The agent ID
-   * @param operatorIds - The operator IDs to filter by
-   * @returns Observable with filtered ReActSteps
-   */
-  public getStepsByOperatorIds(agentId: string, operatorIds: string[]): Observable<{ steps: ReActStep[] }> {
-    return this.http
-      .post<{
-        steps: ReActStep[];
-      }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds }, this.agentHeaders(agentId))
-      .pipe(
-        map(response => ({
-          steps: this.convertApiReActSteps(response.steps),
-        })),
-        catchError(() =>
-          of({
-            steps: [],
-          })
-        )
-      );
-  }
-
-  // ============================================================================
-  // Canvas annotation toggles
-  // ============================================================================
-
-  /**
-   * Toggle whether output port shapes are shown on operators.
-   */
-  public togglePortShapes(show: boolean): void {
-    this.showPortShapesSubject.next(show);
-  }
-
-  public getShowPortShapes(): boolean {
-    return this.showPortShapesSubject.getValue();
   }
 
   // ============================================================================
