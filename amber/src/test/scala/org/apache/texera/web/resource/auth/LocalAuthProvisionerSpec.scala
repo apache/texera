@@ -19,15 +19,10 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.jooq.impl.DSL
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.Response
@@ -44,33 +39,12 @@ import javax.ws.rs.core.Response
   * the wrong one tells a user their free handle is taken, and the two write methods reach
   * different constraint sets, so a fix applied to one does not cover the other.
   */
-class LocalAuthProvisionerSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class LocalAuthProvisionerSpec extends AuthDatabaseSpec("@local-provisioner-test.com") {
 
   // Shared suffix so cleanup can target this suite's rows precisely; the auth_provider FK is
   // ON DELETE CASCADE, so deleting the user clears its credential rows.
-  private val emailDomain = "@local-provisioner-test.com"
-
-  private var userDao: UserDao = _
-  private var authDao: AuthProviderDao = _
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-    authDao = new AuthProviderDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = cleanup()
-  override protected def afterEach(): Unit = cleanup()
-
-  private def cleanup(): Unit =
-    getDSLContext.deleteFrom(USER).where(DSL.lower(USER.EMAIL).like("%" + emailDomain)).execute()
+  override protected def cleanup(): Unit =
+    deleteUsersByEmailDomain(caseInsensitive = true)
 
   // ---- helpers -------------------------------------------------------------
 
@@ -170,7 +144,7 @@ class LocalAuthProvisionerSpec
     // The claim and the credential share one transaction, so the rollback must leave the
     // placeholder flag as it was rather than marking an account claimed with no new credential.
     userDao.fetchOneByUid(claimed.getUid).getIsPlaceholder shouldBe true
-    providerIdOf(claimed.getUid) shouldBe "first-claimer"
+    providerIdOf(claimed.getUid, ProviderTypeEnum.LOCAL) shouldBe "first-claimer"
   }
 
   it should "report a taken handle when uq_provider_identity fires" in {
@@ -186,12 +160,4 @@ class LocalAuthProvisionerSpec
     thrown.getMessage should not include "has already been claimed"
     userDao.fetchOneByUid(placeholder.getUid).getIsPlaceholder shouldBe true
   }
-
-  private def providerIdOf(uid: Integer): String =
-    getDSLContext
-      .select(AUTH_PROVIDER.PROVIDER_ID)
-      .from(AUTH_PROVIDER)
-      .where(AUTH_PROVIDER.UID.eq(uid))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
-      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
 }

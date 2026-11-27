@@ -20,7 +20,7 @@
 package org.apache.texera.service.resource
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.{
   USER => USER_TABLE,
   WORKFLOW,
@@ -50,20 +50,11 @@ import org.apache.texera.service.resource.ComputingUnitManagingResource.Terminat
 import org.apache.texera.service.util.KubernetesClient
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.{doThrow, mock, never, verify, verifyNoInteractions}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-
 import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-class ComputingUnitIdleCleanupSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class ComputingUnitIdleCleanupSpec extends DatabaseFlatSpec(cleanupAfterEach = true) {
 
   private val testUserId = 810000 + scala.util.Random.nextInt(10000)
   private val testWorkflowId = 820000 + scala.util.Random.nextInt(10000)
@@ -77,17 +68,12 @@ class ComputingUnitIdleCleanupSpec
   private var workflowExecutionsDao: WorkflowExecutionsDao = _
   private var testVersion: WorkflowVersion = _
 
-  override protected def beforeAll(): Unit =
-    initializeDBAndReplaceDSLContext()
-
-  override protected def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit = {
     userDao = new UserDao(getDSLContext.configuration())
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
     workflowComputingUnitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
     workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
-
-    cleanupTestData()
 
     val user = new User
     user.setUid(testUserId)
@@ -110,13 +96,7 @@ class ComputingUnitIdleCleanupSpec
     workflowVersionDao.insert(testVersion)
   }
 
-  override protected def afterEach(): Unit =
-    cleanupTestData()
-
-  override protected def afterAll(): Unit =
-    shutdownDB()
-
-  private def cleanupTestData(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.UID.eq(testUserId))

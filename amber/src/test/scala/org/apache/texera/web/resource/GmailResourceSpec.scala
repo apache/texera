@@ -24,26 +24,21 @@ import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
 import ch.qos.logback.core.read.ListAppender
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.slf4j.LoggerFactory
 
 import java.util.UUID
 import javax.ws.rs.{BadRequestException, ForbiddenException, WebApplicationException}
 import scala.jdk.CollectionConverters._
 
-class GmailResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class GmailResourceSpec extends DatabaseFlatSpec(cleanupAfterEach = true) {
+
+  private def messageFor(receiver: String): EmailMessage =
+    EmailMessage(receiver = receiver, subject = "subj", content = "body")
 
   private def newSessionUser(): SessionUser = {
     val user = new User
@@ -56,11 +51,7 @@ class GmailResourceSpec
 
   it should "throw BadRequestException (HTTP 400) when the receiver fails email-format validation" in {
     val resource = new GmailResource()
-    val msg = EmailMessage(
-      receiver = "not-a-valid-email",
-      subject = "subj",
-      content = "body"
-    )
+    val msg = messageFor("not-a-valid-email")
     val ex = intercept[BadRequestException] {
       resource.sendEmailRequest(msg, newSessionUser())
     }
@@ -74,11 +65,7 @@ class GmailResourceSpec
     // server contact — and `sendEmail` returns `Left("Failed to send email:
     // ...")`. The resource then maps that `Left` to a 502 BadGateway.
     val resource = new GmailResource()
-    val msg = EmailMessage(
-      receiver = "valid@example.com",
-      subject = "subj",
-      content = "body"
-    )
+    val msg = messageFor("valid@example.com")
     val ex = intercept[WebApplicationException] {
       resource.sendEmailRequest(msg, newSessionUser())
     }
@@ -115,11 +102,7 @@ class GmailResourceSpec
     // keep this green with the fallback deleted — but as production stands it is a genuine
     // change-detector, and sendEmailRequest returns Unit so there is no seam for a direct assertion.
     val resource = new GmailResource()
-    val msg = EmailMessage(
-      receiver = "",
-      subject = "subj",
-      content = "body"
-    )
+    val msg = messageFor("")
     val ex = intercept[WebApplicationException] {
       resource.sendEmailRequest(msg, newSessionUser())
     }
@@ -134,7 +117,7 @@ class GmailResourceSpec
 
   "sendEmail" should "reject malformed recipient addresses before attempting delivery" in {
     requireNoRealGmailSender()
-    val msg = EmailMessage(receiver = "unused@example.com", subject = "subj", content = "body")
+    val msg = messageFor("unused@example.com")
     val malformed = Seq(
       null, // the `email != null` short-circuit: the regex would NPE on its own
       "plainaddress", // no '@' at all
@@ -155,7 +138,7 @@ class GmailResourceSpec
     // Distinguishes the two Left kinds: this one comes from the Try around createMimeMessage
     // (empty sender ⇒ AddressException), i.e. the guard let the address through. Without it the
     // test above could stay green under a regex that rejects everything.
-    val msg = EmailMessage(receiver = "unused@example.com", subject = "subj", content = "body")
+    val msg = messageFor("unused@example.com")
     GmailResource.sendEmail(msg, "ok@example.com") match {
       case Left(error) => error should startWith("Failed to send email:")
       case Right(_) =>
@@ -170,19 +153,11 @@ class GmailResourceSpec
   private val runId = UUID.randomUUID().toString.substring(0, 8)
   private var userDao: UserDao = _
 
-  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit =
     userDao = new UserDao(getDSLContext.configuration())
-    cleanup()
-  }
-
-  override protected def afterEach(): Unit = cleanup()
 
   // startsWith escapes SQL LIKE wildcards, so the literal "gmailspec_" prefix is matched exactly.
-  private def cleanup(): Unit =
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(USER).where(USER.NAME.startsWith("gmailspec_")).execute()
 
   /**
@@ -291,11 +266,7 @@ class GmailResourceSpec
     // runs to completion instead of throwing — the admin fan-out finds nothing and the applicant
     // acknowledgement returns a Left that the method discards — so `intercept` fails.
     val resource = new GmailResource()
-    val msg = EmailMessage(
-      receiver = "not-a-valid-email",
-      subject = "subj",
-      content = "body"
-    )
+    val msg = messageFor("not-a-valid-email")
     val ex = intercept[ForbiddenException] {
       resource.notifyUnauthorizedUser(msg)
     }

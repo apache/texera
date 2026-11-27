@@ -31,17 +31,30 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
   // Cases that require the suffix-present branch would need a JVM-level
   // env override before EmailTemplate loads — out of scope here.
 
+  private def registrationForAdmin(
+      userEmail: Option[String],
+      userName: Option[String],
+      affiliation: Option[String],
+      reason: Option[String]
+  ): EmailMessage =
+    EmailTemplate.userRegistrationNotification(
+      "admin@example.com",
+      userEmail,
+      userName,
+      affiliation,
+      reason,
+      toAdmin = true
+    )
+
   // -- userRegistrationNotification (admin branch) ----------------------------
 
   "userRegistrationNotification(toAdmin = true)" should
     "produce a subject and receiver and include the requesting user's email" in {
-    val msg = EmailTemplate.userRegistrationNotification(
-      receiverEmail = "admin@example.com",
+    val msg = registrationForAdmin(
       userEmail = Some("alice@example.com"),
       userName = Some("Alice Example"),
       affiliation = Some("UC Irvine"),
-      reason = Some("research"),
-      toAdmin = true
+      reason = Some("research")
     )
     msg.receiver shouldBe "admin@example.com"
     msg.subject should startWith("New Account Request Pending Approval")
@@ -53,43 +66,25 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "fall back to 'Unknown' when userEmail is None" in {
-    val msg = EmailTemplate.userRegistrationNotification(
-      receiverEmail = "admin@example.com",
+    val msg = registrationForAdmin(
       userEmail = None,
       userName = None,
       affiliation = Some("UC Irvine"),
-      reason = Some("research"),
-      toAdmin = true
+      reason = Some("research")
     )
     msg.content should include("Email: Unknown")
   }
 
   it should "render 'Not provided' for name, affiliation, and reason when blank" in {
-    val withNone = EmailTemplate.userRegistrationNotification(
-      receiverEmail = "admin@example.com",
-      userEmail = Some("alice@example.com"),
-      userName = None,
-      affiliation = None,
-      reason = None,
-      toAdmin = true
-    )
-    withNone.content should include("Affiliation: Not provided")
-    withNone.content should include("Reason: Not provided")
-    withNone.content should include("Name: Not provided")
-
-    val withBlank = EmailTemplate.userRegistrationNotification(
-      receiverEmail = "admin@example.com",
-      userEmail = Some("alice@example.com"),
-      userName = Some("   "),
-      affiliation = Some("   "),
-      reason = Some(""),
-      toAdmin = true
-    )
     // The `.filter(_.trim.nonEmpty)` guard treats whitespace-only and empty
     // strings the same as None.
-    withBlank.content should include("Affiliation: Not provided")
-    withBlank.content should include("Reason: Not provided")
-    withBlank.content should include("Name: Not provided")
+    Seq((None, None, None), (Some("   "), Some("   "), Some(""))).foreach {
+      case (userName, affiliation, reason) =>
+        val msg = registrationForAdmin(Some("alice@example.com"), userName, affiliation, reason)
+        msg.content should include("Affiliation: Not provided")
+        msg.content should include("Reason: Not provided")
+        msg.content should include("Name: Not provided")
+    }
   }
 
   // -- userRegistrationNotification (user branch) -----------------------------

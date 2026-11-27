@@ -22,7 +22,7 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs.core.Response
 import org.apache.texera.auth.SessionUser
 import io.fabric8.kubernetes.client.KubernetesClientException
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.service.util.{
   JupyterEndpointResolver,
   JupyterEndpoints,
@@ -53,9 +53,6 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion
 }
 import org.jooq.JSONB
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import com.sun.net.httpserver.HttpServer
 
@@ -66,11 +63,7 @@ import java.sql.Timestamp
 import java.util.UUID
 
 class NotebookMigrationResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterEach = true) {
 
   // Randomise the seeded wid so a parallel run of unrelated specs that happen
   // to seed the same id wouldn't collide on the embedded postgres.
@@ -95,10 +88,7 @@ class NotebookMigrationResourceSpec
   private val sampleMapping =
     """{"operator_to_cell":{},"cell_to_operator":{}}"""
 
-  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
-  override protected def afterAll(): Unit = closeConnectionPool()
-
-  override protected def beforeEach(): Unit = {
+  override protected def onBeforeEach(): Unit = {
     val cfg = getDSLContext.configuration()
     workflowDao = new WorkflowDao(cfg)
     workflowVersionDao = new WorkflowVersionDao(cfg)
@@ -131,8 +121,6 @@ class NotebookMigrationResourceSpec
     insertAccess(readerUid, PrivilegeEnum.READ)
   }
 
-  override protected def afterEach(): Unit = cleanup()
-
   private def insertUser(name: String, email: String): Integer = {
     val user = new User
     user.setName(name)
@@ -150,7 +138,7 @@ class NotebookMigrationResourceSpec
     workflowUserAccessDao.insert(access)
   }
 
-  private def cleanup(): Unit = {
+  override protected def cleanup(): Unit = {
     // Delete children before parents. workflow_user_access and notebook cascade
     // on workflow delete, but explicit deletes keep state observable across tests
     // and avoid depending on cascade ordering.
