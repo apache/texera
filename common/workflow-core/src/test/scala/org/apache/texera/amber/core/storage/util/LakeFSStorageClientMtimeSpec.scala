@@ -91,7 +91,7 @@ class LakeFSStorageClientMtimeSpec extends AnyFlatSpec with Matchers with ForAll
   objectStore.container.withNetwork(network)
 
   private val lakefs: GenericContainer = GenericContainer(
-    dockerImage = "treeverse/lakefs:1.51",
+    dockerImage = "treeverse/lakefs:1.80",
     exposedPorts = Seq(8000),
     env = Map(
       "LAKEFS_DATABASE_TYPE" -> "postgres",

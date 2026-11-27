@@ -442,7 +442,7 @@ describe("DatasetDetailComponent behavior", () => {
     modalServiceStub = { create: vi.fn() };
     downloadServiceStub = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),
-      downloadSingleFile: vi.fn(() => of(new Blob())),
+      downloadSingleFile: vi.fn(() => of("url")),
     };
     hubServiceStub = {
       getCounts: vi.fn(() => of([{ counts: { like: 0 } }])),
@@ -2091,7 +2091,7 @@ describe("DatasetDetailComponent rendered template", () => {
     };
     downloadService = {
       downloadDatasetVersion: vi.fn(() => of(new Blob())),
-      downloadSingleFile: vi.fn(() => of(new Blob())),
+      downloadSingleFile: vi.fn(() => of("url")),
     };
     notificationService = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     modalService = { create: vi.fn(() => ({ afterClose: of(undefined) })) };
