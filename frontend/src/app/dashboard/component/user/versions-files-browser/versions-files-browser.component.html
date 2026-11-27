@@ -133,8 +133,9 @@
         class="file-renderer">
       </texera-user-dataset-file-renderer>
     </nz-content>
+    <!-- Hidden rather than removed: the uploader inside must outlive a collapse, or its uploads are cut off. -->
     <nz-sider
-      *ngIf="!isRightBarCollapsed"
+      [hidden]="isRightBarCollapsed"
       nzTheme="light"
       [nzWidth]="siderWidth"
       nz-resizable

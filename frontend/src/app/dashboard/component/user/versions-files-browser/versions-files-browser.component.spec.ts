@@ -21,8 +21,10 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { VersionsFilesBrowserComponent } from "./versions-files-browser.component";
+import { VersionUploaderComponent } from "../version-uploader/version-uploader.component";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 
@@ -39,7 +41,12 @@ describe("VersionsFilesBrowserComponent", () => {
     notification = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     TestBed.configureTestingModule({
       imports: [VersionsFilesBrowserComponent, NoopAnimationsModule, ...commonTestImports],
-      providers: [{ provide: NotificationService, useValue: notification }, ...commonTestProviders],
+      providers: [
+        { provide: NotificationService, useValue: notification },
+        // The embedded uploader injects it; no test here opens a modal.
+        { provide: NzModalService, useValue: {} },
+        ...commonTestProviders,
+      ],
     });
     fixture = TestBed.createComponent(VersionsFilesBrowserComponent);
     component = fixture.componentInstance;
@@ -145,6 +152,26 @@ describe("VersionsFilesBrowserComponent", () => {
 
       expect(notification.error).toHaveBeenCalledWith("Failed to copy file path");
     });
+  });
+
+  it("keeps the uploader, and so its uploads, alive while the right bar is collapsed", () => {
+    component.writeAccess = true;
+    fixture.detectChanges();
+    const uploader = fixture.debugElement.query(By.directive(VersionUploaderComponent));
+    expect(uploader).not.toBeNull();
+
+    component.isRightBarCollapsed = true;
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(VersionUploaderComponent))?.componentInstance).toBe(
+      uploader.componentInstance
+    );
+    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")?.hasAttribute("hidden")).toBe(true);
+
+    component.isRightBarCollapsed = false;
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")?.hasAttribute("hidden")).toBe(false);
   });
 
   it("delegates notePathStaged to the embedded uploader", () => {
