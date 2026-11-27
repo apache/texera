@@ -86,7 +86,7 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
 
 # Ubuntu 24.04 rather than the 22.04 of the other images: Python workers run
 # this image's python3, and 24.04's is 3.12, a version pyamber's CI tests.
-FROM docker.io/library/eclipse-temurin:17-jdk-noble@sha256:53686f59c44e08ac3310d39ef9c3e3d3bb03370366d9c45802229c86fa2d8369 AS runtime
+FROM docker.io/library/eclipse-temurin:17-jdk-noble@sha256:bdd7eeee8f2259194d39a9525f09abfddcb97a7bdc6fcd97de6f83652e80f772 AS runtime
 
 WORKDIR /texera/amber
 
