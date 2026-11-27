@@ -49,7 +49,8 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
     if (n < count) {
       reservoir(n) = tuple
     } else {
-      val i = rand.nextInt(n)
+      // Algorithm R: the (n+1)-th item (n seen so far) replaces a slot with probability count/(n+1).
+      val i = rand.nextInt(n + 1)
       if (i < count) {
         reservoir(i) = tuple
       }
