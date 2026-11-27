@@ -35,4 +35,7 @@ object SpanAttrs {
 
   val WorkflowId: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.workflow.id")
   val ExecutionId: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.execution.id")
+  val ComputingUnitId: AttributeKey[java.lang.Long] =
+    AttributeKey.longKey("texera.computing_unit.id")
+  val OperatorCount: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.operator.count")
 }
