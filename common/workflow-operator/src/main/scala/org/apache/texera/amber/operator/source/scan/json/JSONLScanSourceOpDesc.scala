@@ -72,9 +72,8 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
 
     // The executor reads every value as the text Jackson gives it, so a column
     // this operator types STRING holds that text whatever the JSON held: 35.0 is
-    // "35.0", true is "true", and a null is "null", which is also why one null
-    // makes its column STRING. read_json keeps the values typed and the null a
-    // null. These columns are rebuilt from the lines the way LONG ones are.
+    // "35.0" and true is "true". read_json keeps the values typed. These columns
+    // are rebuilt from the lines the way LONG ones are.
     val stringColumns = named(AttributeType.STRING)
 
     // The lines are read into the script whenever something below needs them,
@@ -133,10 +132,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
         val nameLit = pyStringLiteral(name)
         lines += s"""out1df[$nameLit] = pd.array([_r.get($nameLit) for _r in _records], dtype="Int64")"""
       }
-      // A missing key is the executor's null. A key holding null is its "null".
+      // A missing key and a key holding null are both the executor's null.
       stringColumns.foreach { name =>
         val nameLit = pyStringLiteral(name)
-        lines += s"""out1df[$nameLit] = pd.Series([_texera_json_text(_r[$nameLit]) if $nameLit in _r else None for _r in _records], index=out1df.index, dtype="object")"""
+        lines += s"""out1df[$nameLit] = pd.Series([_texera_json_text(_r.get($nameLit)) for _r in _records], index=out1df.index, dtype="object")"""
       }
     }
 
@@ -322,15 +321,14 @@ object JSONLScanSourceOpDesc {
 
   /**
     * One JSON value as the text Jackson's `asText` gives it, which is what the
-    * executor reads every value as: `null` for a null, `true` and `false` in
-    * lower case, and a number the way Java prints it, with `_texera_java_text`
-    * from [[StandaloneHelpers.AttributeCasts]]. An object or an array is skipped
-    * by the executor, so it is no value here either.
+    * executor reads every value as: `true` and `false` in lower case, and a
+    * number the way Java prints it, with `_texera_java_text` from
+    * [[StandaloneHelpers.AttributeCasts]]. A null is no text, the empty cell
+    * `JSONUtils.JSONToMap` gives it, and an object or an array is skipped by the
+    * executor, so neither is a value here either.
     */
   val JsonText: String =
     """def _texera_json_text(value):
-      |    if value is None:
-      |        return "null"
       |    if isinstance(value, (bool, int, float)):
       |        return _texera_java_text(value)
       |    if isinstance(value, str):

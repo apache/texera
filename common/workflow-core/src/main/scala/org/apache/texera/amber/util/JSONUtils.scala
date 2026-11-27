@@ -98,6 +98,10 @@ object JSONUtils {
     * will be converted to Map[String, String]{"A" : "a", "B": "1", "C": "2.3",
     * "D.some":"object", "E1":"X", "E2":"Y"}.
     *
+    * A JSON null keeps its key and maps to a Scala null, so {"A": null} becomes
+    * Map("A" -> null): the key still names a column, and the value reads as an
+    * empty cell rather than the text "null".
+    *
     * @param node the JSONNode to convert.
     * @param flatten a boolean to toggle flatten mode.
     * @param parentName the parent's name to pass into children's naming conversion.
@@ -126,7 +130,7 @@ object JSONUtils {
           if (flatten && (child.isObject || child.isArray)) {
             stack.push((child, absoluteKey))
           } else if (child.isValueNode) {
-            result(absoluteKey) = child.asText()
+            result(absoluteKey) = valueText(child)
           } else {
             // do nothing
           }
@@ -136,10 +140,13 @@ object JSONUtils {
           stack.push((child, currentParent + (i + 1)))
         }
       } else if (current.isValueNode && currentParent.nonEmpty) {
-        result(currentParent) = current.asText()
+        result(currentParent) = valueText(current)
       }
     }
     result.toMap
   }
+
+  /** A value node's text, or null for a JSON null, whose `asText` is the word "null". */
+  private def valueText(node: JsonNode): String = if (node.isNull) null else node.asText()
 
 }

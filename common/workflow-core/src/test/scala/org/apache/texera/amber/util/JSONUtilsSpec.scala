@@ -45,9 +45,16 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "render JSON null as the literal string \"null\" for top-level fields" in {
-    val node = parse("""{"a":null}""")
-    JSONUtils.JSONToMap(node) shouldBe Map("a" -> "null")
+  it should "keep the key of a top-level JSON null with a null value, not the text \"null\"" in {
+    val node = parse("""{"a":null,"b":"x"}""")
+    JSONUtils.JSONToMap(node) shouldBe Map("a" -> null, "b" -> "x")
+  }
+
+  it should "keep every key when every field is null" in {
+    // The keys name the columns schema inference finds, so a field that is null
+    // on every sampled row still becomes a column.
+    val node = parse("""{"a":null,"b":null}""")
+    JSONUtils.JSONToMap(node) shouldBe Map("a" -> null, "b" -> null)
   }
 
   it should "skip nested objects when flatten=false" in {
@@ -147,9 +154,18 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "render JSON null as the literal string \"null\" for nested fields when flatten=true" in {
-    val node = parse("""{"outer":{"a":null}}""")
-    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("outer.a" -> "null")
+  it should "keep the key of a nested JSON null with a null value when flatten=true" in {
+    val node = parse("""{"outer":{"a":null},"b":"x"}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("outer.a" -> null, "b" -> "x")
+  }
+
+  it should "keep the indexed key of a JSON null inside a flattened array" in {
+    val node = parse("""{"arr":[1,null,"x"]}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map(
+      "arr1" -> "1",
+      "arr2" -> null,
+      "arr3" -> "x"
+    )
   }
 
   it should "contribute no entries for empty nested objects and arrays when flatten=true" in {

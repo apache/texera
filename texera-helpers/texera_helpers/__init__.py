@@ -598,8 +598,6 @@ def _texera_json_flatten(record):
 
 
 def _texera_json_text(value):
-    if value is None:
-        return "null"
     if isinstance(value, (bool, int, float)):
         return _texera_java_text(value)
     if isinstance(value, str):
