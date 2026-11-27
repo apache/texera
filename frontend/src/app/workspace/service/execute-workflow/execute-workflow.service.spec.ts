@@ -20,7 +20,7 @@
 import "zone.js/testing";
 
 import { DOCUMENT } from "@angular/core";
-import { ExecutionState, ExecutionStateInfo, LogicalPlan } from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo, LogicalPlan, OperatorState } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "./execute-workflow.service";
@@ -675,6 +675,145 @@ describe("ExecuteWorkflowService", () => {
       false,
       replayInfo
     );
+  });
+
+  // ---- breakpoints left by an earlier run ----------------------------------------------------
+
+  // Breakpoints live in the workflow's shared document, which outlives the run whose workers set
+  // them: a refreshed page gets them back from the collaboration server, with a status service that
+  // knows no operator yet. A new run's workers start with none, so starting a run must drop them all,
+  // and a run that is over has no workers left to hold them, so its end drops them too.
+  describe("breakpoints left by an earlier run (#9106)", () => {
+    const replayInfo: ReplayExecutionInfo = { eid: 42, interaction: "step-3" };
+    const breakpoint = { breakpointId: 1, condition: "", hit: true };
+
+    const leaveBreakpoint = (operatorId: string, line: number) => {
+      const graph = service["workflowActionService"].getTexeraGraph();
+      graph.createOperatorDebugState(operatorId);
+      const debugState = graph.getOperatorDebugState(operatorId);
+      debugState.set(String(line), breakpoint);
+      return debugState;
+    };
+
+    beforeEach(() => {
+      vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockReturnValue({} as LogicalPlan);
+      vi.spyOn(service, "sendExecutionRequest").mockImplementation(() => {});
+    });
+
+    it("starting a run drops every operator's breakpoints, including ones the status never mentioned", () => {
+      expect(TestBed.inject(WorkflowStatusService).getCurrentState()).toEqual({});
+      const firstUdf = leaveBreakpoint("udf-1", 11);
+      const secondUdf = leaveBreakpoint("udf-2", 4);
+
+      service.executeWorkflowWithEmailNotification("run", false);
+
+      expect(firstUdf.toJSON()).toEqual({});
+      expect(secondUdf.toJSON()).toEqual({});
+      expect(service.sendExecutionRequest).toHaveBeenCalled();
+    });
+
+    it("starting a Time Travel replay drops them too", () => {
+      const udf = leaveBreakpoint("udf-1", 11);
+
+      service.executeWorkflowWithReplay(replayInfo);
+
+      expect(udf.toJSON()).toEqual({});
+      expect(service.sendExecutionRequest).toHaveBeenCalled();
+    });
+
+    it("a run refused for want of a warehouse leaves them alone", () => {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+      try {
+        TestBed.inject(WarehouseService).selectWarehouse(undefined);
+        vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+        const udf = leaveBreakpoint("udf-1", 11);
+
+        service.executeWorkflowWithEmailNotification("run", false);
+
+        expect(udf.toJSON()).toEqual({ "11": breakpoint });
+      } finally {
+        TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+      }
+    });
+
+    it("a run or replay refused on a unit that cannot accept work leaves them alone", () => {
+      vi.spyOn(service["computingUnitStatusService"], "getSelectedComputingUnitValue").mockReturnValue({
+        computingUnit: { cuid: 7 },
+        status: "Failed",
+      } as unknown as DashboardWorkflowComputingUnit);
+      vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+      const udf = leaveBreakpoint("udf-1", 11);
+
+      service.executeWorkflowWithEmailNotification("run", false);
+      service.executeWorkflowWithReplay(replayInfo);
+
+      expect(udf.toJSON()).toEqual({ "11": breakpoint });
+    });
+
+    it("a run whose plan cannot be built leaves them alone", () => {
+      // once only: the static spy outlives this test, and later tests in the file expect it to return a plan
+      vi.mocked(ExecuteWorkflowService.getLogicalPlanRequest).mockImplementationOnce(() => {
+        throw "Logical plan error";
+      });
+      const udf = leaveBreakpoint("udf-1", 11);
+
+      expect(() => service.executeWorkflowWithEmailNotification("run", false)).toThrowError("Logical plan error");
+
+      expect(udf.toJSON()).toEqual({ "11": breakpoint });
+    });
+
+    for (const end of [
+      ExecutionState.Completed,
+      ExecutionState.Failed,
+      ExecutionState.Killed,
+      ExecutionState.Terminated,
+    ]) {
+      it(`a run that ends ${end} drops them before the end is announced, though the operator still shows Paused`, () => {
+        emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+        // a kill sends no final operator status, so the run's own state is all there is to go on
+        TestBed.inject(WorkflowStatusService).setExternalStatus({
+          "udf-1": { operatorState: OperatorState.Paused, aggregatedInputRowCount: 0, aggregatedOutputRowCount: 0 },
+        });
+        const firstUdf = leaveBreakpoint("udf-1", 11);
+        const secondUdf = leaveBreakpoint("udf-2", 4);
+        const leftWhenAnnounced: number[] = [];
+        service.getExecutionStateStream().subscribe(() => leftWhenAnnounced.push(firstUdf.size + secondUdf.size));
+
+        if (end === ExecutionState.Failed) emitWsEvent({ type: "WorkflowErrorEvent", fatalErrors: [] });
+        else emitWsEvent({ type: "WorkflowStateEvent", state: end });
+
+        expect(service.getExecutionState().state).toBe(end);
+        expect(TestBed.inject(WorkflowStatusService).getCurrentState()["udf-1"]).toBe(OperatorState.Paused);
+        expect(leftWhenAnnounced).toEqual([0]);
+      });
+    }
+
+    it("a run that is still going on leaves them alone", () => {
+      const udf = leaveBreakpoint("udf-1", 11);
+
+      for (const state of [
+        ExecutionState.Initializing,
+        ExecutionState.Running,
+        ExecutionState.Pausing,
+        ExecutionState.Paused,
+        ExecutionState.Resuming,
+        ExecutionState.Recovering,
+      ]) {
+        emitWsEvent({ type: "WorkflowStateEvent", state });
+        expect(udf.toJSON()).toEqual({ "11": breakpoint });
+      }
+    });
+
+    it("a page that stops following the run leaves them alone, since the run may go on without it", () => {
+      // leaving the workspace or switching units resets the state to Uninitialized; the run is not over
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Paused });
+      const udf = leaveBreakpoint("udf-1", 11);
+
+      service.resetExecutionAndWorkers();
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+      expect(udf.toJSON()).toEqual({ "11": breakpoint });
+    });
   });
 
   // ---- sendExecutionRequest branches ---------------------------------------------------------
