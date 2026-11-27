@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW
+import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import org.apache.texera.dao.jooq.generated.enums.DefaultViewEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
@@ -30,6 +30,8 @@ import org.jooq.{Condition, DSLContext}
 
 import javax.ws.rs.{BadRequestException, NotFoundException}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+
+import java.sql.Timestamp
 import scala.util.Try
 
 /**
@@ -54,10 +56,14 @@ object WorkflowPublishService extends LazyLogging {
     * What the share dialog asks about: whether the workflow is public, whether a version is pinned,
     * and whether that pin is holding edits back -- the last is true when pinning again would publish
     * something, and always false while following.
+    *
+    * @param pinnedVersionTime the date naming the pinned version in both the dialog and the
+    *                           revision panel.
     */
   case class PublishStatus(
       isPublished: Boolean,
       isPinned: Boolean,
+      pinnedVersionTime: Option[Timestamp],
       hasUnpublishedChanges: Boolean
   )
 
@@ -112,11 +118,14 @@ object WorkflowPublishService extends LazyLogging {
     * two statements, so a `/private` landing between them would otherwise be undone here, putting a
     * workflow the author had just taken down back on show under a frozen copy.
     *
-    * @return how many rows it matched -- zero for a workflow that is missing or not published.
+    * @return how many rows it matched -- zero for a workflow that is missing or not published.    *
+    * `versionId` names the row in the revision history that replays to this copy, so the history can
+    * mark which version is the published one.
     */
-  private def writePin(wid: Integer): Int =
-    context
+  private def writePin(ctx: DSLContext, wid: Integer, versionId: Integer): Unit =
+    ctx
       .update(WORKFLOW)
+      .set(WORKFLOW.PUBLISHED_VERSION_ID, versionId)
       .set(WORKFLOW.PUBLISHED_CONTENT, WORKFLOW.CONTENT)
       .set(WORKFLOW.PUBLISHED_NAME, WORKFLOW.NAME)
       .set(WORKFLOW.PUBLISHED_DESCRIPTION, WORKFLOW.DESCRIPTION)
@@ -129,9 +138,6 @@ object WorkflowPublishService extends LazyLogging {
     * row only with every frozen column set on a public workflow, or with every one of them NULL, so
     * clearing them one at a time -- or clearing them after `is_public` -- would be rejected.
     *
-    * `published_version_id` is named by that constraint as well but is not touched here, for the
-    * same reason [[writePin]] does not set it: nothing writes it yet, so it is NULL on every row.
-    *
     * Dropping a pin is offered on a published workflow only, so that condition travels in the same
     * statement: a `/private` landing between the guard and here cannot be answered with "unpinned,
     * following latest" about a workflow that is now down. Unpublishing carries no such condition --
@@ -142,6 +148,7 @@ object WorkflowPublishService extends LazyLogging {
   private def clearPin(wid: Integer, alsoUnpublish: Boolean = false): Int = {
     val cleared = context
       .update(WORKFLOW)
+      .set(WORKFLOW.PUBLISHED_VERSION_ID, null.asInstanceOf[Integer])
       .set(WORKFLOW.PUBLISHED_CONTENT, null.asInstanceOf[String])
       .set(WORKFLOW.PUBLISHED_NAME, null.asInstanceOf[String])
       .set(WORKFLOW.PUBLISHED_DESCRIPTION, null.asInstanceOf[String])
@@ -161,9 +168,35 @@ object WorkflowPublishService extends LazyLogging {
     * matching means one of two things, and the caller is told which.
     */
   def pinLatest(wid: Integer): PublishStatus = {
-    if (writePin(wid) == 0) {
-      requireWorkflow(wid) // 404s if it is gone
-      throw new BadRequestException(s"Workflow $wid is not published")
+    context.transaction { txConfig =>
+      val ctx = org.jooq.impl.DSL.using(txConfig)
+      // Locked, not merely read: two pins racing would both read before either wrote, and both
+      // insert an anchor. The lock is also what holds the publication check below: a `/private`
+      // arriving after it has to wait for this transaction rather than slipping under it.
+      val workflow = ctx
+        .selectFrom(WORKFLOW)
+        .where(WORKFLOW.WID.eq(wid))
+        .forUpdate()
+        .fetchOneInto(classOf[Workflow])
+      if (workflow == null) {
+        throw new NotFoundException(s"Workflow $wid not found")
+      }
+      // Before the anchor, not after: a pin that cannot land must not leave a version row behind.
+      if (!workflow.getIsPublic) {
+        throw new BadRequestException(s"Workflow $wid is not published")
+      }
+
+      // An anchor in the revision history for the copy being pinned: its delta is the identity patch,
+      // so replaying this row returns what was published however many edits pile up later. An
+      // existing version row cannot stand in, since one replays to the content as it was *before*
+      // the change it records. Pinning again unchanged reuses the anchor rather than adding a twin.
+      val anchorVid = Option(workflow.getPublishedVersionId)
+        .filter(_ =>
+          Option(workflow.getPublishedContent).exists(sameContent(_, workflow.getContent))
+        )
+        .getOrElse(WorkflowVersionResource.insertNewVersion(wid, ctx = ctx).getVid)
+
+      writePin(ctx, wid, anchorVid)
     }
     logger.info(s"Workflow $wid pinned to its latest content")
     statusOf(wid)
@@ -193,6 +226,22 @@ object WorkflowPublishService extends LazyLogging {
     logger.info(s"Workflow $wid unpublished")
   }
 
+  /** Read from the version row, so the dialog and the revision panel print one date rather than two. */
+  private def pinnedVersionTimeOf(versionId: Integer): Option[Timestamp] =
+    Option(
+      context
+        .select(WORKFLOW_VERSION.CREATION_TIME)
+        .from(WORKFLOW_VERSION)
+        .where(WORKFLOW_VERSION.VID.eq(versionId))
+        .fetchOneInto(classOf[Timestamp])
+    )
+
+  /** The date a public viewer should see: that of the version on show, not of an edit they cannot. */
+  def publicModifiedTime(workflow: Workflow): Timestamp =
+    Option(workflow.getPublishedVersionId)
+      .flatMap(pinnedVersionTimeOf)
+      .getOrElse(workflow.getLastModifiedTime)
+
   /** Whether a version is pinned, and whether it is holding edits back. */
   def statusOf(wid: Integer): PublishStatus = {
     val workflow = requireWorkflow(wid)
@@ -200,6 +249,7 @@ object WorkflowPublishService extends LazyLogging {
     PublishStatus(
       isPublished = workflow.getIsPublic,
       isPinned = pinned,
+      pinnedVersionTime = Option(workflow.getPublishedVersionId).flatMap(pinnedVersionTimeOf),
       // Literally "what the public sees is not what you have": whatever [[publicCopyOf]] freezes is
       // what this compares, on values rather than version ids, so an edit and its undo cancel out.
       hasUnpublishedChanges = differs(publicCopyOf(workflow), workingCopyOf(workflow))

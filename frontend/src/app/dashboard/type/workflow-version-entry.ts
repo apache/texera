@@ -23,6 +23,8 @@ export interface WorkflowVersionEntry
     creationTime: number;
     content: string;
     importance: boolean;
+    /** True for the one version the Hub is serving right now. */
+    isCurrentlyPublic?: boolean;
   }> {}
 
 export interface WorkflowVersionCollapsableEntry extends WorkflowVersionEntry {

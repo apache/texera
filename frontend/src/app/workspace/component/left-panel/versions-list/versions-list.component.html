@@ -54,6 +54,18 @@
             (click)="getVersion(row.vId, getDisplayedVersionId(i, l), i)"
             class="version-link">
             {{row.creationTime | date:'MM/dd/yy HH:mm:ss'}}
+            <!--
+              The version the Hub is serving, marked as a quiet second line rather than a tag: the
+              panel is 230px wide, so horizontal room is scarce while vertical room is free, and the
+              date is already on the line above. This is also how an author who has moved on gets the
+              public copy back -- the row is here, so restoring it is the restore they already know.
+            -->
+            <span
+              *ngIf="row.isCurrentlyPublic"
+              class="publication">
+              <span class="publication-mark"></span>
+              Currently public
+            </span>
           </button>
         </td>
       </tr>
