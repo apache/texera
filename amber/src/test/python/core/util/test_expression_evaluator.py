@@ -22,19 +22,23 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 )
 
 
+def _expected_value(value_ref, value_str, value_type, expandable, *, item=False):
+    return TypedValue(
+        expression=f"__getitem__({value_ref})" if item else value_ref,
+        value_ref=value_ref,
+        value_str=value_str,
+        value_type=value_type,
+        expandable=expandable,
+    )
+
+
 class TestExpressionEvaluator:
     def test_evaluate_basic_expressions(self):
         i = 10
         assert ExpressionEvaluator.evaluate(
             "i", runtime_context={"i": i}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="i",
-                value_ref="i",
-                value_str="10",
-                value_type="int",
-                expandable=False,
-            ),
+            value=_expected_value("i", "10", "int", False),
             attributes=[],
         )
 
@@ -42,13 +46,7 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "f", runtime_context={"f": f}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="f",
-                value_ref="f",
-                value_str="1.1",
-                value_type="float",
-                expandable=False,
-            ),
+            value=_expected_value("f", "1.1", "float", False),
             attributes=[],
         )
 
@@ -57,133 +55,33 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "s", runtime_context={"s": s}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="s",
-                value_ref="s",
-                value_str="'hello world'",
-                value_type="str",
-                expandable=True,
-            ),
+            value=_expected_value("s", "'hello world'", "str", True),
             attributes=[
-                TypedValue(
-                    expression="__getitem__(0)",
-                    value_ref="0",
-                    value_str="'h'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(1)",
-                    value_ref="1",
-                    value_str="'e'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(2)",
-                    value_ref="2",
-                    value_str="'l'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(3)",
-                    value_ref="3",
-                    value_str="'l'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(4)",
-                    value_ref="4",
-                    value_str="'o'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(5)",
-                    value_ref="5",
-                    value_str="' '",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(6)",
-                    value_ref="6",
-                    value_str="'w'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(7)",
-                    value_ref="7",
-                    value_str="'o'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(8)",
-                    value_ref="8",
-                    value_str="'r'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(9)",
-                    value_ref="9",
-                    value_str="'l'",
-                    value_type="str",
-                    expandable=True,
-                ),
-                TypedValue(
-                    expression="__getitem__(10)",
-                    value_ref="10",
-                    value_str="'d'",
-                    value_type="str",
-                    expandable=True,
-                ),
+                _expected_value("0", "'h'", "str", True, item=True),
+                _expected_value("1", "'e'", "str", True, item=True),
+                _expected_value("2", "'l'", "str", True, item=True),
+                _expected_value("3", "'l'", "str", True, item=True),
+                _expected_value("4", "'o'", "str", True, item=True),
+                _expected_value("5", "' '", "str", True, item=True),
+                _expected_value("6", "'w'", "str", True, item=True),
+                _expected_value("7", "'o'", "str", True, item=True),
+                _expected_value("8", "'r'", "str", True, item=True),
+                _expected_value("9", "'l'", "str", True, item=True),
+                _expected_value("10", "'d'", "str", True, item=True),
             ],
         )
         assert ExpressionEvaluator.evaluate(
             "s[4]", runtime_context={"s": s}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="s[4]",
-                value_ref="s[4]",
-                value_str="'o'",
-                value_type="str",
-                expandable=True,
-            ),
-            attributes=[
-                TypedValue(
-                    expression="__getitem__(0)",
-                    value_ref="0",
-                    value_str="'o'",
-                    value_type="str",
-                    expandable=True,
-                )
-            ],
+            value=_expected_value("s[4]", "'o'", "str", True),
+            attributes=[_expected_value("0", "'o'", "str", True, item=True)],
         )
 
         assert ExpressionEvaluator.evaluate(
             "s.__getitem__(2)", runtime_context={"s": s}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="s.__getitem__(2)",
-                value_ref="s.__getitem__(2)",
-                value_str="'l'",
-                value_type="str",
-                expandable=True,
-            ),
-            attributes=[
-                TypedValue(
-                    expression="__getitem__(0)",
-                    value_ref="0",
-                    value_str="'l'",
-                    value_type="str",
-                    expandable=True,
-                )
-            ],
+            value=_expected_value("s.__getitem__(2)", "'l'", "str", True),
+            attributes=[_expected_value("0", "'l'", "str", True, item=True)],
         )
 
     def test_evaluate_object_expression(self):
@@ -197,32 +95,15 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "a", runtime_context={"a": a}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="a",
-                value_ref="a",
-                value_str=(
-                    f"<{A.__module__}."
-                    "TestExpressionEvaluator.test_evaluate_object_expression.<locals>.A"
-                    f" object at {hex(id(a))}>"
-                ),
-                value_type="A",
-                expandable=True,
+            value=_expected_value(
+                "a",
+                f"<{A.__module__}.TestExpressionEvaluator.test_evaluate_object_expression.<locals>.A object at {hex(id(a))}>",
+                "A",
+                True,
             ),
             attributes=[
-                TypedValue(
-                    expression="i",
-                    value_ref="i",
-                    value_str="10",
-                    value_type="int",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="j",
-                    value_ref="j",
-                    value_str="1.1",
-                    value_type="float",
-                    expandable=False,
-                ),
+                _expected_value("i", "10", "int", False),
+                _expected_value("j", "1.1", "float", False),
             ],
         )
 
@@ -234,105 +115,33 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "a_list", runtime_context={"a_list": a_list}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="a_list",
-                value_ref="a_list",
-                value_str="[10, 1.1, (10, 1.1)]",
-                value_type="list",
-                expandable=True,
-            ),
+            value=_expected_value("a_list", "[10, 1.1, (10, 1.1)]", "list", True),
             attributes=[
-                TypedValue(
-                    expression="__getitem__(0)",
-                    value_ref="0",
-                    value_str="10",
-                    value_type="int",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="__getitem__(1)",
-                    value_ref="1",
-                    value_str="1.1",
-                    value_type="float",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="__getitem__(2)",
-                    value_ref="2",
-                    value_str="(10, 1.1)",
-                    value_type="tuple",
-                    expandable=True,
-                ),
+                _expected_value("0", "10", "int", False, item=True),
+                _expected_value("1", "1.1", "float", False, item=True),
+                _expected_value("2", "(10, 1.1)", "tuple", True, item=True),
             ],
         )
         t = (i, f, {i, f})
         assert ExpressionEvaluator.evaluate(
             "t", runtime_context={"t": t}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="t",
-                value_ref="t",
-                value_str="(10, 1.1, {1.1, 10})",
-                value_type="tuple",
-                expandable=True,
-            ),
+            value=_expected_value("t", "(10, 1.1, {1.1, 10})", "tuple", True),
             attributes=[
-                TypedValue(
-                    expression="__getitem__(0)",
-                    value_ref="0",
-                    value_str="10",
-                    value_type="int",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="__getitem__(1)",
-                    value_ref="1",
-                    value_str="1.1",
-                    value_type="float",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="__getitem__(2)",
-                    value_ref="2",
-                    value_str="{1.1, 10}",
-                    value_type="set",
-                    expandable=True,
-                ),
+                _expected_value("0", "10", "int", False, item=True),
+                _expected_value("1", "1.1", "float", False, item=True),
+                _expected_value("2", "{1.1, 10}", "set", True, item=True),
             ],
         )
         s = {i, f, (i, f)}
         assert ExpressionEvaluator.evaluate(
             "s", runtime_context={"s": s}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="s",
-                value_ref="s",
-                value_str="{1.1, 10, (10, 1.1)}",
-                value_type="set",
-                expandable=True,
-            ),
+            value=_expected_value("s", "{1.1, 10, (10, 1.1)}", "set", True),
             attributes=[
-                TypedValue(
-                    expression="__getitem__(0)",
-                    value_ref="0",
-                    value_str="1.1",
-                    value_type="float",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="__getitem__(1)",
-                    value_ref="1",
-                    value_str="10",
-                    value_type="int",
-                    expandable=False,
-                ),
-                TypedValue(
-                    expression="__getitem__(2)",
-                    value_ref="2",
-                    value_str="(10, 1.1)",
-                    value_type="tuple",
-                    expandable=False,
-                ),
+                _expected_value("0", "1.1", "float", False, item=True),
+                _expected_value("1", "10", "int", False, item=True),
+                _expected_value("2", "(10, 1.1)", "tuple", False, item=True),
             ],
         )
 
@@ -340,21 +149,11 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "d", runtime_context={"d": d}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="d",
-                value_ref="d",
-                value_str="{1: 'a', 'b': [{1.1, 10}], (10,): 1.1}",
-                value_type="dict",
-                expandable=True,
+            value=_expected_value(
+                "d", "{1: 'a', 'b': [{1.1, 10}], (10,): 1.1}", "dict", True
             ),
             attributes=[
-                TypedValue(
-                    expression="__getitem__(1)",
-                    value_ref="1",
-                    value_str="'a'",
-                    value_type="str",
-                    expandable=True,
-                ),
+                _expected_value("1", "'a'", "str", True, item=True),
                 TypedValue(
                     expression="__getitem__('b')",
                     value_ref="'b'",
@@ -376,16 +175,11 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "g", runtime_context={"g": g}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="g",
-                value_ref="g",
-                value_str=(
-                    "<generator object"
-                    " TestExpressionEvaluator.test_evaluate_container_expressions."
-                    f"<locals>.<genexpr> at {hex(id(g))}>"
-                ),
-                value_type="generator",
-                expandable=True,
+            value=_expected_value(
+                "g",
+                f"<generator object TestExpressionEvaluator.test_evaluate_container_expressions.<locals>.<genexpr> at {hex(id(g))}>",
+                "generator",
+                True,
             ),
             attributes=[],
         )
@@ -399,38 +193,21 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "g", runtime_context={"g": g}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="g",
-                value_ref="g",
-                value_str=(
-                    "<generator object"
-                    " TestExpressionEvaluator.test_evaluate_container_expressions."
-                    f"<locals>.gen at {hex(id(g))}>"
-                ),
-                value_type="generator",
-                expandable=True,
+            value=_expected_value(
+                "g",
+                f"<generator object TestExpressionEvaluator.test_evaluate_container_expressions.<locals>.gen at {hex(id(g))}>",
+                "generator",
+                True,
             ),
-            attributes=[
-                TypedValue(
-                    expression="i",
-                    value_ref="i",
-                    value_str="0",
-                    value_type="int",
-                    expandable=False,
-                )
-            ],
+            attributes=[_expected_value("i", "0", "int", False)],
         )
 
         it = iter([1, 2, 3])
         assert ExpressionEvaluator.evaluate(
             "it", runtime_context={"it": it}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="it",
-                value_ref="it",
-                value_str=f"<list_iterator object at {hex(id(it))}>",
-                value_type="list_iterator",
-                expandable=False,
+            value=_expected_value(
+                "it", f"<list_iterator object at {hex(id(it))}>", "list_iterator", False
             ),
             attributes=[],
         )
@@ -440,12 +217,8 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "it", runtime_context={"it": it}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="it",
-                value_ref="it",
-                value_str=f"<list_iterator object at {hex(id(it))}>",
-                value_type="list_iterator",
-                expandable=False,
+            value=_expected_value(
+                "it", f"<list_iterator object at {hex(id(it))}>", "list_iterator", False
             ),
             attributes=[],
         )
@@ -456,25 +229,13 @@ class TestExpressionEvaluator:
         assert ExpressionEvaluator.evaluate(
             "j", runtime_context={"j": i, "i": j}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="j",
-                value_ref="j",
-                value_str="10",
-                value_type="int",
-                expandable=False,
-            ),
+            value=_expected_value("j", "10", "int", False),
             attributes=[],
         )
 
         assert ExpressionEvaluator.evaluate(
             "i", runtime_context={"j": i, "i": j}
         ) == EvaluatedValue(
-            value=TypedValue(
-                expression="i",
-                value_ref="i",
-                value_str="20",
-                value_type="int",
-                expandable=False,
-            ),
+            value=_expected_value("i", "20", "int", False),
             attributes=[],
         )

@@ -64,33 +64,35 @@ class TestEvaluateExpressionHandler:
         )
         return instance
 
-    def test_returns_what_the_evaluator_returns(self, handler):
+    @pytest.fixture
+    def evaluator(self):
+        with patch(_EVALUATE_TARGET, return_value=EvaluatedValue()) as mock:
+            yield mock
+
+    def test_returns_what_the_evaluator_returns(self, handler, evaluator):
         sentinel = EvaluatedValue(
             value=TypedValue(expression="1+1", value_ref="2", value_type="int")
         )
-        with patch(
-            _EVALUATE_TARGET,
-            return_value=sentinel,
-        ) as evaluate:
-            result = _eval(handler, "1+1")
+        evaluator.return_value = sentinel
+        result = _eval(handler, "1+1")
 
         assert result is sentinel
-        evaluate.assert_called_once()
+        evaluator.assert_called_once()
 
-    def test_runtime_context_exposes_self_tuple_input(self, handler, executor):
-        with patch(
-            _EVALUATE_TARGET,
-            return_value=EvaluatedValue(),
-        ) as evaluate:
-            _eval(handler, "self.state")
+    def test_runtime_context_exposes_self_tuple_input(
+        self, handler, executor, evaluator
+    ):
+        _eval(handler, "self.state")
 
-        expression, runtime_context = evaluate.call_args.args
+        expression, runtime_context = evaluator.call_args.args
         assert expression == "self.state"
         assert runtime_context["self"] is executor
         assert runtime_context["tuple_"] == {"col": 42}
         assert runtime_context["input_"] == "port-0"
 
-    def test_runtime_context_reflects_current_tuple_at_call_time(self, handler):
+    def test_runtime_context_reflects_current_tuple_at_call_time(
+        self, handler, evaluator
+    ):
         # The handler must read the *current* tuple/port out of the context on
         # each call — not snapshot them at construction. Drive two calls with
         # different intermediate state.
@@ -100,42 +102,30 @@ class TestEvaluateExpressionHandler:
             captured.append((runtime_context["tuple_"], runtime_context["input_"]))
             return EvaluatedValue()
 
-        with patch(
-            _EVALUATE_TARGET,
-            side_effect=capture,
-        ):
-            _eval(handler, "x")
-            handler.context.tuple_processing_manager.current_input_tuple = {"col": 99}
-            handler.context.tuple_processing_manager.current_input_port_id = "port-1"
-            _eval(handler, "x")
+        evaluator.side_effect = capture
+        _eval(handler, "x")
+        handler.context.tuple_processing_manager.current_input_tuple = {"col": 99}
+        handler.context.tuple_processing_manager.current_input_port_id = "port-1"
+        _eval(handler, "x")
 
         assert captured == [({"col": 42}, "port-0"), ({"col": 99}, "port-1")]
 
-    def test_handles_none_input_tuple_and_port(self, handler):
+    def test_handles_none_input_tuple_and_port(self, handler, evaluator):
         # Before the worker has received any input, current_input_tuple and
         # current_input_port_id are None. The handler must still build a
         # context (the user might be evaluating `self.foo`).
         handler.context.tuple_processing_manager.current_input_tuple = None
         handler.context.tuple_processing_manager.current_input_port_id = None
-        with patch(
-            _EVALUATE_TARGET,
-            return_value=EvaluatedValue(),
-        ) as evaluate:
-            _eval(handler, "self.state")
+        _eval(handler, "self.state")
 
-        _expression, runtime_context = evaluate.call_args.args
+        _expression, runtime_context = evaluator.call_args.args
         assert runtime_context["tuple_"] is None
         assert runtime_context["input_"] is None
 
-    def test_evaluator_exception_propagates(self, handler):
+    def test_evaluator_exception_propagates(self, handler, evaluator):
         # If the evaluator raises (bad syntax, attribute error in the user's
         # expression, etc.), the handler must not swallow it — the RPC layer
         # is responsible for surfacing the failure to the frontend.
-        with (
-            patch(
-                _EVALUATE_TARGET,
-                side_effect=AttributeError("no such attribute"),
-            ),
-            pytest.raises(AttributeError, match="no such attribute"),
-        ):
+        evaluator.side_effect = AttributeError("no such attribute")
+        with pytest.raises(AttributeError, match="no such attribute"):
             _eval(handler, "self.missing")
