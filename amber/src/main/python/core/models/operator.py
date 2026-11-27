@@ -15,17 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import math
 import overrides
 import pandas
+import re
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from decimal import Decimal
 from typing import (
     Any,
+    Iterable,
     Iterator,
     List,
     Mapping,
     Optional,
+    Sequence,
     Union,
     MutableMapping,
     Protocol,
@@ -91,6 +96,87 @@ class _LoopVariables(Mapping):
         return len(self._values)
 
 
+def _java_double_text(value: float) -> str:
+    """
+    ``value`` as Java's ``Double.toString`` spells it, which is how a JVM
+    operator's text property binds a loop variable the JVM reads as a double:
+    the fewest digits that read back as ``value`` (Python's ``repr`` finds
+    them), in plain notation from 10^-3 up to 10^7 and as ``d.ddd`` with an
+    ``E`` exponent outside that, always with a digit after the point; and
+    ``NaN``, ``Infinity`` and ``-Infinity``. JDK 17 prints a few doubles with
+    other digits (JDK-4511638, fixed in JDK 19), mostly beyond 10^16 or
+    below 10^-7; its text reads back as the same double.
+    """
+    if math.isnan(value):
+        return "NaN"
+    if math.isinf(value):
+        return "Infinity" if value > 0 else "-Infinity"
+    negative, digit_tuple, exponent = Decimal(repr(value)).as_tuple()
+    digits = "".join(map(str, digit_tuple)).rstrip("0") or "0"
+    # value == 0.<digits> * 10**point
+    point = len(digit_tuple) + exponent
+    if -3 < point < 8:
+        if point <= 0:
+            text = "0." + "0" * -point + digits
+        else:
+            text = digits[:point].ljust(point, "0") + "." + (digits[point:] or "0")
+    else:
+        text = digits[0] + "." + (digits[1:] or "0") + "E" + str(point - 1)
+    return "-" + text if negative else text
+
+
+def _loop_variable_text(name: str, variables: Mapping[str, Any], bound: bool) -> str:
+    """
+    Loop variable ``name`` of ``variables`` as ``Operator.loop_variable_text``
+    reads it; ``bound`` tells whether ``variables`` are the values the
+    operator bound, which the error for a missing name says.
+    """
+    if name not in variables:
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            "but no state message carried it"
+            + (
+                " before the operator's first tuple or the end of an input"
+                if bound
+                else ""
+            )
+        )
+    value = variables[name]
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int) and not -(2**63) <= value < 2**63:
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, but its value {value} "
+            "does not fit in the 64-bit integer a JVM operator reads it as"
+        )
+    if isinstance(value, float):
+        return _java_double_text(value)
+    if isinstance(value, (str, int)):
+        return str(value)
+    raise RuntimeError(
+        f"the operator refers to loop variable ${name}, "
+        f"but its value {value!r} is not a scalar"
+    )
+
+
+# The call through which the code generated for an operator inside a control
+# block reads a loop variable one of its text properties refers to, as the
+# compiler writes it (PythonOperatorDescriptor.loopVariableLookup): the name of
+# a `$name` reference, without the `$`.
+_LOOP_VARIABLE_TEXT_LOOKUP = re.compile(
+    r"self\.loop_variable_text\('([A-Za-z_][A-Za-z0-9_]*)'\)"
+)
+
+
+def referenced_loop_variables(code: str) -> List[str]:
+    """
+    The loop variables ``code`` reads through ``Operator.loop_variable_text``,
+    each once, in name order: in the code generated for an operator inside a
+    control block, the ones its properties refer to.
+    """
+    return sorted(set(_LOOP_VARIABLE_TEXT_LOOKUP.findall(code)))
+
+
 class Operator(ABC):
     """
     Abstract base class for all operators.
@@ -136,6 +222,32 @@ class Operator(ABC):
     def decode_python_template(self, data: Union[str, bytes]) -> str:
         return self._get_template_decoder().decode(data)
 
+    def loop_variable_text(self, name: str) -> str:
+        """
+        The text of loop variable ``name`` as ``loop_variables`` holds it (see
+        ``register_state`` for which value wins, and for the error a name that
+        got two different values raises). Inside a control block, the
+        code generated for an operator calls this where a text property holds
+        ``$name``, in place of decoding the literal, so the value is read when
+        the code runs. It is spelled as a JVM operator's text property binds it
+        (``StateReferenceBinding``): a boolean as ``true`` or ``false``, and
+        only a scalar at all. From the operator's first tuple on, it reads the
+        values bound then instead (``bind_loop_variables``). A float is spelled
+        as Java's ``Double.toString`` spells it (``_java_double_text``), and an
+        integer past 64 bits, which a JVM operator reads wrapped, is refused.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :return: str, the variable's value, as text.
+        """
+        bound = self.__internal_bound_loop_variables
+        if bound is None and self.__internal_loop_variables is None:
+            raise RuntimeError(
+                f"loop variable ${name} is read before the iteration's state arrived"
+            )
+        if bound is None:
+            return _loop_variable_text(name, self.loop_variables, False)
+        return _loop_variable_text(name, bound, True)
+
     __internal_is_source: bool = False
 
     # The loop variables received so far, by name, and the nesting depth of
@@ -150,6 +262,12 @@ class Operator(ABC):
     __internal_loop_variable_conflicts: Optional[
         MutableMapping[str, TypingTuple[Any, Any]]
     ] = None
+    # The loop variables as they were when the operator first saw data; see
+    # ``bind_loop_variables``. ``None`` until then.
+    __internal_bound_loop_variables: Optional[Mapping[str, Any]] = None
+    # The loop variables the operator's properties refer to, which binding
+    # requires; see ``require_loop_variables``.
+    __internal_required_loop_variables: Sequence[str] = ()
 
     @property
     @overrides.final
@@ -207,6 +325,59 @@ class Operator(ABC):
                     self.__internal_loop_variable_conflicts.setdefault(
                         name, (earlier, value)
                     )
+
+    @overrides.final
+    def require_loop_variables(self, names: Iterable[str]) -> None:
+        """
+        Make binding (``bind_loop_variables``) require the loop variables
+        ``names``: the ones the operator's properties refer to, which its
+        generated code reads through ``loop_variable_text``. The runtime calls
+        this when it builds the operator from its code, with the names the code
+        reads (``referenced_loop_variables``).
+
+        :param names: Iterable[str], the loop variables' names, without ``$``.
+        """
+        self.__internal_required_loop_variables = tuple(names)
+
+    @overrides.final
+    def bind_loop_variables(self) -> None:
+        """
+        Fix the loop variables the operator's own properties read
+        (``loop_variable_text``) to ``loop_variables`` as it is now. The runtime
+        calls this right before the operator's first tuple, on any input port,
+        and when an input port finishes, in case none came (a source produces
+        its output there); only the first call binds. So, as a JVM operator's
+        properties (``bindStateReferences``), they hold one value for the whole
+        iteration, while ``loop_variables`` still takes every later state
+        message for UDF code to read. The next iteration runs on a fresh
+        worker, which binds again. A name that got two different values is
+        bound with both, so reading it fails there too.
+
+        Binding fails, naming each one in one error, while a loop variable the
+        operator requires (``require_loop_variables``) has no value its text
+        property can take: no state message carried it, it got two different
+        values (``register_state``), or the value is not a scalar or not within
+        64 bits. As a JVM operator's binding does, it then binds nothing,
+        whether or not the code would read the value, and a later binding tries
+        again. A name the operator does not require may have two values: only a
+        read of it fails then, as a JVM operator fails only for a name its
+        setting refers to.
+        """
+        if self.__internal_bound_loop_variables is not None:
+            return
+        variables = _LoopVariables(
+            dict(self.__internal_loop_variables or {}),
+            dict(self.__internal_loop_variable_conflicts or {}),
+        )
+        problems = []
+        for name in self.__internal_required_loop_variables:
+            try:
+                _loop_variable_text(name, variables, True)
+            except RuntimeError as error:
+                problems.append(str(error))
+        if problems:
+            raise RuntimeError("; ".join(problems))
+        self.__internal_bound_loop_variables = variables
 
     @property
     @overrides.final
