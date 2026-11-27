@@ -19,14 +19,9 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import javax.ws.rs.NotAuthorizedException
 
@@ -38,41 +33,14 @@ import javax.ws.rs.NotAuthorizedException
   * feeds: that an authenticated iD becomes an emailless INACTIVE account with an ORCID provider row,
   * and that a response authenticating nobody is a 401 rather than an account.
   */
-class OrcidAuthResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class OrcidAuthResourceSpec extends AuthDatabaseSpec {
 
   private val orcidId = "0000-0002-1825-0097"
 
-  private var userDao: UserDao = _
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = cleanup()
-  override protected def afterEach(): Unit = cleanup()
-
   // Accounts provisioned here have no email, so they are identified by the provider row that
   // cascades from them rather than by an address pattern.
-  private def cleanup(): Unit =
-    getDSLContext
-      .deleteFrom(USER)
-      .where(
-        USER.UID.in(
-          getDSLContext
-            .select(AUTH_PROVIDER.UID)
-            .from(AUTH_PROVIDER)
-            .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.ORCID))
-        )
-      )
-      .execute()
+  override protected def cleanup(): Unit =
+    deleteUsersByProviderType(ProviderTypeEnum.ORCID)
 
   // ---- helpers -------------------------------------------------------------
 

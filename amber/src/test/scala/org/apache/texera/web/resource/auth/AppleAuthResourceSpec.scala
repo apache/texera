@@ -19,17 +19,11 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.auth.InviteOnly
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, SITE_SETTINGS, USER}
+import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.jose4j.jwt.JwtClaims
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import javax.ws.rs.NotAuthorizedException
 
@@ -42,38 +36,16 @@ import javax.ws.rs.NotAuthorizedException
   * two cases Apple's own documentation warns about: a string-typed `email_verified`, and a token
   * with no `email` at all.
   */
-class AppleAuthResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
-
-  private val emailDomain = "@apple-auth-test.com"
-
-  private var userDao: UserDao = _
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = cleanup()
-  override protected def afterEach(): Unit = cleanup()
+class AppleAuthResourceSpec extends AuthDatabaseSpec("@apple-auth-test.com") {
 
   // Identity-only accounts have a NULL email, so they are matched by the name they are given
   // instead — the Apple `sub`. AUTH_PROVIDER cascades on delete.
-  private def cleanup(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(USER)
       .where(USER.EMAIL.like("%" + emailDomain).or(USER.NAME.like("apple-sub-%")))
       .execute()
-    getDSLContext
-      .deleteFrom(SITE_SETTINGS)
-      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
-      .execute()
+    cleanupInviteOnlySetting()
   }
 
   // ---- helpers -------------------------------------------------------------
@@ -100,19 +72,10 @@ class AppleAuthResourceSpec
       .login("stubbed-credential")
       .accessToken should not be empty
 
-  private def userByEmail(localPart: String): User =
-    userDao.fetchOneByEmail(localPart + emailDomain)
-
   private def userByName(name: String): User =
     userDao.fetchByName(name).stream().findFirst().orElse(null)
 
-  private def appleIdOf(uid: Integer): String =
-    getDSLContext
-      .select(AUTH_PROVIDER.PROVIDER_ID)
-      .from(AUTH_PROVIDER)
-      .where(AUTH_PROVIDER.UID.eq(uid))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.APPLE))
-      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
+  private def appleIdOf(uid: Integer): String = providerIdOf(uid, ProviderTypeEnum.APPLE)
 
   // ---- login ---------------------------------------------------------------
 
@@ -121,7 +84,7 @@ class AppleAuthResourceSpec
   it should "provision an INACTIVE user and an APPLE provider row on a first login" in {
     // The role follows the admin's invite-only switch (ExternalAuthProvisionerSpec covers both
     // sides); pinned on here so the assertion does not depend on default.conf.
-    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, "true", "apple-spec-admin")
+    setInviteOnly(on = true, "apple-spec-admin")
 
     loginWith(claims("apple-sub-new", "newcomer" + emailDomain))
 

@@ -19,35 +19,13 @@
 package org.apache.texera.dao
 
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.util.Success
 
-class SiteSettingsSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class SiteSettingsSpec extends DatabaseFlatSpec() {
 
-  // Point SqlServer (used by SiteSettings.getInt/getLong internally) and the test's
-  // own getDSLContext at the same embedded Postgres.
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-  }
-
-  override protected def afterAll(): Unit =
-    try closeConnectionPool()
-    finally super.afterAll()
-
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(SITE_SETTINGS).execute()
-  }
 
   private def storedUpdatedBy(key: String): String =
     getDSLContext

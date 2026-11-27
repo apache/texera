@@ -20,16 +20,9 @@
 package org.apache.texera.web.resource.auth
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
-import org.apache.texera.auth.InviteOnly
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, SITE_SETTINGS, USER}
+import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import javax.ws.rs.NotAuthorizedException
 
@@ -42,34 +35,13 @@ import javax.ws.rs.NotAuthorizedException
   * Google payload becomes an [[ExternalProfile]] (the name fallback, and the avatar kept as the
   * complete URL the provider supplied) and that a credential Google does not verify is a 401.
   */
-class GoogleAuthResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class GoogleAuthResourceSpec extends AuthDatabaseSpec("@google-auth-test.com") {
 
-  private val emailDomain = "@google-auth-test.com"
   private val avatarUrl = "https://lh3.googleusercontent.com/a/AVATAR-ID"
 
-  private var userDao: UserDao = _
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = cleanup()
-  override protected def afterEach(): Unit = cleanup()
-
-  private def cleanup(): Unit = {
-    getDSLContext.deleteFrom(USER).where(USER.EMAIL.like("%" + emailDomain)).execute()
-    getDSLContext
-      .deleteFrom(SITE_SETTINGS)
-      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
-      .execute()
+  override protected def cleanup(): Unit = {
+    deleteUsersByEmailDomain()
+    cleanupInviteOnlySetting()
   }
 
   // ---- helpers -------------------------------------------------------------
@@ -108,16 +80,7 @@ class GoogleAuthResourceSpec
       .login("stubbed-credential")
       .accessToken should not be empty
 
-  private def userByEmail(localPart: String): User =
-    userDao.fetchOneByEmail(localPart + emailDomain)
-
-  private def googleIdOf(uid: Integer): String =
-    getDSLContext
-      .select(AUTH_PROVIDER.PROVIDER_ID)
-      .from(AUTH_PROVIDER)
-      .where(AUTH_PROVIDER.UID.eq(uid))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
-      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
+  private def googleIdOf(uid: Integer): String = providerIdOf(uid, ProviderTypeEnum.GOOGLE)
 
   // ---- first login ---------------------------------------------------------
 
@@ -126,7 +89,7 @@ class GoogleAuthResourceSpec
   it should "provision an INACTIVE user and a GOOGLE provider row on a first login" in {
     // The role follows the admin's invite-only switch (ExternalAuthProvisionerSpec covers both
     // sides); pinned on here so the assertion does not depend on default.conf.
-    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, "true", "google-spec-admin")
+    setInviteOnly(on = true, "google-spec-admin")
 
     loginWith(payload("google-sub-new", "newcomer" + emailDomain, name = "New Comer"))
 

@@ -72,6 +72,14 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
   private def advance(seconds: Long): Unit = now = now.plusSeconds(seconds)
 
+  private def checkStatus(purpose: String, scope: String, address: String, code: String): Int =
+    statusOf(intercept[WebApplicationException](verifier.check(purpose, scope, address, code)))
+
+  private def spendAttempts(scope: String, address: String): Unit =
+    (1 to EmailCodeVerifier.MAX_ATTEMPTS).foreach { _ =>
+      intercept[WebApplicationException](verifier.check(ADD_EMAIL, scope, address, "000000"))
+    }
+
   "issue" should "mail a six-digit code to the address being verified" in {
     verifier.issue(ADD_EMAIL, "7", "someone@example.com")
 
@@ -166,33 +174,25 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     val code = issueAndRead(ADD_EMAIL, "7", "a@b.com")
     advance(EmailCodeVerifier.STEP_SECONDS * 2)
 
-    statusOf(
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", code))
-    ) shouldBe 406
+    checkStatus(ADD_EMAIL, "7", "a@b.com", code) shouldBe 406
   }
 
   it should "reject a code minted for a different address" in {
     val code = issueAndRead(ADD_EMAIL, "7", "a@b.com")
 
-    statusOf(
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "other@b.com", code))
-    ) shouldBe 406
+    checkStatus(ADD_EMAIL, "7", "other@b.com", code) shouldBe 406
   }
 
   it should "reject a code minted for a different scope" in {
     val code = issueAndRead(ADD_EMAIL, "7", "a@b.com")
 
-    statusOf(
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "8", "a@b.com", code))
-    ) shouldBe 406
+    checkStatus(ADD_EMAIL, "8", "a@b.com", code) shouldBe 406
   }
 
   it should "reject a code minted for a different purpose" in {
     val code = issueAndRead(REGISTER, "handle", "a@b.com")
 
-    statusOf(
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "handle", "a@b.com", code))
-    ) shouldBe 406
+    checkStatus(ADD_EMAIL, "handle", "a@b.com", code) shouldBe 406
   }
 
   it should "reject a code minted under a different secret" in {
@@ -219,9 +219,7 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     issueAndRead(ADD_EMAIL, "7", "a@b.com")
 
     Seq(null, "", "12345", "abcdef").foreach { bad =>
-      statusOf(
-        intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", bad))
-      ) shouldBe 406
+      checkStatus(ADD_EMAIL, "7", "a@b.com", bad) shouldBe 406
     }
   }
 
@@ -230,35 +228,25 @@ class EmailCodeVerifierSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     val wrong = if (code == "000000") "111111" else "000000"
 
     (1 to EmailCodeVerifier.MAX_ATTEMPTS).foreach { _ =>
-      statusOf(
-        intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", wrong))
-      ) shouldBe 406
+      checkStatus(ADD_EMAIL, "7", "a@b.com", wrong) shouldBe 406
     }
 
     // Even the right code is refused now, and with 429 rather than 406 — the caller has been
     // rate-limited, not told anything about the code.
-    statusOf(
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", code))
-    ) shouldBe 429
+    checkStatus(ADD_EMAIL, "7", "a@b.com", code) shouldBe 429
   }
 
   it should "not let one scope's spent attempts lock out another" in {
     val code = issueAndRead(ADD_EMAIL, "8", "b@b.com")
-    (1 to EmailCodeVerifier.MAX_ATTEMPTS).foreach { _ =>
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", "000000"))
-    }
+    spendAttempts("7", "a@b.com")
 
     noException should be thrownBy verifier.check(ADD_EMAIL, "8", "b@b.com", code)
   }
 
   it should "give a fresh attempt budget once the guesses age out" in {
     val code = issueAndRead(ADD_EMAIL, "7", "a@b.com")
-    (1 to EmailCodeVerifier.MAX_ATTEMPTS).foreach { _ =>
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", "000000"))
-    }
-    statusOf(
-      intercept[WebApplicationException](verifier.check(ADD_EMAIL, "7", "a@b.com", code))
-    ) shouldBe 429
+    spendAttempts("7", "a@b.com")
+    checkStatus(ADD_EMAIL, "7", "a@b.com", code) shouldBe 429
 
     // The cap bounds guesses per window, not forever; the code itself has expired by now anyway.
     advance(EmailCodeVerifier.STEP_SECONDS * 2)

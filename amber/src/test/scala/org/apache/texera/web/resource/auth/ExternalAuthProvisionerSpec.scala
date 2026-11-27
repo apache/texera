@@ -19,75 +19,32 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.auth.InviteOnly
-import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, SITE_SETTINGS, USER}
+import org.apache.texera.dao.jooq.generated.Tables.AUTH_PROVIDER
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
-import org.jooq.impl.DSL
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 /**
   * Integration spec for [[ExternalAuthProvisioner]] against embedded Postgres
-  * ([[MockTexeraDB]] loads the real `texera_ddl.sql`, so the `auth_provider` table and
+  * ([[AuthDatabaseSpec]] loads the real `texera_ddl.sql`, so the `auth_provider` table and
   * its `ck_provider_credential` / `uq_provider_identity` constraints are exercised).
   * `loginOrProvision` runs the same transaction the Google resources call.
   */
-class ExternalAuthProvisionerSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
-
-  // All test users share this email suffix so cleanup can target them precisely;
-  // the auth_provider FK is ON DELETE CASCADE, so deleting the user clears its rows.
-  private val emailDomain = "@provisioner-test.com"
-
-  private var userDao: UserDao = _
-  private var authDao: AuthProviderDao = _
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    userDao = new UserDao(getDSLContext.configuration())
-    authDao = new AuthProviderDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
-
-  override protected def beforeEach(): Unit = cleanup()
-  override protected def afterEach(): Unit = cleanup()
+class ExternalAuthProvisionerSpec extends AuthDatabaseSpec("@provisioner-test.com") {
 
   // Case-insensitive so it also collects rows seeded with a differing casing. The ORCID arm
   // catches what the email predicate cannot: an identity-only login leaves `email` NULL, so those
   // accounts are identified by the provider row that cascades from them.
-  private def cleanup(): Unit = {
-    getDSLContext.deleteFrom(USER).where(DSL.lower(USER.EMAIL).like("%" + emailDomain)).execute()
-    getDSLContext
-      .deleteFrom(USER)
-      .where(
-        USER.UID.in(
-          getDSLContext
-            .select(AUTH_PROVIDER.UID)
-            .from(AUTH_PROVIDER)
-            .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.ORCID))
-        )
-      )
-      .execute()
-    getDSLContext
-      .deleteFrom(SITE_SETTINGS)
-      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
-      .execute()
+  override protected def cleanup(): Unit = {
+    deleteUsersByEmailDomain(caseInsensitive = true)
+    deleteUsersByProviderType(ProviderTypeEnum.ORCID)
+    cleanupInviteOnlySetting()
   }
 
   // ---- helpers -------------------------------------------------------------
 
   /** Flip the invite-only switch the way the admin settings page does; `cleanup` removes it. */
   private def setInviteOnly(on: Boolean): Unit =
-    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, on.toString, "provisioner-admin")
+    setInviteOnly(on, "provisioner-admin")
 
   /** A contributor placeholder as DatasetResource creates one: INACTIVE, with no credential. */
   private def seedPlaceholder(name: String, localPart: String): User = {
@@ -138,18 +95,6 @@ class ExternalAuthProvisionerSpec
 
   private def providerRowCount(uid: Integer): Int =
     getDSLContext.fetchCount(AUTH_PROVIDER, AUTH_PROVIDER.UID.eq(uid))
-
-  private def providerIdOf(uid: Integer, pt: ProviderTypeEnum): String =
-    getDSLContext
-      .select(AUTH_PROVIDER.PROVIDER_ID)
-      .from(AUTH_PROVIDER)
-      .where(AUTH_PROVIDER.UID.eq(uid))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(pt))
-      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
-
-  /** Counts case-insensitively, so a duplicate differing only in case is still counted. */
-  private def userCountByEmail(localPart: String): Int =
-    getDSLContext.fetchCount(USER, DSL.lower(USER.EMAIL).eq(localPart + emailDomain))
 
   // ---- new-identity provisioning -------------------------------------------
 

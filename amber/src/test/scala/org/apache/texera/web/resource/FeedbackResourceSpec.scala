@@ -20,24 +20,17 @@
 package org.apache.texera.web.resource
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.FEEDBACK
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.FeedbackResource.SubmitFeedbackRequest
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 import javax.ws.rs.BadRequestException
 
-class FeedbackResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+class FeedbackResourceSpec extends DatabaseFlatSpec() {
 
   private val testUid = 9000 + scala.util.Random.nextInt(1000)
   private val otherUid = testUid + 1
@@ -54,8 +47,7 @@ class FeedbackResourceSpec
     user
   }
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit = {
     val userDao = new UserDao(getDSLContext.configuration())
     val testUser = makeUser(testUid, "feedback_spec_user")
     val otherUser = makeUser(otherUid, "feedback_spec_other_user")
@@ -65,15 +57,14 @@ class FeedbackResourceSpec
     otherSessionUser = new SessionUser(otherUser)
   }
 
-  override protected def afterAll(): Unit = closeConnectionPool()
-
-  private def clearFeedback(): Unit = {
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(FEEDBACK).execute()
-  }
+
+  private def submit(message: String, caller: SessionUser = sessionUser): Unit =
+    resource.submitFeedback(SubmitFeedbackRequest(message), caller)
 
   "FeedbackResource" should "persist a submitted feedback and return it for the same user" in {
-    clearFeedback()
-    resource.submitFeedback(SubmitFeedbackRequest("the editor is great"), sessionUser)
+    submit("the editor is great")
 
     val feedback = resource.listMyFeedback(sessionUser)
     feedback should have size 1
@@ -84,51 +75,45 @@ class FeedbackResourceSpec
   }
 
   it should "return feedback newest first" in {
-    clearFeedback()
-    resource.submitFeedback(SubmitFeedbackRequest("first message"), sessionUser)
+    submit("first message")
     Thread.sleep(1000) // creation_time has 1-second resolution
-    resource.submitFeedback(SubmitFeedbackRequest("second message"), sessionUser)
+    submit("second message")
 
     val messages = resource.listMyFeedback(sessionUser).map(_.message)
     messages shouldBe List("second message", "first message")
   }
 
   it should "trim surrounding whitespace from the feedback message" in {
-    clearFeedback()
-    resource.submitFeedback(SubmitFeedbackRequest("   padded message   "), sessionUser)
+    submit("   padded message   ")
     resource.listMyFeedback(sessionUser).head.message shouldBe "padded message"
   }
 
   it should "reject an empty or whitespace-only feedback message" in {
-    clearFeedback()
     an[BadRequestException] should be thrownBy
-      resource.submitFeedback(SubmitFeedbackRequest("   "), sessionUser)
+      submit("   ")
     an[BadRequestException] should be thrownBy
-      resource.submitFeedback(SubmitFeedbackRequest(""), sessionUser)
+      submit("")
     resource.listMyFeedback(sessionUser) shouldBe empty
   }
 
   it should "reject a null message body" in {
-    clearFeedback()
     an[BadRequestException] should be thrownBy
-      resource.submitFeedback(SubmitFeedbackRequest(null), sessionUser)
+      submit(null)
   }
 
   it should "isolate feedback between users" in {
-    clearFeedback()
-    resource.submitFeedback(SubmitFeedbackRequest("from test user"), sessionUser)
-    resource.submitFeedback(SubmitFeedbackRequest("from other user a"), otherSessionUser)
-    resource.submitFeedback(SubmitFeedbackRequest("from other user b"), otherSessionUser)
+    submit("from test user")
+    submit("from other user a", otherSessionUser)
+    submit("from other user b", otherSessionUser)
 
     resource.listMyFeedback(sessionUser).map(_.message) shouldBe List("from test user")
     resource.listMyFeedback(otherSessionUser) should have size 2
   }
 
   "feedbackCounts" should "report per-user counts only for users with feedback" in {
-    clearFeedback()
-    resource.submitFeedback(SubmitFeedbackRequest("a"), sessionUser)
-    resource.submitFeedback(SubmitFeedbackRequest("b"), sessionUser)
-    resource.submitFeedback(SubmitFeedbackRequest("c"), otherSessionUser)
+    submit("a")
+    submit("b")
+    submit("c", otherSessionUser)
 
     val counts = resource.feedbackCounts().map(c => c.uid.intValue() -> c.count.intValue()).toMap
     counts(testUid) shouldBe 2
@@ -136,14 +121,12 @@ class FeedbackResourceSpec
   }
 
   it should "return an empty list when nobody has submitted feedback" in {
-    clearFeedback()
     resource.feedbackCounts() shouldBe empty
   }
 
   "listUserFeedback" should "return a specific user's feedback for admins" in {
-    clearFeedback()
-    resource.submitFeedback(SubmitFeedbackRequest("target user feedback"), otherSessionUser)
-    resource.submitFeedback(SubmitFeedbackRequest("noise"), sessionUser)
+    submit("target user feedback", otherSessionUser)
+    submit("noise")
 
     val feedback = resource.listUserFeedback(otherUid)
     feedback.map(_.message) shouldBe List("target user feedback")

@@ -22,7 +22,7 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.ComputingUnitConfig
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
@@ -39,9 +39,6 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User,
   WorkflowComputingUnit
 }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 /**
   * Spec for [[ComputingUnitAccessResource]] with sharing ENABLED, backed by an embedded
@@ -55,12 +52,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
   * The sharing-DISABLED branch is covered separately by ComputingUnitAccessSharingDisabledSpec,
   * which forks without that env var (the flag is a load-time val).
   */
-class ComputingUnitAccessResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockTexeraDB
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+class ComputingUnitAccessResourceSpec extends DatabaseFlatSpec() {
 
   private val ownerUser: User = {
     val user = new User
@@ -116,10 +108,7 @@ class ComputingUnitAccessResourceSpec
     new ComputingUnitUserAccessDao(getDSLContext.configuration()).insert(access)
   }
 
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-
+  override protected def onBeforeAll(): Unit = {
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(ownerUser)
     userDao.insert(granteeUser)
@@ -129,16 +118,9 @@ class ComputingUnitAccessResourceSpec
     new WorkflowComputingUnitDao(getDSLContext.configuration()).insert(ownedUnit)
   }
 
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
-    // every test starts with no explicit grants on the unit
+  // every test starts with no explicit grants on the unit
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(COMPUTING_UNIT_USER_ACCESS).execute()
-  }
-
-  override protected def afterAll(): Unit = {
-    try shutdownDB()
-    finally super.afterAll()
-  }
 
   "the test environment" should "have computing-unit sharing enabled" in {
     // guards against a silent misconfiguration that would make every case below

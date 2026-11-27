@@ -20,133 +20,121 @@
 package org.apache.texera.web.resource
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_CONFIG}
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
 
 import javax.ws.rs.BadRequestException
 
-class UserConfigResourceSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class UserConfigResourceSpec extends DatabaseFlatSpec() {
 
   private val testUid = 4000 + scala.util.Random.nextInt(1000)
   private val otherUid = testUid + 1
 
   private var userDao: UserDao = _
-  private var testUser: User = _
-  private var otherUser: User = _
+  private var testUser: SessionUser = _
+  private var otherUser: SessionUser = _
   private val resource = new UserConfigResource
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
+  override protected def onBeforeAll(): Unit =
     userDao = new UserDao(getDSLContext.configuration())
-  }
-
-  override protected def afterAll(): Unit = shutdownDB()
 
   // Every test starts from a clean slate for the ids under test, then seeds only
   // the two users it needs, so tests are order-independent.
-  override protected def beforeEach(): Unit = resetFixtures()
-
-  private def resetFixtures(): Unit = {
+  override protected def cleanup(): Unit = {
     getDSLContext.deleteFrom(USER_CONFIG).where(USER_CONFIG.UID.in(testUid, otherUid)).execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.in(testUid, otherUid)).execute()
-
-    testUser = newUser(testUid, "config_user", "config@example.com")
-    otherUser = newUser(otherUid, "other_user", "other@example.com")
   }
 
-  private def newUser(uid: Int, name: String, email: String): User = {
+  override protected def onBeforeEach(): Unit = {
+    testUser = seedSession(testUid, "config_user", "config@example.com")
+    otherUser = seedSession(otherUid, "other_user", "other@example.com")
+  }
+
+  private def seedSession(uid: Int, name: String, email: String): SessionUser = {
     val user = new User
     user.setUid(uid)
     user.setName(name)
     user.setEmail(email)
     userDao.insert(user)
-    user
+    new SessionUser(user)
   }
-
-  private def session(user: User): SessionUser = new SessionUser(user)
 
   // ─── getEntry / setEntry ───────────────────────────────────────────────────
 
   "getEntry" should "return null for a key that was never set" in {
-    assert(resource.getEntry("missing", session(testUser)) == null)
+    assert(resource.getEntry("missing", testUser) == null)
   }
 
   "setEntry" should "store a value that getEntry then returns" in {
-    resource.setEntry("theme", "dark", session(testUser))
-    assert(resource.getEntry("theme", session(testUser)) == "dark")
+    resource.setEntry("theme", "dark", testUser)
+    assert(resource.getEntry("theme", testUser) == "dark")
   }
 
   it should "overwrite the value when the same key is set again" in {
-    resource.setEntry("theme", "dark", session(testUser))
-    resource.setEntry("theme", "light", session(testUser))
-    assert(resource.getEntry("theme", session(testUser)) == "light")
+    resource.setEntry("theme", "dark", testUser)
+    resource.setEntry("theme", "light", testUser)
+    assert(resource.getEntry("theme", testUser) == "light")
     // still a single entry, not two
-    assert(resource.getAllDict(session(testUser)).size == 1)
+    assert(resource.getAllDict(testUser).size == 1)
   }
 
   // ─── getAllDict ────────────────────────────────────────────────────────────
 
   "getAllDict" should "return an empty map when the user has no entries" in {
-    assert(resource.getAllDict(session(testUser)).isEmpty)
+    assert(resource.getAllDict(testUser).isEmpty)
   }
 
   it should "return every key/value pair the user has set" in {
-    resource.setEntry("a", "1", session(testUser))
-    resource.setEntry("b", "2", session(testUser))
-    resource.setEntry("c", "3", session(testUser))
+    resource.setEntry("a", "1", testUser)
+    resource.setEntry("b", "2", testUser)
+    resource.setEntry("c", "3", testUser)
 
-    val dict = resource.getAllDict(session(testUser))
+    val dict = resource.getAllDict(testUser)
     assert(dict == Map("a" -> "1", "b" -> "2", "c" -> "3"))
   }
 
   it should "be scoped to the requesting user (another user's entries are not returned)" in {
-    resource.setEntry("shared", "mine", session(testUser))
-    resource.setEntry("shared", "theirs", session(otherUser))
-    resource.setEntry("other-only", "x", session(otherUser))
+    resource.setEntry("shared", "mine", testUser)
+    resource.setEntry("shared", "theirs", otherUser)
+    resource.setEntry("other-only", "x", otherUser)
 
-    assert(resource.getAllDict(session(testUser)) == Map("shared" -> "mine"))
-    assert(resource.getEntry("other-only", session(testUser)) == null)
+    assert(resource.getAllDict(testUser) == Map("shared" -> "mine"))
+    assert(resource.getEntry("other-only", testUser) == null)
     assert(
-      resource.getAllDict(session(otherUser)) == Map("shared" -> "theirs", "other-only" -> "x")
+      resource.getAllDict(otherUser) == Map("shared" -> "theirs", "other-only" -> "x")
     )
   }
 
   // ─── deleteEntry ───────────────────────────────────────────────────────────
 
   "deleteEntry" should "remove the key so getEntry and getAllDict no longer show it" in {
-    resource.setEntry("k1", "v1", session(testUser))
-    resource.setEntry("k2", "v2", session(testUser))
+    resource.setEntry("k1", "v1", testUser)
+    resource.setEntry("k2", "v2", testUser)
 
-    resource.deleteEntry("k1", session(testUser))
+    resource.deleteEntry("k1", testUser)
 
-    assert(resource.getEntry("k1", session(testUser)) == null)
-    assert(resource.getAllDict(session(testUser)) == Map("k2" -> "v2"))
+    assert(resource.getEntry("k1", testUser) == null)
+    assert(resource.getAllDict(testUser) == Map("k2" -> "v2"))
   }
 
   it should "be a no-op (no error) when the key does not exist" in {
-    resource.deleteEntry("never-set", session(testUser))
-    assert(resource.getAllDict(session(testUser)).isEmpty)
+    resource.deleteEntry("never-set", testUser)
+    assert(resource.getAllDict(testUser).isEmpty)
   }
 
   // ─── key validation ────────────────────────────────────────────────────────
 
   "getEntry" should "reject a blank key with a BadRequestException" in {
-    assertThrows[BadRequestException](resource.getEntry("  ", session(testUser)))
+    assertThrows[BadRequestException](resource.getEntry("  ", testUser))
   }
 
   "setEntry" should "reject a blank key with a BadRequestException" in {
-    assertThrows[BadRequestException](resource.setEntry("", "v", session(testUser)))
+    assertThrows[BadRequestException](resource.setEntry("", "v", testUser))
   }
 
   "deleteEntry" should "reject a blank key with a BadRequestException" in {
-    assertThrows[BadRequestException](resource.deleteEntry("", session(testUser)))
+    assertThrows[BadRequestException](resource.deleteEntry("", testUser))
   }
 }

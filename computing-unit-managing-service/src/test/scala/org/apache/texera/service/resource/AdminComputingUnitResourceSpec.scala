@@ -23,7 +23,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.NotFoundException
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.KubernetesConfig
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_COMPUTING_UNIT
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
@@ -32,36 +32,17 @@ import org.apache.texera.dao.jooq.generated.enums.{
 }
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.Timestamp
 
-class AdminComputingUnitResourceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    initializeDBAndReplaceDSLContext()
-  }
+class AdminComputingUnitResourceSpec extends DatabaseFlatSpec() {
 
   // MockTexeraDB does not truncate between tests, and this endpoint lists every unit in the
   // database, so each case must start from a known-empty table — otherwise the exact-match
   // assertions below depend on the order ScalaTest happens to run the cases in. Safe to wipe
   // unqualified: MockTexeraDB provisions a fresh database per suite, so these are the only rows.
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(WORKFLOW_COMPUTING_UNIT).execute()
-  }
-
-  override protected def afterAll(): Unit =
-    try shutdownDB()
-    finally super.afterAll()
 
   private def makeUser(uid: Int, name: String): User = {
     val u = new User()

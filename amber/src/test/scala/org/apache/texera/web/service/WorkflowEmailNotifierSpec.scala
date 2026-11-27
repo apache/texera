@@ -21,13 +21,12 @@ package org.apache.texera.web.service
 
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.DatabaseFlatSpec
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
 import org.apache.texera.web.resource.EmailMessage
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
+import org.scalatest.PrivateMethodTester
 
 import java.net.URI
 import java.sql.Timestamp
@@ -53,9 +52,7 @@ import javax.ws.rs.NotFoundException
   * invoked, so no test here reaches `GmailResource.sendEmail`.
   */
 class WorkflowEmailNotifierSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with MockTexeraDB
+    extends DatabaseFlatSpec(cleanupBeforeEach = false, cleanupAfterAll = true)
     with PrivateMethodTester {
 
   private val testWid: Int = 7000 + scala.util.Random.nextInt(1000)
@@ -72,9 +69,8 @@ class WorkflowEmailNotifierSpec
   private val formatTimestamp = PrivateMethod[String](Symbol("formatTimestamp"))
   private val isValidEmail = PrivateMethod[Boolean](Symbol("isValidEmail"))
 
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-    deleteFixtureRows()
+  override protected def onBeforeAll(): Unit = {
+    cleanup()
 
     val workflow = new Workflow
     workflow.setWid(testWid)
@@ -86,12 +82,7 @@ class WorkflowEmailNotifierSpec
     new WorkflowDao(getDSLContext.configuration()).insert(workflow)
   }
 
-  override protected def afterAll(): Unit = {
-    deleteFixtureRows()
-    shutdownDB()
-  }
-
-  private def deleteFixtureRows(): Unit =
+  override protected def cleanup(): Unit =
     getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.in(testWid, unseededWid)).execute()
 
   /** Builds a notifier for the seeded workflow; the constructor hits the database every time. */
