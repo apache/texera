@@ -26,7 +26,6 @@ import Ajv, { ErrorObject } from "ajv";
 import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
   collectReferences,
   isReference,
@@ -414,28 +413,17 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * Gets a filtered version of the TexeraGraph containing only valid operators and their corresponding links.
-   * This method will create a copy of the TexeraGraph and do the validation on top of it.
+   * Gets the IDs of the operators in the TexeraGraph that pass validation, validating each one afresh.
+   * The compiler is sent these operators and the links between them.
    *
-   * @returns A json-schema-wise valid TexeraGraph
+   * @returns the IDs of the json-schema-wise valid operators
    */
-  public getValidTexeraGraph(): WorkflowGraphReadonly {
-    const texeraGraph = this.workflowActionService.getTexeraGraph();
-    const allOperators = texeraGraph.getAllOperators();
-    const allLinks = texeraGraph.getAllLinks();
-
-    // Filter valid operators using validation service
-    const validOperators = allOperators.filter(operator => {
-      const validation = this.validateOperator(operator.operatorID);
-      return validation.isValid;
-    });
-
-    // Filter links to only include those connecting valid operators
-    const validOperatorIds = new Set(validOperators.map(op => op.operatorID));
-    const validLinks = allLinks.filter(
-      link => validOperatorIds.has(link.source.operatorID) && validOperatorIds.has(link.target.operatorID)
+  public getValidOperatorIDs(): ReadonlySet<string> {
+    return new Set(
+      this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperatorIDs()
+        .filter(operatorID => this.validateOperator(operatorID).isValid)
     );
-
-    return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
   }
 }
