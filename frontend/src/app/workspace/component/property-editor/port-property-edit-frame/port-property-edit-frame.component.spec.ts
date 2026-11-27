@@ -299,11 +299,14 @@ describe("PortPropertyEditFrameComponent", () => {
       operatorPortID: LogicalPort,
       newProperty: Record<string, unknown>,
       initialFormData: Record<string, unknown> = { type: "none" },
-      listening = true
+      listening?: boolean
     ): void {
       component.currentPortID = inputPort;
       component.formData = initialFormData;
-      component.listeningToChange = listening;
+      // Left out, the component keeps its initial value, so its default stays under test.
+      if (listening !== undefined) {
+        component.listeningToChange = listening;
+      }
       texeraGraph.portPropertyChangedSubject.next({ operatorPortID, newProperty });
     }
 
