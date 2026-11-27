@@ -56,4 +56,6 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
 
   override def allReceivers: Seq[ActorVirtualIdentity] = receivers
 
+  // Range partitions on the first range attribute only.
+  override def bucketKeyColumns: Seq[String] = Seq(partitioning.rangeAttributeNames.head)
 }

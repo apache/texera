@@ -19,8 +19,10 @@
 
 package org.apache.texera.amber.operator.projection
 
+import org.apache.texera.amber.core.executor.ColumnarResult
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -180,5 +182,109 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "tolerate duplicate entries in the drop list" in {
     val output = dropOutput("field2" -> "", "field2" -> "")
     assert(output.fieldMappings == Map("field1" -> "hello", "field3" -> true))
+  }
+
+  // ---- Native-Arrow path (columnar projection) ----
+
+  private val tuple2: Tuple = Tuple
+    .builder(tupleSchema)
+    .add(new Attribute("field1", AttributeType.STRING), "world")
+    .add(new Attribute("field2", AttributeType.INTEGER), 2)
+    .add(new Attribute("field3", AttributeType.BOOLEAN), false)
+    .build()
+
+  // Run the batch through processColumnarBatch and decode the emitted Arrow result.
+  private def columnarProject(exec: ProjectionOpExec, rows: Array[Tuple]): Array[Tuple] =
+    exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows), 0) match {
+      case ColumnarResult.Emit(root) =>
+        try ArrowUtils.tuplesOfRoot(root)
+        finally root.close()
+      case other => fail(s"expected Emit, got: $other")
+    }
+
+  it should "project and rename columns on an Arrow batch identically to the row path" in {
+    opDesc.isDrop = false
+    opDesc.attributes = List(new AttributeUnit("field2", "f2"), new AttributeUnit("field1", "f1"))
+    val outputSchema = Schema()
+      .add(new Attribute("f2", AttributeType.INTEGER))
+      .add(new Attribute("f1", AttributeType.STRING))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
+    exec.open()
+
+    val rows = Array(tuple, tuple2)
+    val rowOut = rows.map(
+      exec.processTuple(_, 0).next().asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema)
+    )
+    val colOut = columnarProject(exec, rows)
+
+    assert(colOut.length == rows.length)
+    colOut.zip(rowOut).foreach {
+      case (c, r) =>
+        assert(c.getSchema == outputSchema)
+        assert(c.getField[Any]("f1") == r.getField[Any]("f1"))
+        assert(c.getField[Any]("f2") == r.getField[Any]("f2"))
+    }
+    exec.close()
+  }
+
+  it should "drop columns on an Arrow batch identically to the row path" in {
+    opDesc.isDrop = true
+    opDesc.attributes = List(new AttributeUnit("field2", ""))
+    val outputSchema = Schema()
+      .add(new Attribute("field1", AttributeType.STRING))
+      .add(new Attribute("field3", AttributeType.BOOLEAN))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
+    exec.open()
+
+    val colOut = columnarProject(exec, Array(tuple, tuple2))
+    assert(colOut.length == 2)
+    assert(colOut.head.getSchema == outputSchema)
+    assert(colOut.head.getField[String]("field1") == "hello")
+    assert(colOut.head.getField[Boolean]("field3"))
+    assert(colOut(1).getField[String]("field1") == "world")
+    assert(!colOut(1).getField[Boolean]("field3"))
+    exec.close()
+  }
+
+  it should "project a live root (zero-copy) identically to processColumnarBatch" in {
+    opDesc.isDrop = false
+    opDesc.attributes = List(new AttributeUnit("field2", "f2"), new AttributeUnit("field1", "f1"))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
+    exec.open()
+    val rows = Array(tuple, tuple2)
+    val viaBytes = columnarProject(exec, rows)
+    val alloc = new org.apache.arrow.memory.RootAllocator()
+    val viaRoot =
+      try {
+        ArrowUtils.deserializeRootFold(ArrowUtils.serializeTuples(tupleSchema, rows), alloc) {
+          root =>
+            exec.processColumnarRoot(root, 0) match {
+              case ColumnarResult.Emit(out) =>
+                try ArrowUtils.tuplesOfRoot(out)
+                finally out.close()
+              case other => fail(s"expected Emit, got: $other")
+            }
+        }
+      } finally alloc.close()
+    assert(viaRoot.length == viaBytes.length)
+    viaRoot.zip(viaBytes).foreach {
+      case (r, b) =>
+        assert(r.getSchema == b.getSchema)
+        assert(r.getField[Any]("f1") == b.getField[Any]("f1"))
+        assert(r.getField[Any]("f2") == b.getField[Any]("f2"))
+    }
+    exec.close()
+  }
+
+  it should "fall back to the row path (Unsupported) on a duplicate alias" in {
+    opDesc.isDrop = false
+    opDesc.attributes = List(new AttributeUnit("field1", "f"), new AttributeUnit("field2", "f"))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
+    exec.open()
+    assert(
+      exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, Array(tuple)), 0) ==
+        ColumnarResult.Unsupported
+    )
+    exec.close()
   }
 }

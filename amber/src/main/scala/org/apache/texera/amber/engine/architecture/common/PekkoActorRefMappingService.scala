@@ -62,6 +62,19 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
     actorRefMapping.contains(id)
   }
 
+  /**
+    * Whether worker `id` resolves to an actor in this same ActorSystem, i.e. a local,
+    * by-reference hop that never serializes, as opposed to a remote node. None when the
+    * ref is not resolved yet (the caller treats unknown as remote). The columnar output
+    * path uses this to keep a local edge on rows, since serializing it to Arrow would be
+    * pure overhead for a hop that otherwise copies nothing.
+    */
+  def isLocalWorker(id: ActorVirtualIdentity): Option[Boolean] =
+    actorRefMapping.get(id).map { ref =>
+      val address = ref.path.address
+      address.hasLocalScope || address == self.path.address
+    }
+
   def forwardToActor(msg: NetworkMessage): Unit = {
     val id = msg.internalMessage.channelId.toWorkerId
     if (actorRefMapping.contains(id)) {

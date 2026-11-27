@@ -36,31 +36,48 @@ class DistributedAggregationSpec extends AnyFlatSpec {
   // Partial = (sum, count)
   private val avgAggregation = DistributedAggregation[(Long, Long)](
     init = () => (0L, 0L),
-    iterate = (partial, t) => (partial._1 + t.getField[Integer]("v").longValue(), partial._2 + 1L),
+    iterateValue =
+      (partial, v) => (partial._1 + v.asInstanceOf[Integer].longValue(), partial._2 + 1L),
     merge = (a, b) => (a._1 + b._1, a._2 + b._2),
     finalAgg = partial =>
       if (partial._2 == 0L) java.lang.Double.valueOf(0.0d)
-      else java.lang.Double.valueOf(partial._1.toDouble / partial._2.toDouble)
+      else java.lang.Double.valueOf(partial._1.toDouble / partial._2.toDouble),
+    extract = t => t.getField[Integer]("v")
   )
 
   // ---------------------------------------------------------------------------
   // Case-class shape
   // ---------------------------------------------------------------------------
 
-  "DistributedAggregation" should "expose all four function members" in {
+  "DistributedAggregation" should "expose all function members" in {
     assert(avgAggregation.init != null)
-    assert(avgAggregation.iterate != null)
+    assert(avgAggregation.iterateValue != null)
     assert(avgAggregation.merge != null)
     assert(avgAggregation.finalAgg != null)
+    assert(avgAggregation.extract != null)
   }
 
   it should "be a case class (equality on same function refs)" in {
     val sameInit = avgAggregation.init
-    val sameIter = avgAggregation.iterate
+    val sameIterValue = avgAggregation.iterateValue
     val sameMerge = avgAggregation.merge
     val sameFinal = avgAggregation.finalAgg
-    val copy = DistributedAggregation[(Long, Long)](sameInit, sameIter, sameMerge, sameFinal)
+    val sameExtract = avgAggregation.extract
+    val copy =
+      DistributedAggregation[(Long, Long)](
+        sameInit,
+        sameIterValue,
+        sameMerge,
+        sameFinal,
+        sameExtract
+      )
     assert(copy == avgAggregation)
+  }
+
+  it should "derive iterate from extract + iterateValue (row path equals value path)" in {
+    val viaTuple = avgAggregation.iterate(avgAggregation.init(), tup(9))
+    val viaValue = avgAggregation.iterateValue(avgAggregation.init(), Integer.valueOf(9))
+    assert(viaTuple == viaValue)
   }
 
   // ---------------------------------------------------------------------------
