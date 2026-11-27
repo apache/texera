@@ -19,12 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  withDriver
-}
+import org.apache.texera.amber.operator.visualization.ChartPythonTestSupport.verifyTableChartCases
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -95,66 +91,12 @@ class FigureFactoryTableOpDescSpec
   // Stubs only the pytexera import seam, then hands the operator a table that arrives
   // empty, one whose every row has a hole in a chosen column, and one that draws.
   // Both empty branches call self.render_error, which once was not defined.
-  private val runtimeDriverScript: String =
-    """import base64
-      |import sys
-      |import types
-      |from typing import Iterator, Optional
-      |
-      |import pandas as pd
-      |
-      |class UDFTableOperator:
-      |    def decode_python_template(self, data):
-      |        return base64.b64decode(data).decode("utf-8")
-      |
-      |stub = types.ModuleType("pytexera")
-      |stub.UDFTableOperator = UDFTableOperator
-      |stub.overrides = lambda fn: fn
-      |stub.Table = pd.DataFrame
-      |stub.TableLike = object
-      |stub.Iterator = Iterator
-      |stub.Optional = Optional
-      |sys.modules["pytexera"] = stub
-      |
-      |ns = {"__name__": "generated_table_chart"}
-      |with open(sys.argv[1], encoding="utf-8") as f:
-      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
-      |op = ns["TableChartOperator"]()
-      |
-      |cases = [
-      |    ("empty", pd.DataFrame({"col_one": [], "col_two": []})),
-      |    ("every_row_holed", pd.DataFrame({"col_one": [1.0, None], "col_two": [None, "b"]})),
-      |    ("filled", pd.DataFrame({"col_one": [1, 2], "col_two": ["a", "b"]})),
-      |]
-      |for cid, df in cases:
-      |    page = list(op.process_table(df, 0))[0]["html-content"]
-      |    print("CASE %s %s" % (cid, page if "not available" in page else "CHART"))
-      |""".stripMargin
-
   it should "render its message when the table is empty or every row has a hole" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) cancel(s"'$python' cannot import pandas and plotly")
-
     withColumns()
-    withDriver(
-      python,
-      "figure_factory_table_op_",
-      "figure_factory_table_driver_",
+    verifyTableChartCases(
+      "figure_factory_table",
       opDesc.generatePythonCode(),
-      runtimeDriverScript,
-      "Runtime driver timed out after 120s"
-    ) { (exitCode, output) =>
-      val page = "<h1>Figure Factory Table is not available.</h1><p>Reason is: "
-      withClue(s"Driver output:\n$output\n") {
-        exitCode shouldBe 0
-        output should include(s"CASE empty ${page}input table is empty.</p>")
-        output should include(
-          s"CASE every_row_holed ${page}value column contains only non-positive numbers or nulls.</p>"
-        )
-        output should include("CASE filled CHART")
-      }
-    }
+      "Figure Factory Table"
+    )
   }
 }

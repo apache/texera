@@ -25,17 +25,17 @@ import org.apache.texera.amber.util.PythonTestSupport.{
   configuredPython,
   runSource
 }
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import java.nio.file.Files
 
-class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
+class Histogram2DOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   private def configured(): Histogram2DOpDesc = {
     val d = new Histogram2DOpDesc
@@ -65,10 +65,9 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
   "Histogram2DOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new Histogram2DOpDesc
-    val out = op.getOutputSchemas(Map(op.operatorInfo.inputPorts.head.id -> Schema()))
-    out shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(
+      Map(op.operatorInfo.inputPorts.head.id -> Schema())
+    ) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "Histogram2DOpDesc.generatePythonCode" should "reject a non-positive bin count" in {

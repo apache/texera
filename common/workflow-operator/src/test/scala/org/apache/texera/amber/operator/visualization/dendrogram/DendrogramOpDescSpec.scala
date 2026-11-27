@@ -39,22 +39,19 @@ class DendrogramOpDescSpec
   // createDendrogram() is private; generatePythonCode() is the public
   // entry point that reaches its asserts.
   it should "throw AssertionError naming the X column when all fields are empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(opDesc.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Y column when only xVal and labels are set" in {
     opDesc.xVal = "coord_a"
     opDesc.labels = "label_col"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
-    fieldPart(ex.getMessage) should include("y")
+    expectEmptyFieldError("y")(opDesc.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Labels column when only xVal and yVal are set" in {
     opDesc.xVal = "coord_a"
     opDesc.yVal = "coord_b"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
-    fieldPart(ex.getMessage) should include("label")
+    expectEmptyFieldError("label")(opDesc.generatePythonCode())
   }
 
   it should "generate python code carrying all three configured columns" in {

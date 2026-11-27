@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.heatMap
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -47,13 +46,7 @@ class HeatMapOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "HeatMapOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     val op = configured
-    val schemas = op.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe op.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(op)
   }
 
   "HeatMapOpDesc.generatePythonCode" should "render a UDFTableOperator source with three runtime decode sites for x/y/value" in {
@@ -68,23 +61,20 @@ class HeatMapOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   it should "throw AssertionError naming the X column when everything is empty" in {
     val op = new HeatMapOpDesc
-    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(op.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Y column when only x is set" in {
     val op = new HeatMapOpDesc
     op.x = "ax"
-    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
-    fieldPart(ex.getMessage) should include("y")
+    expectEmptyFieldError("y")(op.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Values column when x and y are set" in {
     val op = new HeatMapOpDesc
     op.x = "ax"
     op.y = "ay"
-    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(op.generatePythonCode())
   }
 
   it should "carry the configured x/y/value columns (as runtime decode payloads) in the generated code" in {

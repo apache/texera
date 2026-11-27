@@ -40,8 +40,7 @@ class HistogramChartOpDescSpec
   }
 
   it should "throw AssertionError naming the Value Column when value is left empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError with a non-blank message via generatePythonCode when value is empty" in {

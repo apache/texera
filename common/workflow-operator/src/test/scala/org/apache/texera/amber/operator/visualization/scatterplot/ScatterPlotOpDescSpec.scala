@@ -46,20 +46,17 @@ class ScatterPlotOpDescSpec
   }
 
   it should "throw AssertionError naming the X-Column when both columns are empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Y-Column when only xColumn is set" in {
     setPrivateField("xColumn", "scatter_x")
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("y")
+    expectEmptyFieldError("y")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError with a per-field message in createPlotlyFigure when only yColumn is set" in {
     setPrivateField("yColumn", "scatter_y")
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(opDesc.createPlotlyFigure())
   }
 
   it should "render both configured columns when xColumn and yColumn are set" in {

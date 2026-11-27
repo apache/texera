@@ -35,20 +35,17 @@ class NetworkGraphOpDescSpec
   }
 
   it should "throw AssertionError naming the Source Column when both fields are empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("source")
+    expectEmptyFieldError("source")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Destination Column when only source is set" in {
     opDesc.source = "from_node"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("destination")
+    expectEmptyFieldError("destination")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Source Column when only destination is set" in {
     opDesc.destination = "to_node"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("source")
+    expectEmptyFieldError("source")(opDesc.manipulateTable())
   }
 
   it should "render both configured columns when source and destination are set" in {

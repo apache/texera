@@ -93,27 +93,23 @@ class BubbleChartOpDescSpec
   it should "throw AssertionError naming the X-Column when only xValue is missing" in {
     opDesc.yValue = "column2"
     opDesc.zValue = "column3"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError naming the Y-Column when only yValue is missing" in {
     opDesc.xValue = "column1"
     opDesc.zValue = "column3"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("y")
+    expectEmptyFieldError("y")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError naming the Z-Column when only zValue is missing" in {
     opDesc.xValue = "column1"
     opDesc.yValue = "column2"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("z")
+    expectEmptyFieldError("z")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError with a per-field message in manipulateTable when fields are missing" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(opDesc.manipulateTable())
   }
 
   it should "render all three columns in manipulateTable when configured" in {

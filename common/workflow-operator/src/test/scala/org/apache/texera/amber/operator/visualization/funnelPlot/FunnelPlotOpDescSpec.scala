@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.funnelPlot
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -46,13 +45,7 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks
 
   "FunnelPlotOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     val op = configured
-    val schemas = op.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe op.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(op)
   }
 
   "FunnelPlotOpDesc.generatePythonCode" should "render a UDFTableOperator source with runtime decode sites for x and y" in {
@@ -96,15 +89,13 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks
   it should "throw AssertionError naming the X Column when only x is missing" in {
     val op = new FunnelPlotOpDesc
     op.y = "count"
-    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(op.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Y Column when only y is missing" in {
     val op = new FunnelPlotOpDesc
     op.x = "stage"
-    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
-    fieldPart(ex.getMessage) should include("y")
+    expectEmptyFieldError("y")(op.generatePythonCode())
   }
 
   it should "carry the configured x and y columns (as runtime decode payloads) in the generated code" in {

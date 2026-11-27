@@ -19,12 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.waterfallChart
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  withDriver
-}
+import org.apache.texera.amber.operator.visualization.ChartPythonTestSupport.withPytexeraTableDriver
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -92,37 +88,8 @@ class WaterfallChartOpDescSpec
   // Driver executed by the runtime test below. It stubs only the pytexera import seam and
   // swaps plotly's html renderer for its json one, so the trace the generated module hands
   // plotly can be read back bar by bar.
-  private val runtimeDriverScript: String =
-    """import base64
-      |import json
-      |import sys
-      |import types
-      |from typing import Iterator, Optional
-      |
-      |import pandas as pd
-      |import plotly.io
-      |
-      |plotly.io.to_html = lambda fig, **kwargs: fig.to_json()
-      |
-      |class UDFTableOperator:
-      |    def decode_python_template(self, data):
-      |        return base64.b64decode(data).decode("utf-8")
-      |
-      |stub = types.ModuleType("pytexera")
-      |stub.UDFTableOperator = UDFTableOperator
-      |stub.overrides = lambda fn: fn
-      |stub.Table = pd.DataFrame
-      |stub.TableLike = object
-      |stub.Iterator = Iterator
-      |stub.Optional = Optional
-      |sys.modules["pytexera"] = stub
-      |
-      |ns = {"__name__": "generated_waterfall_chart"}
-      |with open(sys.argv[1], encoding="utf-8") as f:
-      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
-      |op = ns["ProcessTableOperator"]()
-      |
-      |cases = [
+  private val runtimeDriverBody: String =
+    """cases = [
       |    ("labels", pd.DataFrame({"x_col": ["a", "b", "c", "d"], "y_col": [1, 2, 3, 4]})),
       |    ("unsorted_numeric_x", pd.DataFrame({"x_col": [30, 10, 20], "y_col": [1, 2, 3]})),
       |]
@@ -137,24 +104,20 @@ class WaterfallChartOpDescSpec
       |        json.dumps(list(trace["y"])),
       |        json.dumps(list(trace["text"])),
       |        fig["layout"]["xaxis"]["type"],
-      |    ))
-      |""".stripMargin
+      |    ))""".stripMargin
 
   it should "plot the last row and draw the total over the whole column at runtime" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) {
-      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
-    }
-
-    withDriver(
-      python,
-      "waterfall_chart_op_",
-      "waterfall_chart_driver_",
+    withPytexeraTableDriver(
+      "waterfall_chart",
       configured().generatePythonCode(),
-      runtimeDriverScript,
-      "Runtime verification driver timed out after 120s"
+      "generated_waterfall_chart",
+      "ProcessTableOperator",
+      runtimeDriverBody,
+      setupCode = """import json
+          |import plotly.io
+          |
+          |plotly.io.to_html = lambda fig, **kwargs: fig.to_json()""".stripMargin,
+      timeoutMessage = "Runtime verification driver timed out after 120s"
     ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
         exitCode shouldBe 0

@@ -19,12 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.treeplot
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  withDriver
-}
+import org.apache.texera.amber.operator.visualization.ChartPythonTestSupport.withPytexeraTableDriver
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -62,33 +58,8 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
   // Driver executed by the runtime test below. It stubs only the pytexera import seam;
   // the generated module runs unmodified, and the layout is called directly so the
   // positions it computes are what is read, rather than a rendered picture.
-  private val runtimeDriverScript: String =
-    """import base64
-      |import sys
-      |import types
-      |from typing import Iterator, Optional
-      |
-      |import pandas as pd
-      |
-      |class UDFTableOperator:
-      |    def decode_python_template(self, data):
-      |        return base64.b64decode(data).decode("utf-8")
-      |
-      |stub = types.ModuleType("pytexera")
-      |stub.UDFTableOperator = UDFTableOperator
-      |stub.overrides = lambda fn: fn
-      |stub.Table = pd.DataFrame
-      |stub.TableLike = object
-      |stub.Iterator = Iterator
-      |stub.Optional = Optional
-      |sys.modules["pytexera"] = stub
-      |
-      |ns = {"__name__": "generated_tree_plot"}
-      |with open(sys.argv[1], encoding="utf-8") as f:
-      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
-      |op = ns["ProcessTableOperator"]()
-      |
-      |cases = [
+  private val runtimeDriverBody: String =
+    """cases = [
       |    ("tree", [("a", "b"), ("a", "c"), ("b", "d"), ("b", "e")]),
       |    ("shared", [("a", "c"), ("b", "c")]),
       |    ("cycle", [("a", "b"), ("b", "c"), ("c", "a")]),
@@ -101,28 +72,20 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
       |    placed = " ".join(
       |        "%s=%g,%g" % (label, x, y) for label, (x, y) in zip(labels, coords)
       |    )
-      |    print("CASE %s %s" % (cid, placed))
-      |""".stripMargin
+      |    print("CASE %s %s" % (cid, placed))""".stripMargin
 
   /** `label -> (x, y)` per case, read out of the driver's output. One run for the
     * whole suite: the driver lays every case out in the same process.
     */
   private lazy val layouts: Map[String, Map[String, (Double, Double)]] = {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) {
-      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
-    }
-
     opDesc.edgeListColumn = "edge_pairs"
-    withDriver(
-      python,
-      "tree_plot_op_",
-      "tree_plot_driver_",
+    withPytexeraTableDriver(
+      "tree_plot",
       opDesc.generatePythonCode(),
-      runtimeDriverScript,
-      "Layout driver timed out after 120s"
+      "generated_tree_plot",
+      "ProcessTableOperator",
+      runtimeDriverBody,
+      timeoutMessage = "Layout driver timed out after 120s"
     ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
         exitCode shouldBe 0

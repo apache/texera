@@ -42,8 +42,7 @@ class IcicleChartOpDescSpec
   }
 
   it should "throw AssertionError naming the hierarchy when the hierarchy path is empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("hierarchy")
+    expectEmptyFieldError("hierarchy")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError naming the Value Column in manipulateTable when value is left empty" in {

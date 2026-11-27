@@ -64,13 +64,11 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
   }
 
   it should "throw AssertionError naming the Value Column when valueColumn is left empty (manipulateTable)" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Value Column when valueColumn is left empty (createPlotlyFigure)" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.createPlotlyFigure())
   }
 
   it should "carry the configured value column through manipulateTable and the generated code" in {
@@ -113,14 +111,7 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
     "emit a single html-content STRING column keyed by the declared output port" in {
     opDesc.valueColumn = "score"
     val inputPort = opDesc.operatorInfo.inputPorts.head.id
-    val out = opDesc.getOutputSchemas(
-      Map(inputPort -> Schema().add("score", AttributeType.DOUBLE))
-    )
-
-    out.keySet shouldBe Set(opDesc.operatorInfo.outputPorts.head.id)
-    val schema = out(opDesc.operatorInfo.outputPorts.head.id)
-    schema.getAttributeNames should contain theSameElementsAs List("html-content")
-    schema.getAttribute("html-content").getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(opDesc, Map(inputPort -> Schema().add("score", AttributeType.DOUBLE)))
   }
 
   it should "ignore the input schema entirely (the plot output shape is fixed)" in {

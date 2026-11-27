@@ -44,32 +44,28 @@ class TernaryContourOpDescSpec
     opDesc.secondVariable = "var_b"
     opDesc.thirdVariable = "var_c"
     opDesc.fourthVariable = "var_d"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("1")
+    expectEmptyFieldError("1")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming Variable 2 when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.thirdVariable = "var_c"
     opDesc.fourthVariable = "var_d"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("2")
+    expectEmptyFieldError("2")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming Variable 3 when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.secondVariable = "var_b"
     opDesc.fourthVariable = "var_d"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("3")
+    expectEmptyFieldError("3")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Measured Value when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.secondVariable = "var_b"
     opDesc.thirdVariable = "var_c"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("measured value")
+    expectEmptyFieldError("measured value")(opDesc.manipulateTable())
   }
 
   it should "render all four configured variables when set" in {

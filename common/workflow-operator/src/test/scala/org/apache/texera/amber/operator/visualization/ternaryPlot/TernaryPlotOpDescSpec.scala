@@ -43,22 +43,19 @@ class TernaryPlotOpDescSpec
   it should "throw AssertionError naming Variable 1 when only it is missing" in {
     opDesc.secondVariable = "var_b"
     opDesc.thirdVariable = "var_c"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("1")
+    expectEmptyFieldError("1")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming Variable 2 when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.thirdVariable = "var_c"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("2")
+    expectEmptyFieldError("2")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming Variable 3 when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.secondVariable = "var_b"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("3")
+    expectEmptyFieldError("3")(opDesc.manipulateTable())
   }
 
   it should "render all three configured variables when set" in {

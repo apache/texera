@@ -35,37 +35,32 @@ class RadarChartOpDescSpec
   }
 
   it should "throw AssertionError naming the Name Column when nothing is configured" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("name")
+    expectEmptyFieldError("name")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Value Columns when only nameColumn is set (null list)" in {
     opDesc.nameColumn = "entity"
     // valueColumns defaults to null; the assert guards null before nonEmpty
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Value Columns when the list is explicitly empty" in {
     opDesc.nameColumn = "entity"
     opDesc.valueColumns = List()
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Value Columns in createPlotlyFigure when the list is unset" in {
     // createPlotlyFigure now guards valueColumns directly (null-safe), so
     // calling it on an unconfigured operator fails fast with a message
     // instead of an NPE from mapping over null.
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError naming the Value Columns in createPlotlyFigure when the list is explicitly empty" in {
     opDesc.nameColumn = "entity"
     opDesc.valueColumns = List()
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.createPlotlyFigure())
   }
 
   it should "render the name column and all value columns when configured" in {

@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.dumbbellPlot
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -50,9 +49,7 @@ class DumbbellPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChec
   "DumbbellPlotOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new DumbbellPlotOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "DumbbellPlotOpDesc.generatePythonCode" should "emit a Plotly Scatter (dumbbell) figure" in {

@@ -19,20 +19,15 @@
 
 package org.apache.texera.amber.operator.visualization.polarChart
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  withDriver
-}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.visualization.ChartPythonTestSupport.verifyStandaloneChartCases
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
+class PolarChartOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "PolarChartOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -53,9 +48,7 @@ class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
   "PolarChartOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new PolarChartOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "PolarChartOpDesc.generatePythonCode" should "emit a Plotly Scatterpolargl figure" in {
@@ -83,78 +76,34 @@ class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
   // np.issubdtype cannot interpret; the check must draw them, not raise.
   "PolarChartOpDesc.generateStandaloneCode" should
     "draw nullable numeric columns and refuse non-numeric ones" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) {
-      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
-    }
-
     val d = new PolarChartOpDesc
     d.r = "r"
     d.theta = "theta"
-    withDriver(
-      python,
-      "polar_standalone_",
-      "polar_driver_",
+    verifyStandaloneChartCases(
+      "polar",
       d.generateStandaloneCode(),
-      driverScript,
-      "Polar driver timed out after 120s"
-    ) { (exitCode, output) =>
-      withClue(s"Driver output:\n$output\n") {
-        exitCode shouldBe 0
-        val verdicts = "CASE (\\S+) (\\S+)".r
-          .findAllMatchIn(output)
-          .map(m => m.group(1) -> m.group(2))
-          .toMap
-        verdicts shouldBe Map(
-          "numpy" -> "CHART",
-          "nullable" -> "CHART",
-          "boolean" -> "NOT_NUMERIC",
-          "text" -> "NOT_NUMERIC"
-        )
-      }
-    }
+      casesScript = """cases = {
+          |    "numpy": pd.DataFrame({"r": [1, 2], "theta": [0, 90]}),
+          |    "nullable": pd.DataFrame(
+          |        {"r": pd.array([1, 2], dtype="Int64"), "theta": pd.array([0, 90], dtype="Int64")}
+          |    ),
+          |    "boolean": pd.DataFrame({"r": [True, False], "theta": [0, 90]}),
+          |    "text": pd.DataFrame({"r": [1, 2], "theta": ["a", "b"]}),
+          |}""".stripMargin,
+      verdictBody = """    if "Selected columns must be numeric" in page:
+          |        verdict = "NOT_NUMERIC"
+          |    elif "<h3>" in page:
+          |        verdict = "OTHER_PAGE"
+          |    else:
+          |        verdict = "CHART"""".stripMargin,
+      expectedVerdicts = Map(
+        "numpy" -> "CHART",
+        "nullable" -> "CHART",
+        "boolean" -> "NOT_NUMERIC",
+        "text" -> "NOT_NUMERIC"
+      ),
+      plotlyScopeBinding = Some(("plotly.graph_objects", "go")),
+      timeoutMessage = "Polar driver timed out after 120s"
+    )
   }
-
-  // Runs the exported block over one frame per case and reports the page it
-  // wrote, so a check that raises instead of answering fails here.
-  private val driverScript: String =
-    """import pathlib
-      |import sys
-      |import tempfile
-      |
-      |import pandas as pd
-      |import plotly.graph_objects as go
-      |
-      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-      |
-      |cases = {
-      |    "numpy": pd.DataFrame({"r": [1, 2], "theta": [0, 90]}),
-      |    "nullable": pd.DataFrame(
-      |        {"r": pd.array([1, 2], dtype="Int64"), "theta": pd.array([0, 90], dtype="Int64")}
-      |    ),
-      |    "boolean": pd.DataFrame({"r": [True, False], "theta": [0, 90]}),
-      |    "text": pd.DataFrame({"r": [1, 2], "theta": ["a", "b"]}),
-      |}
-      |
-      |for name, frame in cases.items():
-      |    directory = tempfile.mkdtemp()
-      |    scope = {
-      |        "in1df": frame,
-      |        "outputHtml": directory + "/chart.html",
-      |        "outputJson": directory + "/chart.json",
-      |        "pd": pd,
-      |        "go": go,
-      |    }
-      |    exec(compile(source, "standalone", "exec"), scope)
-      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
-      |    if "Selected columns must be numeric" in page:
-      |        verdict = "NOT_NUMERIC"
-      |    elif "<h3>" in page:
-      |        verdict = "OTHER_PAGE"
-      |    else:
-      |        verdict = "CHART"
-      |    print("CASE %s %s" % (name, verdict))
-      |""".stripMargin
 }
