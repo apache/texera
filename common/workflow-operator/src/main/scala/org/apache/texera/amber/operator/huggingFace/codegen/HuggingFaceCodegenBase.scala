@@ -157,7 +157,9 @@ object HuggingFaceCodegenBase {
        |    def _resolve_providers(self, token):
        |        '''Query the HF Hub API for inference providers serving this model.
        |        Returns a list of dicts with 'name' and 'providerId' sorted
-       |        cheapest-first. Falls back to hf-inference if anything goes wrong.
+       |        cheapest-first. When the lookup fails or lists no live provider, text
+       |        generation falls back to the router's own chat route ("auto") and
+       |        every other task falls back to hf-inference.
        |        '''
        |        try:
        |            resp = requests.get(
@@ -190,6 +192,10 @@ object HuggingFaceCodegenBase {
        |                        return live
        |        except Exception:
        |            pass
+       |        # The Hub can return an empty mapping for a model that providers still
+       |        # serve, and hf-inference no longer serves text-generation models.
+       |        if self.TASK == "text-generation":
+       |            return [{"name": "auto", "providerId": self.MODEL_ID}]
        |        return [{"name": "hf-inference", "providerId": self.MODEL_ID}]
        |
        |    def _post_with_fallback(self, providers, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value):
@@ -207,7 +213,11 @@ object HuggingFaceCodegenBase {
        |            prov_task = prov.get("task", "")
        |            try:
        |                if self.TASK in ("text-generation", "image-text-to-text"):
-       |                    if provider_name == "hf-inference":
+       |                    if provider_name == "auto":
+       |                        # The router's OpenAI-compatible route picks a live
+       |                        # provider for the Hub model ID itself.
+       |                        url = "https://router.huggingface.co/v1/chat/completions"
+       |                    elif provider_name == "hf-inference":
        |                        # hf-inference expects the model in the URL path, like the
        |                        # pipeline route below.
        |                        url = f"https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}/v1/chat/completions"
