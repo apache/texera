@@ -40,6 +40,9 @@ class NetworkOutputBuffer(
     val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize
 ) {
 
+  // The settings panel requires at least 1, but saved, imported and API-sent settings skip it.
+  require(batchSize > 0, s"Data transfer batch size must be at least 1, got $batchSize")
+
   var buffer = new ArrayBuffer[Tuple]()
 
   def addTuple(tuple: Tuple): Unit = {
