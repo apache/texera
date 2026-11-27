@@ -587,8 +587,7 @@ class LoopEndOperator(TableOperator):
     ``process_table`` yields each input table through as-is; ``process_state``
     runs the user's ``update`` (against the table the runtime attached via
     ``attach_loop_table``) and persists only user variables back into
-    ``self.state``; ``condition()`` decides whether ``MainLoop.complete()``
-    fires the back-edge.
+    ``self.state``; ``condition()`` decides whether the worker takes the back-edge.
 
     Subclass contract: the generated subclass overrides ``process_state()`` and
     ``condition()`` only; all other methods are ``@overrides.final``.
@@ -602,7 +601,7 @@ class LoopEndOperator(TableOperator):
 
     def __init__(self):
         super().__init__()
-        # MainLoop.complete() calls condition() on every LoopEnd, including one
+        # The runtime calls condition() on every LoopEnd, including one
         # that never consumed a matching state (an inner LoopEnd that only
         # forwarded outer-loop pass-through state, or a loop that completed
         # without a matching-branch consume). run_update is what populates

@@ -44,6 +44,20 @@ def _gpi(
     )
 
 
+def test_loop_checkpoints_are_bounded_and_scoped_to_the_loop_and_warehouse():
+    # The warehouse itself can be named "globalportid".
+    base = VFSURIFactory.create_port_base_uri(
+        WorkflowIdentity(id=7),
+        ExecutionIdentity(id=3),
+        _gpi("x" * 180),
+        warehouse="globalportid",
+    )
+    uri = VFSURIFactory.loop_checkpoint_uri(base, "y" * 180)
+    assert uri.startswith("vfs:///wh/globalportid/wid/7/eid/3/loop-checkpoint/")
+    assert len(uri) < 160
+    assert uri != VFSURIFactory.loop_checkpoint_uri(base, "sibling")
+
+
 class TestCreatePortBaseUri:
     def test_base_uri_encodes_scheme_ids_and_serialized_port(self):
         uri = VFSURIFactory.create_port_base_uri(

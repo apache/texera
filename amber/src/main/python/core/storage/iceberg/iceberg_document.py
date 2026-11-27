@@ -109,6 +109,14 @@ class IcebergDocument(VirtualDocument[T]):
             return 0
         return sum(f.file.record_count for f in table.scan().plan_files())
 
+    def replace_one(self, item: T) -> None:
+        table = self.catalog.load_table((self.table_namespace, self.table_name))
+        row = self.serde(self.table_schema, [item])
+        if table.current_snapshot() is None:
+            table.append(row)
+        else:
+            table.overwrite(row)
+
     def writer(self, writer_identifier: str):
         """
         Creates a BufferedItemWriter for writing data to the table.
