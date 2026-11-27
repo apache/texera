@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.texera.service.util.LargeBinaryManager;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Objects;
 
 /**
@@ -42,7 +43,8 @@ public class LargeBinary {
      * Used primarily for deserialization from JSON.
      * 
      * @param uri S3 URI in the format s3://bucket/path/to/object
-     * @throws IllegalArgumentException if URI is null or doesn't start with "s3://"
+     * @throws IllegalArgumentException if URI is null, doesn't start with "s3://", can't be
+     *         parsed, or lacks a bucket or object key
      */
     @JsonCreator
     public LargeBinary(@JsonProperty("uri") String uri) {
@@ -52,6 +54,20 @@ public class LargeBinary {
         if (!uri.startsWith("s3://")) {
             throw new IllegalArgumentException(
                 "LargeBinary URI must start with 's3://', got: " + uri
+            );
+        }
+        URI parsed;
+        try {
+            parsed = new URI(uri);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(
+                "LargeBinary URI is not a valid URI, got: " + uri, e
+            );
+        }
+        // Read the bucket and key as the getters do; a key of only slashes counts as none.
+        if (parsed.getHost() == null || parsed.getPath().replaceFirst("^/+", "").isEmpty()) {
+            throw new IllegalArgumentException(
+                "LargeBinary URI must include a bucket and object key, got: " + uri
             );
         }
         this.uri = uri;
