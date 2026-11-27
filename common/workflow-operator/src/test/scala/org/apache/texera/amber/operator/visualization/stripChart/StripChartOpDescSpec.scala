@@ -19,14 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.stripChart
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class StripChartOpDescSpec extends AnyFlatSpec with Matchers {
+class StripChartOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "StripChartOpDesc.operatorInfo" should
     "advertise the name and Statistical visualization group" in {
@@ -49,9 +48,7 @@ class StripChartOpDescSpec extends AnyFlatSpec with Matchers {
   "StripChartOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new StripChartOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "StripChartOpDesc.generatePythonCode" should "emit a Plotly px.strip figure" in {

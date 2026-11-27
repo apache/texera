@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.quiverPlot
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -52,9 +51,7 @@ class QuiverPlotOpDescSpec extends AnyFlatSpec with EncodedGeneratedCodeAssertio
   "QuiverPlotOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new QuiverPlotOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "QuiverPlotOpDesc.generatePythonCode" should

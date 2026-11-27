@@ -35,28 +35,24 @@ class ChoroplethMapOpDescSpec
   }
 
   it should "throw AssertionError naming the Locations Column when both fields are empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("location")
+    expectEmptyFieldError("location")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Color Column when only locations is set" in {
     opDesc.locations = "iso_code"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("color")
+    expectEmptyFieldError("color")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the Locations Column when only color is set" in {
     opDesc.color = "intensity"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("location")
+    expectEmptyFieldError("location")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError with a per-field message in createPlotlyFigure when only locations is set" in {
     // The compound assert(locations.nonEmpty && color.nonEmpty) is being split
     // per-field; the failing message should name the field that is missing.
     opDesc.locations = "iso_code"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("color")
+    expectEmptyFieldError("color")(opDesc.createPlotlyFigure())
   }
 
   it should "render both configured columns when locations and color are set" in {

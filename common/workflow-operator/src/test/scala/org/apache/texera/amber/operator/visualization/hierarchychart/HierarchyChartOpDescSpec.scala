@@ -45,13 +45,11 @@ class HierarchyChartOpDescSpec
   }
 
   it should "throw AssertionError naming the Value Column when value is left empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
-    fieldPart(ex.getMessage) should include("value")
+    expectEmptyFieldError("value")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError naming the hierarchy when the hierarchy path is empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
-    fieldPart(ex.getMessage) should include("hierarchy")
+    expectEmptyFieldError("hierarchy")(opDesc.createPlotlyFigure())
   }
 
   it should "render hierarchy attributes and the value column when fully configured" in {

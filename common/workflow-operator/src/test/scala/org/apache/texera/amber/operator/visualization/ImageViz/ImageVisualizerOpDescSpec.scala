@@ -62,13 +62,7 @@ class ImageVisualizerOpDescSpec
 
   "ImageVisualizerOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     opDesc.binaryContent = "image_bytes"
-    val schemas = opDesc.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe opDesc.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(opDesc)
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when binaryContent is an empty string" in {

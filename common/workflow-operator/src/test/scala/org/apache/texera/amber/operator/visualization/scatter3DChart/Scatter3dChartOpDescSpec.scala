@@ -37,22 +37,19 @@ class Scatter3dChartOpDescSpec
   // createPlotlyFigure() is private; generatePythonCode() is the public
   // entry point that reaches its asserts.
   it should "throw AssertionError naming the X Column when all fields are empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
-    fieldPart(ex.getMessage) should include("x")
+    expectEmptyFieldError("x")(opDesc.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Y Column when only x and z are set" in {
     opDesc.x = "col_x"
     opDesc.z = "col_z"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
-    fieldPart(ex.getMessage) should include("y")
+    expectEmptyFieldError("y")(opDesc.generatePythonCode())
   }
 
   it should "throw AssertionError naming the Z Column when only x and y are set" in {
     opDesc.x = "col_x"
     opDesc.y = "col_y"
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
-    fieldPart(ex.getMessage) should include("z")
+    expectEmptyFieldError("z")(opDesc.generatePythonCode())
   }
 
   it should "generate python code carrying all three configured columns" in {

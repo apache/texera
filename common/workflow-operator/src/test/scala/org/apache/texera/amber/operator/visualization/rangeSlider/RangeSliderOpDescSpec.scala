@@ -19,17 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.rangeSlider
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import scala.jdk.CollectionConverters._
 
-class RangeSliderOpDescSpec extends AnyFlatSpec with Matchers {
+class RangeSliderOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "RangeSliderOpDesc.operatorInfo" should
     "advertise the name and Basic visualization group" in {
@@ -50,9 +49,7 @@ class RangeSliderOpDescSpec extends AnyFlatSpec with Matchers {
   "RangeSliderOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new RangeSliderOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "RangeSliderOpDesc.generatePythonCode" should "emit a Plotly Scatter figure" in {

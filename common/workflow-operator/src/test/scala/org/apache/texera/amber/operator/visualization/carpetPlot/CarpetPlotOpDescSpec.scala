@@ -19,20 +19,15 @@
 
 package org.apache.texera.amber.operator.visualization.carpetPlot
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  withDriver
-}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.visualization.ChartPythonTestSupport.verifyStandaloneChartCases
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
+class CarpetPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "CarpetPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -54,9 +49,7 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
   "CarpetPlotOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new CarpetPlotOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "CarpetPlotOpDesc.generatePythonCode" should "emit a Plotly Carpet figure" in {
@@ -75,40 +68,44 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
   // astype as a ValueError, both of them ending the whole exported run.
   "CarpetPlotOpDesc.generateStandaloneCode" should
     "write the page the operator yields for input it cannot plot" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) {
-      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
-    }
-
     val d = new CarpetPlotOpDesc
     d.a = "ax"
     d.b = "bx"
     d.y = "yx"
-    withDriver(
-      python,
-      "carpet_standalone_",
-      "carpet_driver_",
+    verifyStandaloneChartCases(
+      "carpet",
       d.generateStandaloneCode(),
-      driverScript,
-      "Carpet driver timed out after 120s"
-    ) { (exitCode, output) =>
-      withClue(s"Driver output:\n$output\n") {
-        exitCode shouldBe 0
-        val verdicts = "CASE (\\S+) (\\S+)".r
-          .findAllMatchIn(output)
-          .map(m => m.group(1) -> m.group(2))
-          .toMap
-        verdicts shouldBe Map(
-          "missing" -> "COLUMN_NOT_FOUND",
-          "words" -> "NOT_NUMERIC",
-          "empty" -> "EMPTY",
-          "nulls" -> "NO_VALID_ROWS",
-          "good" -> "CHART"
-        )
-      }
-    }
+      casesScript = """cases = {
+          |    "good": pd.DataFrame({"ax": [1.0, 2.0], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
+          |    "missing": pd.DataFrame({"ax": [1.0], "yx": [3.0]}),
+          |    "words": pd.DataFrame({"ax": ["one", "two"], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
+          |    "empty": pd.DataFrame({"ax": [], "bx": [], "yx": []}),
+          |    "nulls": pd.DataFrame({"ax": [None, None], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
+          |}""".stripMargin,
+      verdictBody = """    # An answer page is the whole file and opens with the heading, where a
+          |    # chart is a plotly document that happens to contain any wording.
+          |    if not page.startswith("<h3>"):
+          |        verdict = "CHART"
+          |    elif page.startswith("<h3>Column '"):
+          |        verdict = "COLUMN_NOT_FOUND"
+          |    elif page.startswith("<h3>Error converting input columns"):
+          |        verdict = "NOT_NUMERIC"
+          |    elif page.startswith("<h3>Input table is empty"):
+          |        verdict = "EMPTY"
+          |    elif page.startswith("<h3>No valid rows"):
+          |        verdict = "NO_VALID_ROWS"
+          |    else:
+          |        verdict = "OTHER_PAGE"""".stripMargin,
+      expectedVerdicts = Map(
+        "missing" -> "COLUMN_NOT_FOUND",
+        "words" -> "NOT_NUMERIC",
+        "empty" -> "EMPTY",
+        "nulls" -> "NO_VALID_ROWS",
+        "good" -> "CHART"
+      ),
+      plotlyScopeBinding = Some(("plotly.graph_objects", "go")),
+      timeoutMessage = "Carpet driver timed out after 120s"
+    )
   }
 
   // The generated code the operator emits for the native path, which the pages
@@ -135,55 +132,4 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
     c.b shouldBe "bx"
     c.y shouldBe "yx"
   }
-
-  // Runs the exported block over one frame per case and reports the page it
-  // wrote, so a branch that raises instead of answering shows up as a failure
-  // rather than as a missing file.
-  private val driverScript: String =
-    """import pathlib
-      |import sys
-      |import tempfile
-      |
-      |import pandas as pd
-      |import plotly.graph_objects as go
-      |
-      |# The module and the page are both UTF-8, which Windows does not read by
-      |# default.
-      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-      |
-      |cases = {
-      |    "good": pd.DataFrame({"ax": [1.0, 2.0], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
-      |    "missing": pd.DataFrame({"ax": [1.0], "yx": [3.0]}),
-      |    "words": pd.DataFrame({"ax": ["one", "two"], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
-      |    "empty": pd.DataFrame({"ax": [], "bx": [], "yx": []}),
-      |    "nulls": pd.DataFrame({"ax": [None, None], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
-      |}
-      |
-      |for name, frame in cases.items():
-      |    directory = tempfile.mkdtemp()
-      |    scope = {
-      |        "in1df": frame,
-      |        "outputHtml": directory + "/chart.html",
-      |        "outputJson": directory + "/chart.json",
-      |        "pd": pd,
-      |        "go": go,
-      |    }
-      |    exec(compile(source, "standalone", "exec"), scope)
-      |    # An answer page is the whole file and opens with the heading, where a
-      |    # chart is a plotly document that happens to contain any wording.
-      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8").strip()
-      |    if not page.startswith("<h3>"):
-      |        verdict = "CHART"
-      |    elif page.startswith("<h3>Column '"):
-      |        verdict = "COLUMN_NOT_FOUND"
-      |    elif page.startswith("<h3>Error converting input columns"):
-      |        verdict = "NOT_NUMERIC"
-      |    elif page.startswith("<h3>Input table is empty"):
-      |        verdict = "EMPTY"
-      |    elif page.startswith("<h3>No valid rows"):
-      |        verdict = "NO_VALID_ROWS"
-      |    else:
-      |        verdict = "OTHER_PAGE"
-      |    print("CASE %s %s" % (name, verdict))
-      |""".stripMargin
 }

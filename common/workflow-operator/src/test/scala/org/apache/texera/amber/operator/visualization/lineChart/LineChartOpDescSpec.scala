@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.lineChart
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -58,13 +57,7 @@ class LineChartOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks 
 
   "LineChartOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     val op = configured
-    val schemas = op.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe op.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(op)
   }
 
   "LineChartOpDesc.generatePythonCode" should "render Python source with runtime decode sites for both labels" in {

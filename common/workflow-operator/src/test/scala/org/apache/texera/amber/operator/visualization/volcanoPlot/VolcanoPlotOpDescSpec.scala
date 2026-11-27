@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.volcanoPlot
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -34,6 +33,63 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     op.pvalueColumn = "pvalue"
     op
   }
+
+  private def configured(init: VolcanoPlotOpDesc => Unit): VolcanoPlotOpDesc = {
+    val op = configured
+    init(op)
+    op
+  }
+
+  private def withThresholds(
+      sig: Option[Double] = Some(0.05),
+      eff: Option[Double] = Some(1.0),
+      color: Boolean = true
+  ): VolcanoPlotOpDesc =
+    configured { op =>
+      op.significanceThreshold = sig
+      op.effectSizeThreshold = eff
+      op.colorBySignificance = color
+    }
+
+  private def assertBlankHoverIgnored(render: VolcanoPlotOpDesc => String): Unit =
+    Seq(" ", "\t", " \n ").foreach(b =>
+      render(configured(_.hoverName = b)) shouldBe render(configured)
+    )
+
+  private def assertBlankLabelsIgnored(render: VolcanoPlotOpDesc => String): Unit =
+    render(configured { op => op.title = " "; op.xLabel = "\t"; op.yLabel = " \n " }) shouldBe
+      render(configured)
+
+  private def assertLabels(
+      code: String,
+      encode: String => String,
+      title: String,
+      xLabel: String,
+      yLabel: String
+  ): Unit = {
+    code should include(s"title=${encode(title)}")
+    code should include(s"xaxis_title=${encode(xLabel)}")
+    code should include(s"yaxis_title=${encode(yLabel)}")
+    // The color bar follows the x label, since both show the effect column.
+    code should include(s"coloraxis_colorbar_title_text=${encode(xLabel)}")
+  }
+
+  private def assertDefaultLabelsAbsent(code: String, encode: String => String): Unit =
+    Seq(
+      s"title=${encode("Volcano Plot")}",
+      s"xaxis_title=${encode("log2fc")}",
+      s"yaxis_title=${encode("-log10(pvalue)")}",
+      s"coloraxis_colorbar_title_text=${encode("log2fc")}"
+    ).foreach(code should not include _)
+
+  private def pyLiteral(s: String): String =
+    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+  private val customTitle = "TITLE_SENT \"quoted\" 火山"
+  private val customXLabel = "X_LBL_SENT log₂ fold change"
+  private val customYLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
+  private def withCustomLabels: VolcanoPlotOpDesc =
+    configured { op => op.title = customTitle; op.xLabel = customXLabel; op.yLabel = customYLabel }
 
   private val hline = """fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray")"""
   private val vlines =
@@ -77,13 +133,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
 
   "VolcanoPlotOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     val op = configured
-    val schemas = op.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe op.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(op)
   }
 
   "VolcanoPlotOpDesc.generatePythonCode" should "render a UDFTableOperator source that decodes both column references" in {
@@ -111,25 +161,17 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
 
   it should "answer a set hover column that the table lacks with the operator's error page" in {
     // Like the two required columns, and unlike plotly's uncaught ValueError.
-    val op = configured
-    op.hoverName = "gene"
-    val code = op.generatePythonCode()
+    val code = configured(_.hoverName = "gene").generatePythonCode()
     code should include(s"if ${decoded("gene")} not in table.columns:")
     code should include("""self.render_error("Missing hover column in table.")""")
   }
 
   it should "treat a whitespace-only hover column as empty" in {
-    Seq(" ", "\t", " \n ").foreach { blank =>
-      val op = configured
-      op.hoverName = blank
-      op.generatePythonCode() shouldBe configured.generatePythonCode()
-    }
+    assertBlankHoverIgnored(_.generatePythonCode())
   }
 
   it should "use the configured hover column instead of the first column" in {
-    val op = configured
-    op.hoverName = "gene"
-    val code = op.generatePythonCode()
+    val code = configured(_.hoverName = "gene").generatePythonCode()
     code should include(s"hover_name=${decoded("gene")},")
     code should not include "hover_name=table.columns[0]"
     // Exactly two decode sites more than the default: the presence check and the
@@ -138,10 +180,9 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "route a hover column with quotes and non-ASCII text through the decoder" in {
-    val op = configured
-    op.hoverName = "HOVER_SENT \"gene\" 基因"
-    val code = op.generatePythonCode()
-    code should include(s"hover_name=${decoded(op.hoverName)},")
+    val hover = "HOVER_SENT \"gene\" 基因"
+    val code = configured(_.hoverName = hover).generatePythonCode()
+    code should include(s"hover_name=${decoded(hover)},")
     code should not include "HOVER_SENT"
   }
 
@@ -153,10 +194,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "draw both cut-offs while keeping the continuous coloring when the toggle is off" in {
-    val op = configured
-    op.significanceThreshold = Some(0.05)
-    op.effectSizeThreshold = Some(1.0)
-    val code = op.generatePythonCode()
+    val code = withThresholds(color = false).generatePythonCode()
     code should include(hline)
     code should include(vlines)
     assertContinuousColoring(code)
@@ -164,11 +202,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
 
   it should "skip a significance threshold that has no -log10 (zero or negative)" in {
     Seq(0.0, -0.01).foreach { bad =>
-      val op = configured
-      op.significanceThreshold = Some(bad)
-      op.effectSizeThreshold = Some(1.0)
-      op.colorBySignificance = true
-      val code = op.generatePythonCode()
+      val code = withThresholds(sig = Some(bad)).generatePythonCode()
       code should not include "add_hline"
       code should not include "np.log10(0.0)"
       code should not include "np.log10(-0.01)"
@@ -183,11 +217,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     // A negative cut-off would flip the Up and Down comparisons and call small
     // effects significant; zero is the same boundary and is ruled out too.
     Seq(0.0, -1.0).foreach { bad =>
-      val op = configured
-      op.significanceThreshold = Some(0.05)
-      op.effectSizeThreshold = Some(bad)
-      op.colorBySignificance = true
-      val code = op.generatePythonCode()
+      val code = withThresholds(eff = Some(bad)).generatePythonCode()
       code should not include "add_vline"
       code should include(hline)
       assertContinuousColoring(code)
@@ -195,22 +225,14 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "skip a significance threshold above one, whose line would sit below the axis" in {
-    val op = configured
-    op.significanceThreshold = Some(2.0)
-    op.effectSizeThreshold = Some(1.0)
-    op.colorBySignificance = true
-    val code = op.generatePythonCode()
+    val code = withThresholds(sig = Some(2.0)).generatePythonCode()
     code should not include "add_hline"
     code should include(vlines)
     assertContinuousColoring(code)
   }
 
   it should "color Up, Down and Not significant when both thresholds are set and the toggle is on" in {
-    val op = configured
-    op.significanceThreshold = Some(0.05)
-    op.effectSizeThreshold = Some(1.0)
-    op.colorBySignificance = true
-    val code = op.generatePythonCode()
+    val code = withThresholds().generatePythonCode()
     // Strict comparisons on the selected p-value column and the effect column:
     // a point exactly on a cut-off is not significant.
     code should include("significant = table[self.decode_python_template(")
@@ -235,11 +257,8 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     // of that name before px reads the table; as the effect column, the x axis would
     // show the category labels. Labelling the category column Significance as well would
     // give two hover lines one label, and px would show only one of them.
-    val op = configured
+    val op = withThresholds()
     op.effectColumn = "Significance"
-    op.significanceThreshold = Some(0.05)
-    op.effectSizeThreshold = Some(1.0)
-    op.colorBySignificance = true
     Seq(op.generatePythonCode(), op.generateStandaloneCode()).foreach { code =>
       code should not include """table["Significance"] ="""
       code should include(categoryColumn)
@@ -254,11 +273,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "accept a significance threshold of exactly one, the schema maximum, and draw it at y = 0" in {
-    val op = configured
-    op.significanceThreshold = Some(1.0)
-    op.effectSizeThreshold = Some(1.0)
-    op.colorBySignificance = true
-    val code = op.generatePythonCode()
+    val code = withThresholds(sig = Some(1.0)).generatePythonCode()
     code should include("""fig.add_hline(y=-np.log10(1.0), line_dash="dash", line_color="gray")""")
     code should include(vlines)
     code should include("color=significance_column,")
@@ -275,11 +290,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
       (java.lang.Double.MIN_VALUE, 1.0, "4.9E-324", "1.0")
     ).foreach {
       case (sig, eff, sigLit, effLit) =>
-        val op = configured
-        op.significanceThreshold = Some(sig)
-        op.effectSizeThreshold = Some(eff)
-        op.colorBySignificance = true
-        val code = op.generatePythonCode()
+        val code = withThresholds(sig = Some(sig), eff = Some(eff)).generatePythonCode()
         val literals = emittedLiterals
           .findAllMatchIn(code)
           .map(m => Option(m.group(1)).getOrElse(m.group(2)))
@@ -294,33 +305,23 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "fall back to the continuous coloring when the toggle is on but a threshold is missing" in {
-    val onlySignificance = configured
-    onlySignificance.significanceThreshold = Some(0.05)
-    onlySignificance.colorBySignificance = true
-    val sigCode = onlySignificance.generatePythonCode()
+    val sigCode = withThresholds(eff = None).generatePythonCode()
     sigCode should include(hline)
     sigCode should not include "add_vline"
     assertContinuousColoring(sigCode)
 
-    val onlyEffect = configured
-    onlyEffect.effectSizeThreshold = Some(1.0)
-    onlyEffect.colorBySignificance = true
-    val effCode = onlyEffect.generatePythonCode()
+    val effCode = withThresholds(sig = None).generatePythonCode()
     effCode should include(vlines)
     effCode should not include "add_hline"
     assertContinuousColoring(effCode)
 
-    val neither = configured
-    neither.colorBySignificance = true
-    assertContinuousColoring(neither.generatePythonCode())
+    assertContinuousColoring(withThresholds(sig = None, eff = None).generatePythonCode())
   }
 
   it should "name the y column and its axis after the selected p-value column" in {
     // The y axis used to read "-log10(pvalue)" whatever column was chosen; a
     // figure drawn from an adjusted column must say so.
-    val op = configured
-    op.pvalueColumn = "padj"
-    val code = op.generatePythonCode()
+    val code = configured(_.pvalueColumn = "padj").generatePythonCode()
     code should include(s"table[${decoded("-log10(padj)")}] = -np.log10(")
     code should include(s"y=${decoded("-log10(padj)")}")
     code should include(s"yaxis_title=${decoded("-log10(padj)")}")
@@ -329,66 +330,42 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "fall back to the column-derived labels when no label is set" in {
-    val code = configured.generatePythonCode()
-    code should include(s"title=${decoded("Volcano Plot")}")
-    code should include(s"xaxis_title=${decoded("log2fc")}")
-    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
-    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+    assertLabels(
+      configured.generatePythonCode(),
+      decoded,
+      "Volcano Plot",
+      "log2fc",
+      "-log10(pvalue)"
+    )
   }
 
   it should "route every configured label through the decoder instead of the default" in {
     // Sentinels with quotes, a backslash and non-ASCII text: as decode sites
     // they cannot break the Python source, and the raw text must never
     // appear in it.
-    val op = configured
-    op.title = "TITLE_SENT \"quoted\" 火山"
-    op.xLabel = "X_LBL_SENT log₂ fold change"
-    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
-    val code = op.generatePythonCode()
-    code should include(s"title=${decoded(op.title)}")
-    code should include(s"xaxis_title=${decoded(op.xLabel)}")
-    code should include(s"yaxis_title=${decoded(op.yLabel)}")
-    // The color bar follows the x label, since both show the effect column.
-    code should include(s"coloraxis_colorbar_title_text=${decoded(op.xLabel)}")
-    Seq(op.title, op.xLabel, op.yLabel).foreach { sentinel =>
-      code should not include sentinel
-    }
+    val code = withCustomLabels.generatePythonCode()
+    assertLabels(code, decoded, customTitle, customXLabel, customYLabel)
+    Seq(customTitle, customXLabel, customYLabel).foreach(code should not include _)
     // A set label replaces the default rather than being emitted next to it.
     code should not include b64("Volcano Plot")
-    code should not include s"xaxis_title=${decoded("log2fc")}"
-    code should not include s"yaxis_title=${decoded("-log10(pvalue)")}"
-    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
+    assertDefaultLabelsAbsent(code, decoded)
     // The y column itself keeps the derived name: a label is text on the axis,
     // not a column rename.
     code should include(s"y=${decoded("-log10(pvalue)")}")
   }
 
   it should "treat a whitespace-only label as empty and keep the default" in {
-    val op = configured
-    op.title = " "
-    op.xLabel = "\t"
-    op.yLabel = " \n "
-    op.generatePythonCode() shouldBe configured.generatePythonCode()
+    assertBlankLabelsIgnored(_.generatePythonCode())
   }
 
   it should "treat each label independently so one set label leaves the others at their default" in {
-    val op = configured
-    op.yLabel = "Y_ONLY_SENT"
-    val code = op.generatePythonCode()
-    code should include(s"yaxis_title=${decoded("Y_ONLY_SENT")}")
-    code should include(s"title=${decoded("Volcano Plot")}")
-    code should include(s"xaxis_title=${decoded("log2fc")}")
-    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+    val code = configured(_.yLabel = "Y_ONLY_SENT").generatePythonCode()
+    assertLabels(code, decoded, "Volcano Plot", "log2fc", "Y_ONLY_SENT")
   }
 
   it should "render a workflow saved before this change exactly as a default-constructed operator" in {
-    val saved = objectMapper
-      .readValue(
-        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
-        classOf[LogicalOp]
-      )
-      .asInstanceOf[VolcanoPlotOpDesc]
-    saved.generatePythonCode() shouldBe configured.generatePythonCode()
+    readOp(""","effectColumn":"log2fc","pvalueColumn":"pvalue"""").generatePythonCode() shouldBe
+      configured.generatePythonCode()
   }
 
   "VolcanoPlotOpDesc.generateStandaloneCode" should "keep the first column as the hover label when no hover column is set" in {
@@ -398,9 +375,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "use the configured hover column as a literal and check that the table has it" in {
-    val op = configured
-    op.hoverName = "gene"
-    val code = op.generateStandaloneCode()
+    val code = configured(_.hoverName = "gene").generateStandaloneCode()
     code should include("""hover_name="gene",""")
     code should not include "hover_name=table.columns[0]"
     // One more branch of the script's column checks, before the row filter and
@@ -418,22 +393,17 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   it should "escape a hover column with quotes or a backslash rather than decode it" in {
     // The export has no decoder, so the name itself is in the script: a quote or a
     // backslash must come out escaped, or the literal would end early.
-    val op = configured
-    op.hoverName = "HOVER_SENT \"gene\" 基因"
-    val code = op.generateStandaloneCode()
+    val code = configured(_.hoverName = "HOVER_SENT \"gene\" 基因").generateStandaloneCode()
     code should include("hover_name=\"HOVER_SENT \\\"gene\\\" 基因\",")
     code should include("elif \"HOVER_SENT \\\"gene\\\" 基因\" not in in1df.columns:")
     code should not include "decode_python_template"
-    op.hoverName = "gene\\id"
-    op.generateStandaloneCode() should include("hover_name=\"gene\\\\id\",")
+    configured(_.hoverName = "gene\\id").generateStandaloneCode() should include(
+      "hover_name=\"gene\\\\id\","
+    )
   }
 
   it should "treat a whitespace-only hover column as empty" in {
-    Seq(" ", "\t", " \n ").foreach { blank =>
-      val op = configured
-      op.hoverName = blank
-      op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
-    }
+    assertBlankHoverIgnored(_.generateStandaloneCode())
   }
 
   it should "draw no cut-off line and keep the continuous effect-size coloring by default" in {
@@ -445,11 +415,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "color Up, Down and Not significant with the column names as literals" in {
-    val op = configured
-    op.significanceThreshold = Some(0.05)
-    op.effectSizeThreshold = Some(1.0)
-    op.colorBySignificance = true
-    val code = op.generateStandaloneCode()
+    val code = withThresholds().generateStandaloneCode()
     code should include("""significant = table["pvalue"] < 0.05""")
     code should include(
       """[significant & (table["log2fc"] > 1.0), significant & (table["log2fc"] < -1.0)]"""
@@ -480,10 +446,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
       (Some(1e-300), Some(1e21), true)
     ).foreach {
       case (sig, eff, toggle) =>
-        val op = configured
-        op.significanceThreshold = sig
-        op.effectSizeThreshold = eff
-        op.colorBySignificance = toggle
+        val op = withThresholds(sig, eff, toggle)
         val engine = op.generatePythonCode()
         val export = op.generateStandaloneCode()
         cutOffLine.findAllIn(export).toSeq shouldBe cutOffLine.findAllIn(engine).toSeq
@@ -492,58 +455,42 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   }
 
   it should "name the y column and its axis after the selected p-value column" in {
-    val op = configured
-    op.pvalueColumn = "padj"
-    val code = op.generateStandaloneCode()
+    val code = configured(_.pvalueColumn = "padj").generateStandaloneCode()
     code should include("""table["-log10(padj)"] = -np.log10(table["padj"])""")
     code should include("""y="-log10(padj)",""")
     code should include("""yaxis_title="-log10(padj)",""")
     code should not include "-log10(pvalue)"
     // The derived y column is the one literal built from a column name rather than
     // taken from a field, so a quote in that name must survive the wrap and the escape.
-    op.pvalueColumn = "p\"adj"
-    val quoted = op.generateStandaloneCode()
+    val quoted = configured(_.pvalueColumn = "p\"adj").generateStandaloneCode()
     quoted should include("table[\"-log10(p\\\"adj)\"] = -np.log10(table[\"p\\\"adj\"])")
     quoted should include("yaxis_title=\"-log10(p\\\"adj)\",")
   }
 
   it should "fall back to the column-derived labels when no label is set" in {
-    val code = configured.generateStandaloneCode()
-    code should include("""title="Volcano Plot"""")
-    code should include("""xaxis_title="log2fc",""")
-    code should include("""yaxis_title="-log10(pvalue)",""")
-    code should include("""coloraxis_colorbar_title_text="log2fc"""")
+    assertLabels(
+      configured.generateStandaloneCode(),
+      pyLiteral,
+      "Volcano Plot",
+      "log2fc",
+      "-log10(pvalue)"
+    )
   }
 
   it should "emit every configured label as an escaped Python literal" in {
     // The export has no decoder, so the text itself is in the script: a quote or
     // a backslash must come out escaped, or the label would end the literal early.
-    val op = configured
-    op.title = "TITLE_SENT \"quoted\" 火山"
-    op.xLabel = "X_LBL_SENT log₂ fold change"
-    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
-    val code = op.generateStandaloneCode()
-    code should include("title=\"TITLE_SENT \\\"quoted\\\" 火山\"")
-    code should include("xaxis_title=\"X_LBL_SENT log₂ fold change\",")
-    code should include("yaxis_title=\"Y_LBL_SENT -log₁₀(BH-adjusted p) \\\\ back\\\\slash\",")
-    // The color bar follows the x label, since both show the effect column.
-    code should include("coloraxis_colorbar_title_text=\"X_LBL_SENT log₂ fold change\"")
+    val code = withCustomLabels.generateStandaloneCode()
+    assertLabels(code, pyLiteral, customTitle, customXLabel, customYLabel)
     // A set label replaces the default rather than being emitted next to it.
-    code should not include """title="Volcano Plot""""
-    code should not include """xaxis_title="log2fc""""
-    code should not include """yaxis_title="-log10(pvalue)""""
-    code should not include """coloraxis_colorbar_title_text="log2fc""""
+    assertDefaultLabelsAbsent(code, pyLiteral)
     // The y column itself keeps the derived name: a label is text on the axis,
     // not a column rename.
     code should include("""y="-log10(pvalue)",""")
   }
 
   it should "treat a whitespace-only label as empty and keep the default" in {
-    val op = configured
-    op.title = " "
-    op.xLabel = "\t"
-    op.yLabel = " \n "
-    op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
+    assertBlankLabelsIgnored(_.generateStandaloneCode())
   }
 
   /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
@@ -554,27 +501,38 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
       .readValue(s"""{"operatorType":"VolcanoPlot"$json}""", classOf[LogicalOp])
       .asInstanceOf[VolcanoPlotOpDesc]
 
+  private def assertThresholds(
+      json: String,
+      expectedSig: Option[Double],
+      expectedEff: Option[Double]
+  ): Unit = {
+    val op = readOp(json)
+    op.significanceThreshold shouldBe expectedSig
+    op.effectSizeThreshold shouldBe expectedEff
+  }
+
   "VolcanoPlotOpDesc thresholds" should "deserialize JSON numbers" in {
-    val op = readOp(""","significanceThreshold":0.05,"effectSizeThreshold":1""")
-    op.significanceThreshold shouldBe Some(0.05)
-    op.effectSizeThreshold shouldBe Some(1.0)
+    assertThresholds(
+      ""","significanceThreshold":0.05,"effectSizeThreshold":1""",
+      Some(0.05),
+      Some(1.0)
+    )
   }
 
   it should "deserialize numeric strings" in {
-    val op = readOp(""","significanceThreshold":"0.05","effectSizeThreshold":"1.5"""")
-    op.significanceThreshold shouldBe Some(0.05)
-    op.effectSizeThreshold shouldBe Some(1.5)
+    assertThresholds(
+      ""","significanceThreshold":"0.05","effectSizeThreshold":"1.5"""",
+      Some(0.05),
+      Some(1.5)
+    )
   }
 
   it should "read an absent, null or blank value as unset rather than as zero" in {
-    readOp("").significanceThreshold shouldBe None
-    readOp("").effectSizeThreshold shouldBe None
-    val nulls = readOp(""","significanceThreshold":null,"effectSizeThreshold":null""")
-    nulls.significanceThreshold shouldBe None
-    nulls.effectSizeThreshold shouldBe None
-    val blanks = readOp(""","significanceThreshold":"","effectSizeThreshold":""""")
-    blanks.significanceThreshold shouldBe None
-    blanks.effectSizeThreshold shouldBe None
+    Seq(
+      "",
+      ""","significanceThreshold":null,"effectSizeThreshold":null""",
+      ""","significanceThreshold":"","effectSizeThreshold":"""""
+    ).foreach(assertThresholds(_, None, None))
   }
 
   it should "treat a non-finite value read from JSON as unset so no Infinity or NaN reaches the Python" in {

@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.barChart
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -66,13 +65,7 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
   "BarChartOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     opDesc.value = "v"
     opDesc.fields = "f"
-    val schemas = opDesc.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe opDesc.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(opDesc)
   }
 
   "BarChartOpDesc.generatePythonCode" should "render a UDFTableOperator source with runtime decode sites for value AND fields" in {

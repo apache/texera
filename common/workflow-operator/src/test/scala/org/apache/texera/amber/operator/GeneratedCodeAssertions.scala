@@ -19,6 +19,10 @@
 
 package org.apache.texera.amber.operator
 
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.scalatest.Assertion
+
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -57,6 +61,31 @@ private[operator] trait GeneratedCodeAssertionChecks
     error.getMessage should not be null
     error.getMessage should include(phrase)
     error
+  }
+
+  protected final def expectedHtmlOutputSchema(
+      op: PythonOperatorDescriptor
+  ): Map[PortIdentity, Schema] =
+    Map(op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING))
+
+  protected final def assertHtmlOutputSchema(
+      op: PythonOperatorDescriptor,
+      inputSchemas: Map[PortIdentity, Schema] = Map.empty
+  )(implicit pos: Position): Assertion = {
+    val schemas = op.getOutputSchemas(inputSchemas)
+    schemas should have size 1
+    val (portId, schema) = schemas.head
+    portId shouldBe op.operatorInfo.outputPorts.head.id
+    schema.getAttributes should have length 1
+    schema.getAttributes.head.getName shouldBe "html-content"
+    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+  }
+
+  protected final def expectEmptyFieldError(fieldFragment: String)(body: => Any)(implicit
+      pos: Position
+  ): Assertion = {
+    val ex = expectError[AssertionError]("cannot be empty")(body)
+    fieldPart(ex.getMessage) should include(fieldFragment)
   }
 }
 

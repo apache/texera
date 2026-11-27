@@ -19,12 +19,12 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  withDriver
+import org.apache.texera.amber.operator.visualization.ChartPythonTestSupport.{
+  parseCaseVerdicts,
+  verifyStandaloneChartCases,
+  withPytexeraTableDriver
 }
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
@@ -203,33 +203,8 @@ class FilledAreaPlotOpDescSpec
   // Driver executed by the runtime test below. It stubs only the pytexera import seam
   // (base class, decorator, and type aliases); the generated module itself runs unmodified,
   // including the real pandas groupby guard and plotly rendering.
-  private val runtimeDriverScript: String =
-    """import base64
-      |import sys
-      |import types
-      |from typing import Iterator, Optional
-      |
-      |import pandas as pd
-      |
-      |class UDFTableOperator:
-      |    def decode_python_template(self, data):
-      |        return base64.b64decode(data).decode("utf-8")
-      |
-      |stub = types.ModuleType("pytexera")
-      |stub.UDFTableOperator = UDFTableOperator
-      |stub.overrides = lambda fn: fn
-      |stub.Table = pd.DataFrame
-      |stub.TableLike = object
-      |stub.Iterator = Iterator
-      |stub.Optional = Optional
-      |sys.modules["pytexera"] = stub
-      |
-      |ns = {"__name__": "generated_filled_area_plot"}
-      |with open(sys.argv[1], encoding="utf-8") as f:
-      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
-      |op = ns["ProcessTableOperator"]()
-      |
-      |def make_df(n_groups, disjoint):
+  private val runtimeDriverBody: String =
+    """def make_df(n_groups, disjoint):
       |    rows = []
       |    for i in range(n_groups):
       |        xs = range(101, 111) if i in disjoint else range(1, 11)
@@ -261,32 +236,20 @@ class FilledAreaPlotOpDescSpec
       |        verdict = "MISSING"
       |    else:
       |        verdict = "CHART"
-      |    print("CASE %s %s" % (cid, verdict))
-      |""".stripMargin
+      |    print("CASE %s %s" % (cid, verdict))""".stripMargin
 
   it should "enforce the five-percent tolerance at runtime boundaries" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) {
-      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
-    }
-
-    withDriver(
-      python,
-      "filled_area_plot_op_",
-      "filled_area_plot_driver_",
+    withPytexeraTableDriver(
+      "filled_area_plot",
       generatedGuardCode(),
-      runtimeDriverScript,
-      "Runtime verification driver timed out after 120s"
+      "generated_filled_area_plot",
+      "ProcessTableOperator",
+      runtimeDriverBody,
+      timeoutMessage = "Runtime verification driver timed out after 120s"
     ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
         exitCode shouldBe 0
-        val verdicts = "CASE (\\S+) (\\S+)".r
-          .findAllMatchIn(output)
-          .map(m => m.group(1) -> m.group(2))
-          .toMap
-        verdicts shouldBe Map(
+        parseCaseVerdicts(output) shouldBe Map(
           "b19_1" -> "FALLBACK", // 1/19 disjoint = 5.3% > 5%
           "b20_1" -> "CHART", // exactly 5.0%, tolerance is strict >
           "b40_1" -> "CHART", // 2.5%: the original floored-tolerance bug
@@ -351,66 +314,27 @@ class FilledAreaPlotOpDescSpec
   // and 8 are past it.
   "FilledAreaPlotOpDesc.generateStandaloneCode" should
     "refuse the same tables the operator refuses" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImport(python, "pandas", "plotly")) {
-      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
-    }
-
     opDesc.x = "x"
     opDesc.y = "y"
     opDesc.lineGroup = "grp"
-    withDriver(
-      python,
-      "filled_area_standalone_",
-      "filled_area_boundary_",
+    verifyStandaloneChartCases(
+      "filled_area",
       opDesc.generateStandaloneCode(),
-      boundaryDriverScript,
-      "Boundary driver timed out after 120s"
-    ) { (exitCode, output) =>
-      withClue(s"Driver output:\n$output\n") {
-        exitCode shouldBe 0
-        val verdicts = "CASE (\\S+) (\\S+)".r
-          .findAllMatchIn(output)
-          .map(m => m.group(1) -> m.group(2))
-          .toMap
-        verdicts shouldBe Map("7" -> "CHART", "8" -> "FALLBACK")
-      }
-    }
+      // 150 line groups, as many of them disjoint from the first as the case name says.
+      casesScript = """def _boundary_frame(disjoint):
+          |    rows = []
+          |    for index in range(150):
+          |        value = "z%03d" % index if 1 <= index <= disjoint else "a"
+          |        rows.append({"x": value, "y": 1.0, "grp": "g%03d" % index})
+          |        rows.append({"x": value, "y": 2.0, "grp": "g%03d" % index})
+          |    return pd.DataFrame(rows)
+          |
+          |cases = {str(disjoint): _boundary_frame(disjoint) for disjoint in (7, 8)}""".stripMargin,
+      verdictBody =
+        """    verdict = "FALLBACK" if "not shared across all line groups" in page else "CHART"""".stripMargin,
+      expectedVerdicts = Map("7" -> "CHART", "8" -> "FALLBACK"),
+      plotlyScopeBinding = Some(("plotly.express", "px")),
+      timeoutMessage = "Boundary driver timed out after 120s"
+    )
   }
-
-  // Runs the exported block over 150 line groups, as many of them disjoint from
-  // the first as the case names, and reports the page it wrote.
-  private val boundaryDriverScript: String =
-    """import pathlib
-      |import sys
-      |import tempfile
-      |
-      |import pandas as pd
-      |import plotly.express as px
-      |
-      |# The module and the page are both UTF-8, which Windows does not read by
-      |# default.
-      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-      |
-      |for disjoint in (7, 8):
-      |    rows = []
-      |    for index in range(150):
-      |        value = "z%03d" % index if 1 <= index <= disjoint else "a"
-      |        rows.append({"x": value, "y": 1.0, "grp": "g%03d" % index})
-      |        rows.append({"x": value, "y": 2.0, "grp": "g%03d" % index})
-      |    directory = tempfile.mkdtemp()
-      |    scope = {
-      |        "in1df": pd.DataFrame(rows),
-      |        "outputHtml": directory + "/chart.html",
-      |        "outputJson": directory + "/chart.json",
-      |        "pd": pd,
-      |        "px": px,
-      |    }
-      |    exec(compile(source, "standalone", "exec"), scope)
-      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
-      |    verdict = "FALLBACK" if "not shared across all line groups" in page else "CHART"
-      |    print("CASE %d %s" % (disjoint, verdict))
-      |""".stripMargin
 }

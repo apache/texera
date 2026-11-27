@@ -19,14 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.contourPlot
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
+class ContourPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "ContourPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -51,10 +50,7 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new ContourPlotOpDesc
     // getOutputSchemas ignores its input; pass empty to prove that.
-    val out = op.getOutputSchemas(Map.empty)
-    out shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "ContourPlotOpDesc" should "round-trip its column fields through the polymorphic base" in {

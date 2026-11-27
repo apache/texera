@@ -19,15 +19,14 @@
 
 package org.apache.texera.amber.operator.visualization.bulletChart
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import java.util
 import java.util.{List => JList}
 
-class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
+class BulletChartOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   private def configured: BulletChartOpDesc = {
     val op = new BulletChartOpDesc
@@ -49,13 +48,7 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
 
   "BulletChartOpDesc.getOutputSchemas" should "return a single-port schema with an html-content STRING column" in {
     val op = configured
-    val schemas = op.getOutputSchemas(Map.empty)
-    schemas should have size 1
-    val (portId, schema) = schemas.head
-    portId shouldBe op.operatorInfo.outputPorts.head.id
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "html-content"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    assertHtmlOutputSchema(op)
   }
 
   "BulletChartOpDesc.generatePythonCode" should "render Python source with a runtime decode site for the value column" in {

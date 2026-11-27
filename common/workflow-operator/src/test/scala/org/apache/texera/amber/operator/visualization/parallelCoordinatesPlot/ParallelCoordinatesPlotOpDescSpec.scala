@@ -19,14 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class ParallelCoordinatesPlotOpDescSpec extends AnyFlatSpec with Matchers {
+class ParallelCoordinatesPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "ParallelCoordinatesPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -45,9 +44,7 @@ class ParallelCoordinatesPlotOpDescSpec extends AnyFlatSpec with Matchers {
   "ParallelCoordinatesPlotOpDesc.getOutputSchemas" should
     "produce a single html-content STRING column keyed by the declared output port" in {
     val op = new ParallelCoordinatesPlotOpDesc
-    op.getOutputSchemas(Map.empty) shouldBe Map(
-      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
-    )
+    op.getOutputSchemas(Map.empty) shouldBe expectedHtmlOutputSchema(op)
   }
 
   "ParallelCoordinatesPlotOpDesc.generatePythonCode" should
