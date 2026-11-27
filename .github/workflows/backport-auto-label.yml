@@ -22,6 +22,14 @@
 # later edit never silently re-adds a label the author took off. `fix(ci):` PRs
 # only touch CI and are never backported, so they are left alone.
 #
+# If a labeled PR stops being a backportable fix (its title is edited to a
+# non-`fix:` type, or to `fix(ci):`), the actively-supported release/* labels
+# this workflow added are removed automatically on that edit, so the author does
+# not have to clear them by hand. A label removed while the PR was a fix is a
+# deliberate decline and is remembered; the title-change cleanup runs while the
+# title is not a fix, so it is not remembered, and changing the title back to
+# `fix:` re-adds the labels.
+#
 # A label nominates a target; it does not decide one. The branch's release
 # manager still has to approve the PR for the fix to land there, and that
 # approval is required to merge (.github/workflows/backport-approval-check.yml).
@@ -40,10 +48,10 @@
 # rather than building a second Octokit inside one script (github-script's
 # patched `require` cannot resolve @actions/github from the workspace):
 #   - "Label" runs under the fine-grained PAT (falling back to the default
-#     token). Only labels added by the PAT retrigger the backport pre-merge
-#     check — labels added by the default GITHUB_TOKEN do not trigger
-#     downstream workflows. This step does every read and every label write,
-#     then hands the review/report decisions to the next step.
+#     token). Only label writes by the PAT retrigger the downstream backport
+#     checks; a label added or removed by the default GITHUB_TOKEN does not. So
+#     this step does every read and every label write (adds and stale-label
+#     removals alike), then hands the review/report decisions to the next step.
 #   - "Report" runs under the default GITHUB_TOKEN so the review request and
 #     the report comment are attributed to github-actions[bot], not the PAT
 #     owner, and do not retrigger any comment-/review-driven workflow.
@@ -114,24 +122,50 @@ jobs:
                 return { mode: "none" };
               }
 
-              // Conventional-commit `fix:` (optional scope, optional `!`). Other
-              // types (feat/chore/docs/...) are not auto-backported and, since
-              // they are never backport candidates, get no report comment.
-              const m = title.match(/^fix(?:\(([^)]*)\))?!?:/i);
-              if (!m) {
-                core.info(`PR #${pr.number} title is not a fix (\"${title}\"); skipping.`);
-                return { mode: "none" };
+              const currentLabels = new Set((pr.labels || []).map((l) => l.name));
+              const activeBranches = entries
+                .filter((e) => e.active)
+                .map((e) => e.branch);
+
+              // A backportable fix is a conventional-commit `fix:` (optional
+              // scope, optional `!`) that is not `fix(ci):`, since CI-only fixes
+              // never land on a release branch. One test serves both "do we
+              // auto-label this?" and "was the PR a fix when a label was removed?".
+              function isBackportableFix(t) {
+                const mm = (t || "").match(/^fix(?:\(([^)]*)\))?!?:/i);
+                if (!mm) return false;
+                const sc = (mm[1] || "")
+                  .split(",")
+                  .map((s) => s.trim().toLowerCase())
+                  .filter(Boolean);
+                return !sc.includes("ci");
               }
 
-              // `fix(ci):` touches CI/tooling only; it never lands on a release
-              // branch, so treat it like a non-fix and skip auto-labeling.
-              const scopes = (m[1] || "")
-                .split(",")
-                .map((s) => s.trim().toLowerCase())
-                .filter(Boolean);
-              if (scopes.includes("ci")) {
-                core.info(`PR #${pr.number} is fix(ci) — CI-only, never backported; skipping.`);
-                return { mode: "none" };
+              // When a PR stops being a backportable fix, the release/* labels
+              // this workflow auto-added are stale. Remove only the actively-
+              // supported ones it would have added, and only when the title
+              // actually made that transition on this edit, so a label hand-added
+              // to a non-fix PR and a body-only edit are both left untouched. The
+              // PAT-authored label step does the removal so the resulting
+              // `unlabeled` event reruns Backport Approvals.
+              function cleanupDecision() {
+                const from = context.payload.changes?.title?.from;
+                const transitioned =
+                  context.payload.action === "edited" &&
+                  typeof from === "string" &&
+                  isBackportableFix(from);
+                if (!transitioned) return { mode: "none" };
+                const toRemove = activeBranches.filter((b) => currentLabels.has(b));
+                if (toRemove.length === 0) return { mode: "none" };
+                return { mode: "cleanup", toRemove };
+              }
+
+              // Not an auto-backportable fix (a non-fix type, or `fix(ci):`): do
+              // not label, and clear any stale release labels left from when it
+              // was a fix.
+              if (!isBackportableFix(title)) {
+                core.info(`PR #${pr.number} is not an auto-backportable fix (\"${title}\"); checking for stale release labels to clear.`);
+                return cleanupDecision();
               }
 
               const author = pr.user?.login;
@@ -141,7 +175,6 @@ jobs:
               // the author to wait for an approval that cannot come.
               const authorLogin = (author || "").toLowerCase();
               const managerIsAuthor = (m) => (m || "").toLowerCase() === authorLogin;
-              const currentLabels = new Set((pr.labels || []).map((l) => l.name));
 
               // Hard manual override: a maintainer marks a PR that must never be
               // backported (e.g. it fixes a feature that only exists on main).
@@ -183,15 +216,35 @@ jobs:
                 return { absent: true, checked: preexisting }; // every modified file absent
               }
 
-              // Labels the author (or anyone) explicitly removed. Re-adding one
-              // would override a deliberate opt-out, so we skip those forever.
+              // Labels explicitly removed while the PR was a backportable fix are
+              // deliberate opt-outs; re-adding one would override that, so skip
+              // them forever.
               const timeline = await github.paginate(
                 github.rest.issues.listEventsForTimeline,
                 { owner, repo, issue_number: pr.number, per_page: 100 }
               );
+              // Reconstruct the title in effect at any moment from the `renamed`
+              // events, so a removal can be judged by the title at the time.
+              const renames = timeline
+                .filter((e) => e.event === "renamed" && e.rename)
+                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+              function titleAt(whenISO) {
+                const when = new Date(whenISO);
+                let t = renames.length ? renames[0].rename.from : (pr.title || "");
+                for (const r of renames) {
+                  if (new Date(r.created_at) <= when) t = r.rename.to;
+                  else break;
+                }
+                return t;
+              }
+              // A label removed while the PR was a backportable fix is a human
+              // decline and is remembered. A removal made while the title was not
+              // a backportable fix is this workflow's own stale-label cleanup, so
+              // it is ignored and a later re-fix re-adds the label.
               const removed = new Set(
                 timeline
                   .filter((e) => e.event === "unlabeled" && e.label?.name)
+                  .filter((e) => isBackportableFix(titleAt(e.created_at)))
                   .map((e) => e.label.name)
               );
 
@@ -321,6 +374,24 @@ jobs:
             // after the body runs, which would clobber an explicit setOutput of the
             // same name (this script returns nothing, so that would blank it out).
             const result = await decide();
+            // Stale-label cleanup removes under the PAT (this step) so the
+            // `unlabeled` event reruns Backport Approvals; a removal under the
+            // default token does not retrigger it, leaving that required check
+            // red after the labels are gone.
+            if (result.mode === "cleanup") {
+              for (const label of result.toRemove || []) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner, repo, issue_number: pr.number, name: label,
+                  });
+                  core.info(`Removed stale ${label} from PR #${pr.number}.`);
+                } catch (e) {
+                  if (e.status !== 404) {
+                    core.warning(`Could not remove ${label} (status ${e.status ?? "?"}): ${e.message}`);
+                  }
+                }
+              }
+            }
             if (result.mode !== "none") {
               core.setOutput("decisions", JSON.stringify(result));
             }
@@ -378,6 +449,25 @@ jobs:
               }
             }
 
+            // The PR is no longer a backportable fix. The label step already
+            // removed the stale release labels under the PAT (so Backport
+            // Approvals reruns); here we only update the report to say they can
+            // come back.
+            if (result.mode === "cleanup") {
+              const removedList = (result.toRemove || [])
+                .map((b) => `\`${b}\``)
+                .join(", ");
+              await upsertReport(
+                "### Backport auto-label report\n\n" +
+                "This PR is no longer a backportable `fix:` PR, so the release " +
+                `labels it had been auto-labeled with (${removedList}) were ` +
+                "removed. Change the title back to a `fix:` and they will be " +
+                "re-added.\n\n" +
+                `_[Auto-label run](${runUrl})._`
+              );
+              return;
+            }
+
             if (result.mode === "no-backport") {
               await upsertReport(
                 "### Backport auto-label report\n\n" +
@@ -422,10 +512,18 @@ jobs:
               "This `fix:` PR was checked against each actively-supported " +
               "release branch. A `release/*` label nominates a backport target; " +
               "the branch's release manager approving this PR is what sends the " +
-              "fix there. The required **Backport Approvals** check stays red " +
-              "until every label below is approved, so each manager either " +
-              "approves or removes their own label — which is why the labels " +
-              "left on a merged PR are exactly the branches it reached.\n\n" +
+              "fix there, and the labels left on a merged PR are exactly the " +
+              "branches it reached.\n\n" +
+              "**Blocked by a red Backport Approvals check?** That required check " +
+              "stays red until every `release/*` label below is either approved by " +
+              "its branch's release manager or removed. To unblock a backport you " +
+              "do not want:\n" +
+              "- Remove that branch's `release/*` label to decline just it (the " +
+              "removal is remembered, so it is not added again).\n" +
+              "- Add the `no-backport-needed` label to decline every branch at once.\n" +
+              "- If this PR is not really a fix, change its title away from `fix:` " +
+              "and all of these labels are removed automatically; retitling back " +
+              "to `fix:` re-adds them.\n\n" +
               "| Release branch | Analysis |\n| --- | --- |\n" +
               rows +
               "\n\n" +
