@@ -23,7 +23,9 @@ import {
   ComponentRef,
   ElementRef,
   HostListener,
+  Input,
   OnDestroy,
+  OnInit,
   Type,
   ViewChild,
 } from "@angular/core";
@@ -94,14 +96,18 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
     AnnotationSuggestionComponent,
   ],
 })
-export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
+export class CodeEditorComponent implements OnInit, AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   @ViewChild("container", { static: true }) containerElement!: ElementRef;
   @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
   @ViewChild(BreakpointConditionInputComponent) breakpointConditionInput!: BreakpointConditionInputComponent;
   private code?: YText;
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
-  public currentOperatorId!: string;
+  /**
+   * The operator whose code this edits, given by the opener: the operator property panel's button
+   * reads the highlighted operator, the Form View's the operator its field is bound to.
+   */
+  @Input() currentOperatorId!: string;
 
   public title: string | undefined;
   public formControl!: FormControl;
@@ -140,8 +146,15 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private config: GuiConfigService,
     private uiUdfParametersSyncService: UiUdfParametersSyncService,
     private notificationService: NotificationService
-  ) {
-    this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+  ) {}
+
+  ngOnInit(): void {
+    // Everything here keys on currentOperatorId, an input the opener sets before the first check
+    // (the codearea's openEditor). Opened without one, name the missing input, rather than fail on
+    // the first lookup with an operator that "does not exist" (Copilot).
+    if (!this.currentOperatorId) {
+      throw new Error("CodeEditorComponent needs currentOperatorId set before it is initialised");
+    }
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     this.language = getUiUdfLanguage(operator) ?? "java";
     this.languageTitle = `${this.language[0].toUpperCase()}${this.language.slice(1)} UDF`;
@@ -456,6 +469,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private setupAIAssistantActions(editor: MonacoEditor) {
+    // Monaco's readOnly stops typing, not the context-menu actions, and accepting a type annotation
+    // inserts into the shared code: a read-only viewer's editor offers none (#8760).
+    if (this.formControl.disabled) {
+      return;
+    }
     // Check if the AI provider is "openai"
     this.aiAssistantService
       .checkAIAssistantEnabled()
@@ -667,6 +685,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.editorApp?.getEditor()?.layout();
   }
   onFocus() {
+    // The wrapper's own highlight, as it always was, not WorkflowActionService's: that one also
+    // announces the highlight to co-editors and switches multi-select mode, neither wanted on focus.
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
   }
 }

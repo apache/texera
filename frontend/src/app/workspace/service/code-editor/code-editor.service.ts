@@ -24,7 +24,30 @@ import { BehaviorSubject, Observable } from "rxjs";
   providedIn: "root",
 })
 export class CodeEditorService {
-  public vc!: ViewContainerRef;
+  /**
+   * Where the code editor renders: the outlet of the view in front, marked `texeraCodeEditorHost`
+   * on an `<ng-template>` in its template (see CodeEditorHostDirective). The operator canvas and the
+   * Form View each carry one; a view's outlet is attached when its template is built and detached
+   * when the view is destroyed. The editor is a floating box, so where the outlet sits in the page
+   * does not matter -- only that the view in front has one.
+   */
+  private editorHost?: ViewContainerRef;
+
+  /** The outlet to open the editor into, while a view hosts one. */
+  get host(): ViewContainerRef | undefined {
+    return this.editorHost;
+  }
+
+  attachHost(host: ViewContainerRef): void {
+    this.editorHost = host;
+  }
+
+  /** Lets go of this host only: a host that has since replaced it stays attached. */
+  detachHost(host: ViewContainerRef): void {
+    if (this.editorHost === host) {
+      this.editorHost = undefined;
+    }
+  }
 
   private editorStates: Map<string, BehaviorSubject<boolean>> = new Map();
 
