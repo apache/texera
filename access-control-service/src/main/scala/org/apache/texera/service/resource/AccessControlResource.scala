@@ -137,9 +137,8 @@ object AccessControlResource extends LazyLogging {
       .mapValues(values => values.asScala.headOption.getOrElse(""))
       .toMap
 
-    logger.info(
-      s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams"
-    )
+    // Log only the request path; the URI query, headers, and body all carry the bearer token.
+    logger.info(s"Authorizing computing-unit access for path ${uriInfo.getPath}")
 
     val token: String = {
       val qToken = queryParams.get("access-token").filter(_.nonEmpty)
@@ -151,7 +150,6 @@ object AccessControlResource extends LazyLogging {
       val bToken = bodyOpt.flatMap(extractTokenFromBody)
       qToken.orElse(hToken).orElse(bToken).getOrElse("")
     }
-    logger.info(s"token extracted from request $token")
 
     val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
       uriInfo.getPath match {
