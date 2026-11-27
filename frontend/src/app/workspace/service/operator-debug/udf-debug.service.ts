@@ -24,7 +24,7 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { isDefined } from "../../../common/util/predicate";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { filter, map, switchMap } from "rxjs/operators";
+import { filter, map, mergeMap } from "rxjs/operators";
 
 /**
  * This service provides functionalities for debugging UDF operators.
@@ -39,23 +39,28 @@ export class UdfDebugService {
     private workflowStatusService: WorkflowStatusService,
     private executeWorkflowService: ExecuteWorkflowService
   ) {
-    // Initializes debug handlers for all operators in the workflow graph.
-    const graph = this.workflowActionService.getTexeraGraph();
-    graph.getAllOperators().forEach(op => {
-      graph.createOperatorDebugState(op.operatorID);
-      this.registerOperatorStateChangeHandler(op.operatorID);
-      this.registerConsoleUpdateHandler(op.operatorID);
-    });
+    // The debug state lives in the open workflow's shared document, which is replaced whenever a
+    // workflow is opened or started, while this service lives as long as the page. So the handlers
+    // are registered once for every operator, and an operator's state is created when first needed.
+    this.registerOperatorStateChangeHandler();
+    this.registerConsoleUpdateHandler();
   }
 
   /**
-   * Retrieves the debug state for a specific operator.
+   * Retrieves the debug state for a specific operator, creating it on first use.
+   *
+   * It is looked up in the workflow open now, never kept from an earlier one, and an existing
+   * state is returned as is: editors and co-editors observe that same map.
    *
    * @param operatorId - The unique ID of the operator.
    * @returns A Y.Map containing the operator's debug state.
+   * @throws Error if the operator is not in the open workflow.
    */
   getDebugState(operatorId: string) {
-    return this.workflowActionService.getTexeraGraph().getOperatorDebugState(operatorId);
+    const graph = this.workflowActionService.getTexeraGraph();
+    graph.assertOperatorExists(operatorId);
+    graph.createOperatorDebugState(operatorId);
+    return graph.getOperatorDebugState(operatorId);
   }
 
   /**
@@ -149,27 +154,31 @@ export class UdfDebugService {
   }
 
   /**
-   * Registers a handler for state changes of an operator.
-   *
-   * @param operatorId - The unique ID of the operator.
+   * Clears the debug state of every operator that goes back to Uninitialized, including state left
+   * behind by an operator since deleted: it belongs to a run that is over, and would come back with
+   * the operator if the deletion were undone. An operator with no debug state is skipped, not given one.
    */
-  private registerOperatorStateChangeHandler(operatorId: string) {
-    this.workflowStatusService
-      .getStateUpdateStream()
-      .pipe(filter(event => event[operatorId] === OperatorState.Uninitialized))
-      .subscribe(() => this.getDebugState(operatorId).clear());
+  private registerOperatorStateChangeHandler() {
+    this.workflowStatusService.getStateUpdateStream().subscribe(event => {
+      const graph = this.workflowActionService.getTexeraGraph();
+      Object.entries(event)
+        .filter(
+          ([operatorId, state]) => state === OperatorState.Uninitialized && graph.hasOperatorDebugState(operatorId)
+        )
+        .forEach(([operatorId]) => graph.getOperatorDebugState(operatorId).clear());
+    });
   }
 
   /**
-   * Registers console update handlers for an operator.
-   *
-   * @param operatorId - The unique ID of the operator.
+   * Registers the console update handlers, once for every operator. Each debugger message is
+   * handled for the operator it names, provided that operator is in the open workflow; nothing in
+   * the shared pipeline may throw, or it would stop for the rest of the session.
    */
-  private registerConsoleUpdateHandler(operatorId: string) {
+  private registerConsoleUpdateHandler() {
     const debugMessageStream = this.workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
-      filter(evt => evt.operatorId === operatorId && evt.messages.length > 0),
-      switchMap(evt => evt.messages),
-      filter(msg => msg.source === "(Pdb)" && msg.msgType.name === "DEBUGGER")
+      filter(evt => evt.messages.length > 0 && this.workflowActionService.getTexeraGraph().hasOperator(evt.operatorId)),
+      mergeMap(evt => evt.messages.map(msg => ({ operatorId: evt.operatorId, msg }))),
+      filter(({ msg }) => msg.source === "(Pdb)" && msg.msgType.name === "DEBUGGER")
     );
 
     // Handle stepping message.
@@ -177,10 +186,10 @@ export class UdfDebugService {
     //   > /path/to/file.py(10)<module>()
     debugMessageStream
       .pipe(
-        filter(msg => msg.title.startsWith(">")),
-        map(msg => this.extractInfo(msg.title))
+        filter(({ msg }) => msg.title.startsWith(">")),
+        map(({ operatorId, msg }) => ({ operatorId, ...this.extractInfo(msg.title) }))
       )
-      .subscribe(({ lineNum }) => {
+      .subscribe(({ operatorId, lineNum }) => {
         if (!isDefined(lineNum)) return;
         this.markBreakpointAsHit(operatorId, lineNum);
       });
@@ -190,10 +199,10 @@ export class UdfDebugService {
     //   Breakpoint 1 at /path/to/file.py:10
     debugMessageStream
       .pipe(
-        filter(msg => msg.title.startsWith("Breakpoint")),
-        map(msg => this.extractInfo(msg.title))
+        filter(({ msg }) => msg.title.startsWith("Breakpoint")),
+        map(({ operatorId, msg }) => ({ operatorId, ...this.extractInfo(msg.title) }))
       )
-      .subscribe(({ breakpointId, lineNum }) => {
+      .subscribe(({ operatorId, breakpointId, lineNum }) => {
         if (isDefined(breakpointId) && isDefined(lineNum)) {
           this.getDebugState(operatorId).set(String(lineNum), {
             breakpointId,
@@ -210,10 +219,10 @@ export class UdfDebugService {
     //   Deleted breakpoint 1 at /path/to/file.py:10
     debugMessageStream
       .pipe(
-        filter(msg => msg.title.startsWith("Deleted")),
-        map(msg => this.extractInfo(msg.title))
+        filter(({ msg }) => msg.title.startsWith("Deleted")),
+        map(({ operatorId, msg }) => ({ operatorId, ...this.extractInfo(msg.title) }))
       )
-      .subscribe(({ lineNum }) => {
+      .subscribe(({ operatorId, lineNum }) => {
         if (!isDefined(lineNum)) {
           return;
         }
@@ -235,9 +244,9 @@ export class UdfDebugService {
     // Handle breakpoint blank message.
     // Example:
     //   *** Blank or comment
-    debugMessageStream.pipe(filter(msg => msg.title.startsWith("*** Blank or comment"))).subscribe(() => {
-      this.continueIfNotHittingBreakpoint(operatorId);
-    });
+    debugMessageStream
+      .pipe(filter(({ msg }) => msg.title.startsWith("*** Blank or comment")))
+      .subscribe(({ operatorId }) => this.continueIfNotHittingBreakpoint(operatorId));
   }
 
   /**
