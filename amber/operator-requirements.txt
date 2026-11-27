@@ -18,7 +18,7 @@
 wordcloud==1.9.6
 plotly==5.24.1
 praw==7.6.1
-pillow==12.3.0
+pillow==13.0.0
 
 # Pin torch to the CPU wheel on Linux: PyPI's Linux wheels, x86_64 and aarch64
 # alike, depend on the NVIDIA CUDA libraries.
