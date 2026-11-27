@@ -49,11 +49,16 @@ describe("ReActStepDetailModalComponent", () => {
           role: "assistant",
           content: [
             { type: "text", text: "adding" },
-            { type: "tool-call", toolCallId: "tc1", toolName: "addOperator", args: { operatorId: "op-1" } },
+            { type: "tool-call", toolCallId: "tc1", toolName: "addOperator", input: { operatorId: "op-1" } },
           ],
         },
-        { role: "tool", content: [{ type: "tool-result", toolCallId: "tc1", result: "ok" }] },
-      ],
+        {
+          role: "tool",
+          content: [
+            { type: "tool-result", toolCallId: "tc1", toolName: "addOperator", output: { type: "text", value: "ok" } },
+          ],
+        },
+      ] as any,
       operatorAccess: new Map([
         [0, { viewedOperatorIds: ["op-viewed"], addedOperatorIds: ["op-added"], modifiedOperatorIds: ["op-modified"] }],
       ]),
@@ -183,38 +188,40 @@ describe("ReActStepDetailModalComponent", () => {
   describe("getTextFromMessage", () => {
     it("returns empty string when there is no content", () => {
       expect(component.getTextFromMessage(null)).toBe("");
-      expect(component.getTextFromMessage({})).toBe("");
+      expect(component.getTextFromMessage({} as any)).toBe("");
     });
 
     it("returns string content directly", () => {
-      expect(component.getTextFromMessage({ content: "hello" })).toBe("hello");
+      expect(component.getTextFromMessage({ role: "user", content: "hello" } as any)).toBe("hello");
     });
 
     it("joins the text parts of array content", () => {
       const msg = {
+        role: "assistant",
         content: [
           { type: "text", text: "line1" },
           { type: "tool-call", toolName: "x" },
           { type: "text", text: "line2" },
         ],
-      };
+      } as any;
       expect(component.getTextFromMessage(msg)).toBe("line1\nline2");
     });
   });
 
   describe("getToolCallSummaries", () => {
     it("returns an empty array for non-array content", () => {
-      expect(component.getToolCallSummaries({ content: "x" })).toEqual([]);
+      expect(component.getToolCallSummaries({ role: "assistant", content: "x" } as any)).toEqual([]);
     });
 
     it("summarizes tool-call parts and defaults the operatorId", () => {
       const msg = {
+        role: "assistant",
         content: [
-          { type: "tool-call", toolName: "addOperator", args: { operatorId: "op1", k: "v" } },
+          { type: "tool-call", toolName: "addOperator", input: { operatorId: "op1", k: "v" } },
           { type: "tool-call", toolName: "noOp", input: {} },
           { type: "text", text: "ignored" },
         ],
-      };
+      } as any;
       expect(component.getToolCallSummaries(msg)).toEqual([
         { toolName: "addOperator", operatorId: "op1", fullArgs: { operatorId: "op1", k: "v" } },
         { toolName: "noOp", operatorId: "", fullArgs: {} },
@@ -225,38 +232,39 @@ describe("ReActStepDetailModalComponent", () => {
   describe("getToolResultFullItems / getToolResultItems", () => {
     function toolMessage(): any {
       return {
+        role: "tool",
         content: [
-          { type: "tool-result", toolCallId: "tc1", result: "short result" },
-          { type: "tool-result", toolCallId: "tc2", output: { rows: 3 } },
-          { type: "tool-result", toolCallId: "tc3", content: "after context compaction" },
+          {
+            type: "tool-result",
+            toolCallId: "tc1",
+            toolName: "addOperator",
+            output: { type: "text", value: "short result" },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tc2",
+            toolName: "executeOperator",
+            output: { type: "json", value: { rows: 3 } },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tc3",
+            toolName: "",
+            output: { type: "text", value: "after context compaction" },
+          },
         ],
       };
     }
 
-    beforeEach(() => {
-      // inputMessages provides the toolCallId -> toolName map.
-      component.step = {
-        inputMessages: [
-          {
-            role: "assistant",
-            content: [
-              { type: "tool-call", toolCallId: "tc1", toolName: "addOperator" },
-              { type: "tool-call", toolCallId: "tc2", toolName: "executeOperator" },
-            ],
-          },
-        ],
-      } as any;
-    });
-
     it("returns [] for non-array content", () => {
-      expect(component.getToolResultFullItems({ content: "x" })).toEqual([]);
-      expect(component.getToolResultItems({ content: "x" })).toEqual([]);
+      expect(component.getToolResultFullItems({ role: "tool", content: "x" } as any)).toEqual([]);
+      expect(component.getToolResultItems({ role: "tool", content: "x" } as any)).toEqual([]);
     });
 
     it("resolves tool names, content, token count and the trimmed flag", () => {
       const items = component.getToolResultFullItems(toolMessage());
 
-      // tc1: mapped name, raw string content, ~len/4 tokens, not trimmed
+      // tc1: name from the part, raw string output, ~len/4 tokens, not trimmed
       expect(items[0]).toEqual({
         toolName: "addOperator",
         resultContent: "short result",
@@ -266,9 +274,16 @@ describe("ReActStepDetailModalComponent", () => {
       // tc2: object output is pretty-printed
       expect(items[1].toolName).toBe("executeOperator");
       expect(items[1].resultContent).toBe(JSON.stringify({ rows: 3 }, null, 2));
-      // tc3: unmapped id falls back to the toolCallId; "context compaction" => trimmed
+      // tc3: blank tool name falls back to the toolCallId; "context compaction" => trimmed
       expect(items[2].toolName).toBe("tc3");
       expect(items[2].isTrimmed).toBe(true);
+    });
+
+    it("renders an empty string without throwing when a tool-result has no output", () => {
+      const msg = { role: "tool", content: [{ type: "tool-result", toolCallId: "tc9", toolName: "noResult" }] } as any;
+      const items = component.getToolResultFullItems(msg);
+      expect(items[0].resultContent).toBe("");
+      expect(items[0].tokenCount).toBe(0);
     });
 
     it("getToolResultItems returns name, token count and trimmed flag", () => {
