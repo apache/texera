@@ -21,7 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { Observable, of, take, throwError } from "rxjs";
 import { AgentService, AgentInfo, AgentSettingsApi, ModelType, OperatorExecutionSummary } from "./agent.service";
-import { AgentState, ReActStep } from "./agent-types";
+import { AgentState, ReActStep, ToolOperatorAccess } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -1168,7 +1168,7 @@ describe("AgentService", () => {
       expect((service as any).agentStateTracking.has("ghost")).toBe(false);
     });
 
-    it("getHeadIdObservable returns the tracked HEAD, or null when untracked", () => {
+    it("getHeadIdObservable returns the tracked HEAD, or null after creating tracking for a new id", () => {
       const emitted: (string | null)[] = [];
       service.getHeadIdObservable("agent-1").subscribe(v => emitted.push(v));
       (service as any).agentStateTracking.get("agent-1").headIdSubject.next("m1-2");
@@ -1176,15 +1176,17 @@ describe("AgentService", () => {
       expect(emitted).toEqual([null, "m1-2"]);
       expect(readSnapshot(service.getHeadIdObservable("agent-1"))).toBe("m1-2");
       expect(readSnapshot(service.getHeadIdObservable("ghost"))).toBeNull();
+      expect((service as any).agentStateTracking.has("ghost")).toBe(true);
     });
 
-    it("getReActStepsObservable returns the tracked steps, or [] when untracked", () => {
+    it("getReActStepsObservable returns the tracked steps, or [] after creating tracking for a new id", () => {
       service.getReActStepsObservable("agent-1").subscribe();
       const step = { messageId: "m1", stepId: 0 } as unknown as ReActStep;
       (service as any).agentStateTracking.get("agent-1").reActStepsSubject.next([step]);
 
       expect(readSnapshot(service.getReActStepsObservable("agent-1"))).toEqual([step]);
       expect(readSnapshot(service.getReActStepsObservable("ghost"))).toEqual([]);
+      expect((service as any).agentStateTracking.has("ghost")).toBe(true);
     });
 
     it("getWorkflowObservable emits the tracked workflow, or null when untracked", () => {
@@ -1305,6 +1307,48 @@ describe("AgentService", () => {
 
       expect(message).toBe("Failed to update agent settings");
       expect(notification.error).toHaveBeenCalledWith("Failed to update agent settings");
+    });
+  });
+
+  describe("getReActSteps success", () => {
+    it("converts the fetched steps, turning each step's keyed operator access into a Map", () => {
+      let steps: ReActStep[] | undefined;
+      service.getReActSteps("agent-1").subscribe(s => (steps = s));
+
+      const viewed: ToolOperatorAccess = {
+        viewedOperatorIds: ["op-7"],
+        addedOperatorIds: [],
+        modifiedOperatorIds: [],
+      };
+      const modified: ToolOperatorAccess = {
+        viewedOperatorIds: [],
+        addedOperatorIds: [],
+        modifiedOperatorIds: ["op-7"],
+      };
+      httpMock
+        .expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/react-steps")
+        .flush({
+          state: "AVAILABLE",
+          steps: [
+            {
+              messageId: "m1",
+              stepId: 2,
+              timestamp: "2026-06-11T00:00:00.000Z",
+              operatorAccess: { "0": viewed, "1": modified },
+            },
+            { messageId: "m2", timestamp: "2026-06-11T00:00:01.000Z" },
+          ],
+        });
+
+      expect(steps?.map(s => s.id)).toEqual(["m1-2", "m2-0"]);
+      expect(steps?.[0].timestamp).toEqual(new Date("2026-06-11T00:00:00.000Z"));
+      expect(steps?.[0].operatorAccess).toEqual(
+        new Map([
+          [0, viewed],
+          [1, modified],
+        ])
+      );
+      expect(steps?.[1].operatorAccess).toBeUndefined();
     });
   });
 

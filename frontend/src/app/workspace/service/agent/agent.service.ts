@@ -204,7 +204,7 @@ interface AgentStateTracking {
 /**
  * Manages the workspace's agents via the agent-service HTTP/WebSocket
  * API. Owns the local agent list, per-agent state tracking (ReAct steps, HEAD
- * pointer, workflow snapshot), and the canvas annotation toggles consumed by
+ * pointer, workflow snapshot), and the canvas annotation streams consumed by
  * workflow-editor.
  */
 @Injectable({
