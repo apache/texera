@@ -52,8 +52,10 @@ trait EndChannelHandler {
         // `main_loop._process_state_frame` for how a Loop End treats it.
         dp.outputManager.emitState(outputState.get)
       }
+      // A columnar source emits native Arrow batches straight downstream (no per-row Tuple);
+      // every other operator, and a source with no native columnar path, uses the row path.
       dp.outputManager.outputIterator.setTupleOutput(
-        dp.executor.onFinishMultiPort(portId.id)
+        dp.sourceColumnarOutput().getOrElse(dp.executor.onFinishMultiPort(portId.id))
       )
     } catch safely {
       case e =>

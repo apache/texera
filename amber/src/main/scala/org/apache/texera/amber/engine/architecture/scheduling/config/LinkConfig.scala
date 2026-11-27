@@ -94,5 +94,8 @@ case object LinkConfig {
 
 case class LinkConfig(
     channelConfigs: List[ChannelConfig],
-    partitioning: Partitioning
+    partitioning: Partitioning,
+    // Per-edge columnar-wire decision: ship this link's batches as Arrow when the
+    // downstream operator consumes columns natively and the columnar wire is enabled.
+    columnar: Boolean = false
 )

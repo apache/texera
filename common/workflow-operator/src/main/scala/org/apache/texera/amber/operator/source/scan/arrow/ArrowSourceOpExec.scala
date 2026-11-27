@@ -25,11 +25,12 @@ import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{FieldVector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowFileReader
 
 import java.net.URI
 import java.nio.file.{Files, StandardOpenOption}
+import scala.jdk.CollectionConverters._
 
 class ArrowSourceOpExec(
     descString: String
@@ -54,6 +55,53 @@ class ArrowSourceOpExec(
       case e: Exception =>
         close() // Ensure resources are closed in case of an error
         throw new RuntimeException("Failed to open Arrow source", e)
+    }
+  }
+
+  // The file is already Arrow batches. A batch up to maxBatchRows is handed out whole via
+  // zero-copy TransferPair; a larger one is emitted in bounded copy-slices so only one bounded batch
+  // is materialized at a time (avoids OOM on a file written as one huge record batch). None (row
+  // path) when offset/limit are set.
+  override def produceColumnarBatch(
+      schema: org.apache.texera.amber.core.tuple.Schema,
+      maxBatchRows: Int
+  ): Option[Iterator[VectorSchemaRoot]] = {
+    if (desc.offset.exists(_ > 0) || desc.limit.isDefined) return None
+    val maxRows = math.max(1, maxBatchRows)
+    (reader, root, allocator) match {
+      case (Some(arrowReader), Some(srcRoot), Some(alloc)) =>
+        Some(new Iterator[VectorSchemaRoot] {
+          private var loaded = arrowReader.loadNextBatch()
+          private var consumed = 0 // rows taken from the current loaded batch (slice path)
+          override def hasNext: Boolean = {
+            while (loaded && consumed >= srcRoot.getRowCount) {
+              loaded = arrowReader.loadNextBatch(); consumed = 0
+            }
+            loaded && consumed < srcRoot.getRowCount
+          }
+          override def next(): VectorSchemaRoot = {
+            val total = srcRoot.getRowCount
+            if (consumed == 0 && total <= maxRows) {
+              // Whole batch fits: zero-copy move, then advance to the next batch.
+              val moved = srcRoot.getFieldVectors.asScala.map { v =>
+                val pair = v.getTransferPair(alloc); pair.transfer()
+                pair.getTo.asInstanceOf[FieldVector]
+              }.toList
+              val out = new VectorSchemaRoot(moved.asJava)
+              out.setRowCount(total)
+              loaded = arrowReader.loadNextBatch(); consumed = 0
+              out
+            } else {
+              // Oversized batch: emit a bounded copy-slice of the row range.
+              val take = math.min(maxRows, total - consumed)
+              val out = ArrowUtils.gather(srcRoot, Array.range(consumed, consumed + take), alloc)
+              consumed += take
+              if (consumed >= total) { loaded = arrowReader.loadNextBatch(); consumed = 0 }
+              out
+            }
+          }
+        })
+      case _ => None
     }
   }
 

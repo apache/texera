@@ -31,6 +31,7 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName
 import org.apache.parquet.schema.{LogicalTypeAnnotation, MessageType, Type, Types}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, SeqTupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -223,6 +224,67 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       .optional(PrimitiveTypeName.INT32)
       .as(LogicalTypeAnnotation.intType(bitWidth, false))
       .named(name)
+
+  // The columnar path must return the same rows as the row path, incl. the all-null row.
+  "ParquetScanSourceOpExec.produceColumnarBatch" should "match the row path cell for cell" in {
+    val d = descFor(sampleFile())
+    val schema = d.inferSchema()
+    val colExec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    colExec.open()
+    val columnarRows =
+      try colExec
+        .produceColumnarBatch(schema, 10000)
+        .get
+        .flatMap(root =>
+          try ArrowUtils.tuplesOfRoot(root).toList
+          finally root.close()
+        )
+        .toList
+        .map(_.getFields.toList)
+      finally colExec.close()
+
+    val rowExec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    rowExec.open()
+    val rowRows =
+      try rowExec
+        .produceTuple()
+        .toList
+        .map(_.asInstanceOf[SeqTupleLike].enforceSchema(schema).getFields.toList)
+      finally rowExec.close()
+
+    columnarRows shouldBe rowRows
+  }
+
+  it should "fall back to the row path (None) when offset or limit is set" in {
+    val d = descFor(sampleFile())
+    d.limit = Some(1)
+    val exec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    try exec.produceColumnarBatch(d.inferSchema(), 10000) shouldBe None
+    finally exec.close()
+  }
+
+  // A big row group must be split into bounded batches of maxBatchRows, not one huge Arrow root.
+  it should "cap each columnar batch at maxBatchRows" in {
+    val cap = 3
+    val mt = Types
+      .buildMessage()
+      .addField(Types.optional(PrimitiveTypeName.INT32).named("id"))
+      .named("m")
+    val rows: Seq[Group => Unit] =
+      (0 until cap + 2).map(i => (g: Group) => { g.append("id", i); () })
+    val d = descFor(writeFile(mt)(rows: _*))
+    val exec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val sizes =
+      try exec
+        .produceColumnarBatch(d.inferSchema(), cap)
+        .get
+        .map(r => { val n = r.getRowCount; r.close(); n })
+        .toList
+      finally exec.close()
+    assert(sizes.forall(_ <= cap) && sizes.sum == cap + 2 && sizes.head == cap)
+  }
 
   "ParquetScanSourceOpDesc.operatorInfo" should
     "advertise the Parquet file-scan name in the Data Input group with no input and one output" in {

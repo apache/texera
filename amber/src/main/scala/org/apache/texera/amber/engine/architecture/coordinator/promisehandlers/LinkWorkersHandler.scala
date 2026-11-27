@@ -49,7 +49,7 @@ trait LinkWorkersHandler {
         linkExecution.initChannelExecution(channelId)
         Seq(
           workerInterface.addPartitioning(
-            AddPartitioningRequest(msg.link, linkConfig.partitioning),
+            AddPartitioningRequest(msg.link, linkConfig.partitioning, linkConfig.columnar),
             mkContext(channelId.fromWorkerId)
           ),
           workerInterface.addInputChannel(

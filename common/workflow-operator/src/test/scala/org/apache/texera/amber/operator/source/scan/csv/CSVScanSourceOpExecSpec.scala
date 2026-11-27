@@ -21,6 +21,8 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.apache.texera.amber.core.tuple.SchemaEnforceable
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -183,6 +185,59 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(tuples.size == 2)
     val firstCol = tuples.map(_.getFields(0).toString)
     assert(firstCol == List("2", "3"))
+  }
+
+  it should "produce the same rows on the columnar path as the row path" in {
+    val path = writeTempCsv("a,b\n1,x\n2,y\n3,z\n")
+    val colExec = execOver(path, hasHeader = true)
+    colExec.open()
+    val schema = colExec.desc.sourceSchema()
+    val colRows =
+      try colExec
+        .produceColumnarBatch(schema, 10000)
+        .get
+        .flatMap(root =>
+          try ArrowUtils.tuplesOfRoot(root).toList
+          finally root.close()
+        )
+        .toList
+        .map(_.getFields.toList)
+      finally colExec.close()
+
+    val rowExec = execOver(path, hasHeader = true)
+    rowExec.open()
+    val rowRows =
+      try rowExec
+        .produceTuple()
+        .toList
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(schema).getFields.toList)
+      finally rowExec.close()
+
+    assert(colRows == rowRows)
+  }
+
+  it should "fall back to the row path (None) on the columnar path when a window is set" in {
+    val exec = execOver(writeTempCsv("a,b\n1,x\n2,y\n"), hasHeader = true, limit = Some(1))
+    exec.open()
+    try assert(exec.produceColumnarBatch(exec.desc.sourceSchema(), 10000).isEmpty)
+    finally exec.close()
+  }
+
+  it should "cap each columnar batch at maxBatchRows so a big input does not materialize at once" in {
+    val cap = 3
+    val sb = new StringBuilder("a,b\n")
+    var i = 0
+    while (i < cap + 2) { sb.append(i).append(",x\n"); i += 1 } // cap + 2 data rows
+    val exec = execOver(writeTempCsv(sb.toString), hasHeader = true)
+    exec.open()
+    val sizes =
+      try exec
+        .produceColumnarBatch(exec.desc.sourceSchema(), cap)
+        .get
+        .map(r => { val n = r.getRowCount; r.close(); n })
+        .toList
+      finally exec.close()
+    assert(sizes == List(cap, 2)) // split, not one giant batch
   }
 
   it should "read a negative window as the empty or whole one, not from the end" in {

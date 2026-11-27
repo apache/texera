@@ -25,5 +25,7 @@ case class WorkflowSettings(
     dataTransferBatchSize: Int = 400,
     executionMode: ExecutionMode =
       ExecutionMode.valueOf(GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode),
-    outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty
+    outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty,
+    // Per-run row/columnar choice; None uses the cluster default.
+    columnar: Option[Boolean] = None
 )
