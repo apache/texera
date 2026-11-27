@@ -168,8 +168,19 @@ class OutputManager:
             self._port_state_writers,
         )
 
-    def get_port(self, port_id=None) -> WorkerPort:
-        return list(self._ports.values())[0]
+    def get_port(self, port_id: typing.Optional[PortIdentity] = None) -> WorkerPort:
+        if port_id is not None:
+            if port_id.id is None:
+                port_id.id = 0
+            if port_id.internal is None:
+                port_id.internal = False
+            try:
+                return self._ports[port_id]
+            except KeyError as error:
+                raise KeyError(f"unknown output port {port_id}") from error
+        if not self._ports:
+            raise KeyError("no output port has been added")
+        return next(iter(self._ports.values()))
 
     def get_port_ids(self) -> typing.List[PortIdentity]:
         return list(self._ports.keys())
