@@ -36,6 +36,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-mounter
+      {{- with .Values.mounter.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ .Values.mounter.serviceAccountName }}
       tolerations:

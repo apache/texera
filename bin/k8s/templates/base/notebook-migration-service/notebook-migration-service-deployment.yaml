@@ -31,6 +31,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-{{ .Values.notebookMigrationService.name }}
+      {{- with .Values.notebookMigrationService.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       # Needed to create and delete each user's JupyterLab pod in the pool namespace.
       serviceAccountName: {{ .Values.notebookMigrationService.serviceAccountName }}

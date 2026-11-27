@@ -26,6 +26,10 @@ spec:
   template:
     metadata:
       name: {{ .Release.Name }}-example-data-loader
+      {{- with .Values.exampleDataLoader.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- if .Values.global.texeraMicroServiceRuntimeClass }}
       runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
