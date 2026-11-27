@@ -39,7 +39,7 @@ tags: [data-cleaning]
 | Operator | Description |
 |----------|-------------|
 | [Distinct](distinct/) | Remove duplicate tuples |
-| [Filter](filter/) | Performs a filter operation using OR between multiple predicates |
+| [Filter](filter/) | Performs a filter operation using AND or OR between multiple predicates |
 | [Limit](limit/) | Limit the number of output rows |
 | [Projection](projection/) | Keeps or drops the column |
 | [Type Casting](type-casting/) | Cast between types |
