@@ -33,8 +33,10 @@ class TypeCastingOpExec(descString: String) extends MapOpExec {
   private def castTuple(tuple: Tuple): TupleLike =
     AttributeTypeUtils.tupleCasting(
       tuple,
+      // Keyed by the lowercased name, so that of two units naming one column in
+      // different cases the last one wins, as it does in the schema.
       desc.typeCastingUnits
-        .map(typeCastingUnit => typeCastingUnit.attribute -> typeCastingUnit.resultType)
+        .map(typeCastingUnit => typeCastingUnit.attribute.toLowerCase -> typeCastingUnit.resultType)
         .toMap
     )
 }

@@ -400,6 +400,40 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(SchemaCasting(schema, "b", ANY) == schema)
   }
 
+  test("SchemaCasting matches the column ignoring case and keeps the table's name") {
+    val schema = Schema(
+      List(new Attribute("a", STRING), new Attribute("Price", STRING))
+    )
+    val casted = SchemaCasting(schema, "price", INTEGER)
+    assert(
+      casted.getAttributes == List(new Attribute("a", STRING), new Attribute("Price", INTEGER))
+    )
+  }
+
+  test("SchemaCasting leaves the schema unchanged when no column has the name in any case") {
+    val schema = Schema(
+      List(new Attribute("a", STRING), new Attribute("b", STRING))
+    )
+    assert(SchemaCasting(schema, "c", INTEGER) == schema)
+    assert(SchemaCasting(schema, "", INTEGER) == schema)
+  }
+
+  test("tupleCasting matches a target column ignoring case") {
+    val schema = Schema(
+      List(new Attribute("a", STRING), new Attribute("B", STRING))
+    )
+    val tuple = Tuple.builder(schema).addSequentially(Array[Any]("1,234", "2")).build()
+    val result = tupleCasting(tuple, Map("A" -> INTEGER, "b" -> DOUBLE))
+    assert(result.getFields.sameElements(Array[Any](1234, 2.0)))
+  }
+
+  test("tupleCasting leaves a column whose name no target matches in any case") {
+    val schema = Schema(List(new Attribute("a", STRING)))
+    val tuple = Tuple.builder(schema).addSequentially(Array[Any]("1")).build()
+    val result = tupleCasting(tuple, Map("ab" -> INTEGER))
+    assert(result.getFields.sameElements(Array[Any]("1")))
+  }
+
   test("tupleCasting parses targeted columns with forced number parsing") {
     val schema = Schema(
       List(new Attribute("a", STRING), new Attribute("b", STRING))
