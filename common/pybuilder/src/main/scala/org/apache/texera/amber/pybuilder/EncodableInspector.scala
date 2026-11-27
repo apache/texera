@@ -107,12 +107,15 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
     */
   def treeHasEncodableString(tree: Tree): Boolean = {
     val rawSym = tree.symbol
+    // Look on the accessed field and on the symbol itself: a trait val or var
+    // has no backing field, so its annotations stay on the accessor, and the
+    // hop lands on NoSymbol.
     val symHasAnn =
-      rawSym != null && rawSym != NoSymbol && {
-        val accessed = safeAccessed(rawSym)
-        accessed != null && accessed != NoSymbol &&
-        accessed.annotations.exists(annIsEncodableString)
-      }
+      rawSym != null && rawSym != NoSymbol &&
+        Seq(safeAccessed(rawSym), rawSym).exists { candidate =>
+          candidate != null && candidate != NoSymbol &&
+          candidate.annotations.exists(annIsEncodableString)
+        }
 
     val methodReturnHasAnn =
       rawSym != null && rawSym != NoSymbol && (rawSym match {

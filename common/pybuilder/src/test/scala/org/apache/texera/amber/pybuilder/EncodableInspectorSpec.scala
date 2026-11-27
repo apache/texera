@@ -204,6 +204,35 @@ class EncodableInspectorSpec extends AnyFunSuite {
     )
   }
 
+  // A trait val or var has no backing field, so its annotations stay on the
+  // accessor and the accessor hop finds nothing to land on (#8659).
+  test("@EncodableStringAnnotation abstract trait val is Encodable on its accessor") {
+    assertClassifiedEncodable(
+      """trait Labels {
+        |  @EncodableStringAnnotation val title: String
+        |  def snippet = pyb"foo$title"
+        |}""".stripMargin
+    )
+  }
+
+  test("@EncodableStringAnnotation concrete trait val is Encodable on its accessor") {
+    assertClassifiedEncodable(
+      """trait Labels {
+        |  @EncodableStringAnnotation val title: String = "x"
+        |  def snippet = pyb"foo$title"
+        |}""".stripMargin
+    )
+  }
+
+  test("@EncodableStringAnnotation trait var is Encodable on its accessor") {
+    assertClassifiedEncodable(
+      """trait Labels {
+        |  @EncodableStringAnnotation var title: String = "x"
+        |  def snippet = pyb"foo$title"
+        |}""".stripMargin
+    )
+  }
+
   test("@EncodableStringAnnotation def return type is classified as Encodable") {
     // methodReturnHasAnn -> typeHasEncodableString(finalResultType).
     assertClassifiedEncodable(
@@ -232,6 +261,15 @@ class EncodableInspectorSpec extends AnyFunSuite {
     assertNotClassifiedEncodable(
       """val raw: String = "x"
         |pyb"foo$raw"""".stripMargin
+    )
+  }
+
+  test("unannotated trait val is not classified as Encodable") {
+    assertNotClassifiedEncodable(
+      """trait Labels {
+        |  val title: String
+        |  def snippet = pyb"foo$title"
+        |}""".stripMargin
     )
   }
 
