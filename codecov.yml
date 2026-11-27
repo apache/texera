@@ -49,6 +49,7 @@ ignore:
   # Test files don't count toward source coverage.
   - "**/test_*.py"
   - "**/*.spec.ts"
+  - "**/*.spec.tsx"
   - "**/src/test/**"             # sbt test source roots
   # Third-party vendored sources. These mirror the corresponding entries
   # in .licenserc.yaml — we don't maintain them, so their coverage figure

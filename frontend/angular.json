@@ -100,10 +100,11 @@
             "runner": "vitest",
             "runnerConfig": "vitest.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
-            "include": ["**/*.spec.ts"],
+            "include": ["**/*.spec.ts", "**/*.spec.tsx"],
             "setupFiles": ["src/jsdom-svg-polyfill.ts"],
             "exclude": [
-              "**/*.browser.spec.ts"
+              "**/*.browser.spec.ts",
+              "**/*.browser.spec.tsx"
             ]
           }
         },
@@ -115,7 +116,8 @@
             "runnerConfig": "vitest.browser.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "include": [
-              "**/*.browser.spec.ts"
+              "**/*.browser.spec.ts",
+              "**/*.browser.spec.tsx"
             ]
           }
         }
