@@ -98,12 +98,10 @@
 
       <!-- Agent Tabs -->
       <nz-tab
-        *ngFor="let agent of agents; let i = index"
+        *ngFor="let agent of agents"
         [nzTitle]="agentTabTitle"
         [nzForceRender]="true">
-        <ng-template
-          #agentTabTitle
-          let-active="active">
+        <ng-template #agentTabTitle>
           <div
             class="agent-tab-title"
             [class.workflow-mismatch]="isOnAnotherWorkflow(agent)">

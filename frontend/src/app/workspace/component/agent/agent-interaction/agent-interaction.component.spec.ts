@@ -30,7 +30,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 function makeAgent(id: string, name: string = id): AgentInfo {
-  return { id, name, modelType: "gpt-test", isBaselineMode: false, createdAt: new Date("2026-01-01T00:00:00Z") };
+  return { id, name, modelType: "gpt-test" };
 }
 
 describe("AgentInteractionComponent", () => {
