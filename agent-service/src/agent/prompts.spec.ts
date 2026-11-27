@@ -89,6 +89,24 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("## R UDF Guide");
   });
 
+  test("sends the model to the read tools for the workflow, and gives no format for the conversation", () => {
+    // The conversation reaches the model as native messages and nothing else is written into it, so
+    // the prompt describes only what get_workflow returns.
+    const prompt = buildSystemPrompt(makeMetadataStore(), ["Filter"]);
+
+    expect(prompt).toContain("## Reading the Workflow");
+    expect(prompt).toContain("Call `get_workflow` to see it");
+    expect(prompt).toContain("### Operator `<operator_id>` (<operator_type>)");
+    expect(prompt).toContain("Result: <whether the operator has a result, see below>");
+    expect(prompt).toContain("`outdated, ...` when the operator or one it reads from changed after its last execution");
+    expect(prompt).toContain("`get_operator_result` returns an operator's latest result");
+    expect(prompt).not.toContain("Current Dataflow");
+    expect(prompt).not.toContain("## Context Format");
+    expect(prompt).not.toContain("# Completed Tasks");
+    expect(prompt).not.toContain("# Ongoing Task");
+    expect(prompt).not.toContain("### Turn");
+  });
+
   test("reports that no operators are available when a restricted type is absent from metadata", () => {
     const prompt = buildSystemPrompt(makeMetadataStore(), ["MissingOperator"]);
 

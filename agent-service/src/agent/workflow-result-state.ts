@@ -22,6 +22,8 @@ import type { OperatorExecutionSummary } from "../types/execution";
 interface ResultEntry {
   operatorInfo: OperatorExecutionSummary;
   stepId: string;
+  /** What the execution depended on (WorkflowState.executionFingerprint); absent when unknown. */
+  fingerprint?: string;
 }
 
 /**
@@ -37,13 +39,13 @@ export class WorkflowResultState {
 
   constructor(private getAncestorPath: () => string[]) {}
 
-  set(operatorId: string, stepId: string, operatorInfo: OperatorExecutionSummary): void {
+  set(operatorId: string, stepId: string, operatorInfo: OperatorExecutionSummary, fingerprint?: string): void {
     let versions = this.results.get(operatorId);
     if (!versions) {
       versions = new Map();
       this.results.set(operatorId, versions);
     }
-    versions.set(stepId, { operatorInfo, stepId });
+    versions.set(stepId, { operatorInfo, stepId, fingerprint });
   }
 
   get(operatorId: string): ResultEntry | undefined {
