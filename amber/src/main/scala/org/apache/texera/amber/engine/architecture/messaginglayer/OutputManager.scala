@@ -37,7 +37,10 @@ import org.apache.texera.amber.engine.architecture.worker.managers.{
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
-import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.common.ambermessage.VectorFrame
+import org.apache.texera.amber.util.{ArrowUtils, VirtualIdentityUtils}
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.net.URI
 import scala.collection.mutable
@@ -134,12 +137,16 @@ class OutputManager(
     */
   def addPartitionerWithPartitioning(
       link: PhysicalLink,
-      partitioning: Partitioning
+      partitioning: Partitioning,
+      // Per-edge columnar-wire decision from the planner: ship this edge's batches as
+      // Arrow (VectorFrame) rather than rows. Defaults off so the row wire is unchanged.
+      columnar: Boolean = false
   ): Unit = {
     val partitioner = toPartitioner(partitioning, actorId)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
-      val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
+      val buffer =
+        new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning), columnar)
       networkOutputBuffers.update((link, receiver), buffer)
       outputGateway.addOutputChannel(ChannelIdentity(actorId, receiver, isControl = false))
     })
@@ -165,6 +172,113 @@ class OutputManager(
         partitioner.getBucketIndex(tuple).foreach { bucketIndex =>
           networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
         }
+    }
+  }
+
+  /**
+    * Provisional (phase 1): turn the columnar output path on or off for every current
+    * edge. Phase 2 replaces this blanket switch with a per-edge decision made by the
+    * planner (local vs cross-node, and whether the receiver consumes columns).
+    */
+  def setColumnarOutput(enabled: Boolean): Unit =
+    networkOutputBuffers.values.foreach(_.columnar = enabled)
+
+  // Backs the per-bucket roots the columnar shuffle materializes; each is freed right
+  // after it is serialized, so this allocator's outstanding bytes return to zero.
+  private lazy val columnarAllocator: BufferAllocator = new RootAllocator()
+
+  /**
+    * Columnar output path (no round-trip): ship an operator's Arrow result batch straight
+    * downstream without decoding it to tuples and re-encoding it. Eligible only when the
+    * output port needs no storage and every edge on it is in columnar mode. A
+    * non-splitting edge (one-to-one, broadcast) sends the whole batch, serialized once, to
+    * each receiver. A splitting edge (hash/range/round-robin) assigns each row a bucket
+    * through the same getBucketIndex the row path uses (reading only the key columns into a
+    * partial tuple), gathers each bucket's rows in Arrow, and sends one VectorFrame per
+    * non-empty bucket. Bucket assignment is therefore identical to the row path. Does NOT
+    * close `root` (caller owns it).
+    *
+    * @return Some((portId, totalSerializedByteCount)) if it shipped the batch (caller
+    *         records output statistics), or None if the port is not eligible (fall back).
+    */
+  def tryEmitColumnarBatch(
+      root: VectorSchemaRoot,
+      outputPortId: Option[PortIdentity]
+  ): Option[(PortIdentity, Long)] = {
+    if (outputPortId.isEmpty && ports.size != 1) return None
+    val portId = outputPortId.getOrElse(ports.head._1)
+    val links = partitioners.filter(_._1.fromPortId == portId).toSeq
+    val eligible =
+      links.nonEmpty &&
+        !outputPortResultWriterThreads.contains(portId) &&
+        links.forall {
+          case (link, partitioner) =>
+            partitioner.allReceivers.forall(r =>
+              networkOutputBuffers.get((link, r)).exists(_.columnar)
+            )
+        }
+    if (!eligible) return None
+    val schema = getPort(portId).schema
+    // The executor's Arrow schema must match the declared output port schema; if not,
+    // fall back so the row path's enforceSchema can adjust it.
+    if (ArrowUtils.toTexeraSchema(root.getSchema) != schema) return None
+    Some((portId, links.map { case (link, p) => emitColumnarToLink(root, schema, link, p) }.sum))
+  }
+
+  // Ship `root` to one link's receivers in Arrow, splitting per bucket if the partitioner
+  // splits. Returns the total serialized bytes put on the wire for this link.
+  private def emitColumnarToLink(
+      root: VectorSchemaRoot,
+      schema: Schema,
+      link: PhysicalLink,
+      partitioner: Partitioner
+  ): Long = {
+    val receivers = partitioner.allReceivers
+    if (!partitioner.columnarSplits) {
+      // One-to-one / broadcast: the whole batch goes to each receiver; serialize once.
+      val bytes = ArrowUtils.serializeRoot(root)
+      val frame = VectorFrame(bytes, root.getRowCount, schema)
+      receivers.foreach(r => networkOutputBuffers((link, r)).sendVectorFrame(frame))
+      bytes.length.toLong
+    } else {
+      // Splitting shuffle: assign each row a bucket, then gather and send per bucket.
+      val n = root.getRowCount
+      val rowsPerBucket = Array.fill(receivers.length)(new mutable.ArrayBuffer[Int]())
+      // Build only the columns getBucketIndex needs into a partial tuple per row.
+      val keyCols =
+        if (partitioner.requiresFullTuple) schema.getAttributes.map(_.getName)
+        else partitioner.bucketKeyColumns
+      val keySchema = Schema(keyCols.map(schema.getAttribute).toList)
+      val keyIdx =
+        if (keyCols.isEmpty) Array.empty[Int] else ArrowUtils.projectionIndices(root, keyCols)
+      val keyTypes = keyCols.map(schema.getAttribute(_).getType).toArray
+      val vectors = root.getFieldVectors
+      var i = 0
+      while (i < n) {
+        val keyValues = new Array[Any](keyIdx.length)
+        var c = 0
+        while (c < keyIdx.length) {
+          keyValues(c) = ArrowUtils.getCell(vectors.get(keyIdx(c)), i, keyTypes(c)); c += 1
+        }
+        partitioner.getBucketIndex(Tuple(keySchema, keyValues)).foreach(b => rowsPerBucket(b) += i)
+        i += 1
+      }
+      var bytes = 0L
+      var b = 0
+      while (b < receivers.length) {
+        val rows = rowsPerBucket(b)
+        if (rows.nonEmpty) {
+          val bucketRoot = ArrowUtils.gather(root, rows.toArray, columnarAllocator)
+          try {
+            val frameBytes = ArrowUtils.serializeRoot(bucketRoot)
+            networkOutputBuffers((link, receivers(b)))
+              .sendVectorFrame(VectorFrame(frameBytes, rows.length, schema))
+            bytes += frameBytes.length.toLong
+          } finally bucketRoot.close()
+        }
+        b += 1
+      }
+      bytes
     }
   }
 
