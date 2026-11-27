@@ -71,6 +71,11 @@ class RegionSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
     assert(region.getPorts == Set(portId))
   }
 
+  it should "default skipped to false and accept true" in {
+    assert(!Region(RegionIdentity(1), Set(op("a")), Set.empty).skipped)
+    assert(Region(RegionIdentity(1), Set(op("a")), Set.empty, skipped = true).skipped)
+  }
+
   "Region.getOperator" should "look up a physical operator by id" in {
     val a = op("a")
     val b = op("b")
@@ -116,6 +121,17 @@ class RegionSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
     val region = Region(RegionIdentity(1), Set(a, b, c), Set(internalLink))
 
     assert(region.getSourceOperators == Set(a, c))
+  }
+
+  it should "count only the region's own links, not every link an operator lists" in {
+    // b lists an input link from a, and both are in the region, yet the link is not one of the
+    // region's links (for instance when b reads a's saved result): b is a source of the region.
+    val ab = link("a", "b")
+    val a = wiredOp("a").addOutputLink(ab)
+    val b = wiredOp("b").addInputLink(ab)
+    assert(Region(RegionIdentity(1), Set(a, b), Set.empty).getSourceOperators == Set(a, b))
+    // With the link among the region's links, b is not a source.
+    assert(Region(RegionIdentity(1), Set(a, b), Set(ab)).getSourceOperators == Set(a))
   }
 
   "Region.getStarterOperators" should "match getSourceOperators when no resource config is provided" in {

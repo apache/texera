@@ -30,12 +30,18 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
+
+/**
+  * A sub-plan scheduled as a unit. When `skipped` is true, its operators are not launched on
+  * workers; their saved outputs are carried in `resourceConfig` for reuse by later regions.
+  */
 case class Region(
     id: RegionIdentity,
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
     ports: Set[GlobalPortIdentity] = Set.empty,
-    resourceConfig: Option[ResourceConfig] = None
+    resourceConfig: Option[ResourceConfig] = None,
+    skipped: Boolean = false
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =
@@ -73,9 +79,8 @@ case class Region(
     * The effective source contains operators that have 0 input links in this region.
     */
   def getSourceOperators: Set[PhysicalOp] = {
-    getOperators.filter(physicalOp =>
-      physicalOp.getInputLinks().forall(link => !operators.contains(link.fromOpId))
-    )
+    val operatorsWithInputLink = getLinks.map(_.toOpId)
+    getOperators.filterNot(op => operatorsWithInputLink.contains(op.id))
   }
 
   /**
