@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable } from "@angular/cdk/scrolling";
 import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
@@ -42,6 +43,8 @@ import { AgentChatComponent } from "./agent-chat/agent-chat.component";
   templateUrl: "agent-panel.component.html",
   styleUrls: ["agent-panel.component.scss"],
   imports: [
+    // Registers #content as a CDK scroll container; see the comment in the template.
+    CdkScrollable,
     NgIf,
     NzSpaceCompactItemDirective,
     NzButtonComponent,

@@ -99,9 +99,17 @@
         nzType="minus"></span>
     </li>
   </ul>
+  <!-- cdkScrollable is how a scrolling element tells the CDK that it scrolls. A dropdown opened in
+       the panel is a CDK overlay, and its reposition strategy hears about an inner element's
+       scrolling only from containers registered this way; unregistered, the open list stayed where
+       it opened while the panel scrolled away beneath it. The directive has no bindings: the
+       registration is the whole point. (ng-zorro's own overlays follow it only with one
+       @angular/cdk in the bundle -- see the resolution in package.json: each copy has its own
+       ScrollDispatcher.) -->
   <div
     id="content"
-    #contentWrapper>
+    #contentWrapper
+    cdkScrollable>
     <h4
       id="title"
       cdkDragHandle

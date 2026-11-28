@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable } from "@angular/cdk/scrolling";
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, Type, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
@@ -43,6 +44,8 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
   imports: [
+    // Registers #content as a CDK scroll container; see the comment in the template.
+    CdkScrollable,
     NzMenuDirective,
     CdkDropList,
     NgClass,

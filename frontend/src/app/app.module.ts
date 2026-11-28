@@ -139,6 +139,7 @@ import { TimeTravelComponent } from "./workspace/component/left-panel/time-trave
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzDescriptionsModule } from "ng-zorro-antd/descriptions";
 import { OverlayModule } from "@angular/cdk/overlay";
+import { FOLLOW_OR_CLOSE_SCROLL_STRATEGY_PROVIDER } from "./common/overlay/follow-or-close-scroll-strategy";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { ConflictingFileModalContentComponent } from "./dashboard/component/user/files-uploader/conflicting-file-modal-content/conflicting-file-modal-content.component";
@@ -360,6 +361,7 @@ registerLocaleData(en);
   ],
   providers: [
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
+    FOLLOW_OR_CLOSE_SCROLL_STRATEGY_PROVIDER,
     provideNzI18n(en_US),
     AuthGuardService,
     AdminGuardService,

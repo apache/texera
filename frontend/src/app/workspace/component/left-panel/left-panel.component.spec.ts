@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable, ScrollDispatcher } from "@angular/cdk/scrolling";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { DebugElement } from "@angular/core";
@@ -76,6 +77,17 @@ describe("LeftPanelComponent", () => {
   afterEach(() => {
     fixture.destroy();
     clearPanelStorage();
+  });
+
+  // An overlay opened inside follows this panel's scrolling only once the scroller is registered
+  // with the CDK's ScrollDispatcher -- the registration, not the directive's presence, is what a
+  // reposition strategy consults. For the operator menu's autocomplete that is all it buys: the
+  // close once the control is out of view is the app's connected-overlay strategy, which
+  // nzAutocomplete bypasses.
+  it("registers its scrolling container with the CDK", () => {
+    const scroller = fixture.debugElement.query(By.css("#content")).injector.get(CdkScrollable);
+
+    expect(TestBed.inject(ScrollDispatcher).scrollContainers.has(scroller)).toBe(true);
   });
 
   it("should create", () => {

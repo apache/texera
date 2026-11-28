@@ -20,6 +20,7 @@
 import { DatePipe } from "@angular/common";
 import { CdkDropList } from "@angular/cdk/drag-drop";
 import { FormGroup } from "@angular/forms";
+import { CdkScrollable, ScrollDispatcher } from "@angular/cdk/scrolling";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -306,6 +307,18 @@ describe("WorkflowFormComponent (rendered template)", () => {
 
   beforeEach(configure);
   afterEach(() => vi.restoreAllMocks());
+
+  // An overlay opened inside follows the page's scrolling only once the scroller is registered
+  // with the CDK's ScrollDispatcher -- the registration, not the directive's presence, is what a
+  // reposition strategy consults. A list a select opens also closes once its control is out of
+  // view; one nz-dropdown or nzAutocomplete opens only follows, since those bypass the app's
+  // connected-overlay strategy.
+  it("registers its scrolling container with the CDK", () => {
+    fixture.detectChanges(); // ngOnInit: the host directive registers there
+    const scroller = fixture.debugElement.injector.get(CdkScrollable);
+
+    expect(TestBed.inject(ScrollDispatcher).scrollContainers.has(scroller)).toBe(true);
+  });
 
   it("renders the workflow's avatar and name in the title row", async () => {
     fixture.detectChanges(); // ngOnInit -> load()

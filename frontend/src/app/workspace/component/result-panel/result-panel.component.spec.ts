@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable, ScrollDispatcher } from "@angular/cdk/scrolling";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { CdkDrag, CdkDragEnd } from "@angular/cdk/drag-drop";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
@@ -90,6 +91,19 @@ describe("ResultPanelComponent", () => {
     localStorage.removeItem("result-panel-width");
     localStorage.removeItem("result-panel-height");
     localStorage.removeItem("result-panel-style");
+  });
+
+  // An overlay opened inside follows this panel's scrolling only once the scroller is registered
+  // with the CDK's ScrollDispatcher -- the registration, not the directive's presence, is what a
+  // reposition strategy consults. The console's selects also close once their control is out of
+  // view; its dropdowns only follow, since nz-dropdown bypasses the app's connected-overlay strategy.
+  it("registers its scrolling container with the CDK", () => {
+    // The content area is rendered only while the panel is open (it has a width).
+    component.width = 400;
+    fixture.detectChanges();
+    const scroller = fixture.debugElement.query(By.css("#content")).injector.get(CdkScrollable);
+
+    expect(TestBed.inject(ScrollDispatcher).scrollContainers.has(scroller)).toBe(true);
   });
 
   it("should create", () => expect(component).toBeTruthy());
