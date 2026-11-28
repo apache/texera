@@ -253,7 +253,7 @@ agentService:
 litellm:
   enabled: true
   name: litellm
-  image: ghcr.io/berriai/litellm:v1.83.10-stable
+  image: ghcr.io/berriai/litellm:v1.108.17
   numOfPods: 1
   service:
     type: ClusterIP
@@ -276,6 +276,9 @@ litellm:
   config: |
     litellm_settings:
       drop_params: true
+      # Claude caches only what a request marks. This has LiteLLM mark the system
+      # prompt and the latest message of every request to a Claude model.
+      enable_anthropic_prompt_caching: true
     model_list:
       - model_name: claude-sonnet-4
         litellm_params:
