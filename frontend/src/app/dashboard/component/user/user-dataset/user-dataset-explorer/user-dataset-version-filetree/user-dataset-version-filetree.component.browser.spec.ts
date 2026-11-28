@@ -102,7 +102,9 @@ describe("UserDatasetVersionFiletreeComponent (browser)", () => {
       const highlighted = getComputedStyle(rowAt(1));
       expect(highlighted.backgroundColor).toBe("rgb(230, 247, 255)");
       expect(highlighted.boxShadow).toBe("rgb(24, 144, 255) 0px 0px 0px 1px inset");
-      expect(highlighted.color).toBe("rgb(24, 144, 255)");
+      // blue-8, not the ring's primary blue: the name is text, and the primary blue sits at
+      // 2.95:1 on this fill, under the 4.5:1 text needs.
+      expect(highlighted.color).toBe("rgb(0, 80, 179)");
     });
     // The ring takes no layout space: the row's content box is still the full node height, where a
     // 1px border would have left 2px less for the icon buttons under the app's border-box sizing.

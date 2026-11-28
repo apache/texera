@@ -173,6 +173,28 @@ describe("UserDatasetVersionFiletreeComponent", () => {
       expect(emitted).toEqual([files[1], files[1]]);
     });
 
+    // Every mouse action focuses the tree, but only a file click focuses a node: after a hover or
+    // a folder click the tree holds focus with no focused node, and Enter then reaches the key
+    // action with null, as it does the library's own (which guard with `node &&`).
+    it("does nothing on Enter when the tree is focused but no node is", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+      const files = makeFlatFileNodes(3);
+      component.fileTreeNodes = files;
+      fixture.detectChanges();
+      const treeModel = component.tree.treeModel;
+      treeModel.roots[1].mouseAction("mouseOver", new MouseEvent("mouseover"));
+      expect(treeModel.isFocused).toBe(true);
+      expect(treeModel.getFocusedNode()).toBeNull();
+      const enter = new KeyboardEvent("keydown");
+      Object.defineProperty(enter, "keyCode", { value: KEYS.ENTER });
+
+      expect(() => component.tree.onKeydown(enter)).not.toThrow();
+
+      expect(activeNames()).toEqual([]);
+      expect(emitted).toEqual([]);
+    });
+
     // A host that browses a version's files without being able to hold one (the dataset picker in
     // version mode, the model picker) gets no trace of a click: a blue row there would promise a
     // pick nothing takes. Folders still open.

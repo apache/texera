@@ -115,6 +115,12 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit, OnDes
   // TOGGLE_ACTIVE by default, which would strip the highlight off the picked file, or mark a file
   // the host never heard of.
   private readonly activateOrExpand = (tree: any, node: any, $event: any): void => {
+    // A key can arrive with no node: any mouse action, a hover included, focuses the tree, and
+    // only a file click also focuses a node, so Enter after hovering a row or opening a folder
+    // dispatches with null. The library's own key actions guard the same way.
+    if (!node) {
+      return;
+    }
     if (node.hasChildren) {
       TREE_ACTIONS.TOGGLE_EXPANDED(tree, node, $event);
     } else if (this.isFileSelectable) {
