@@ -82,6 +82,50 @@ describe("UserDatasetVersionFiletreeComponent (browser)", () => {
     expect(buttonRect.bottom).toBeLessThanOrEqual(rowRect.bottom);
   });
 
+  // Measured on a deployment: clicking the only file left its row's class at exactly
+  // "node-content-wrapper", so nothing told the user which file they had picked. Needs real rows,
+  // which the virtual scroll only renders here.
+  it("highlights the row of the clicked file", async () => {
+    await renderTree(makeFlatFileNodes(5));
+
+    const rowAt = (index: number): HTMLElement =>
+      fixture.nativeElement.querySelectorAll(".node-content-wrapper")[index] as HTMLElement;
+    rowAt(1).click();
+    fixture.detectChanges();
+
+    expect(rowAt(1).classList.contains("node-content-wrapper-active")).toBe(true);
+    expect(rowAt(0).classList.contains("node-content-wrapper-active")).toBe(false);
+    // The class alone is invisible unless the component styles it. The library transitions
+    // background-color and box-shadow over 150ms, so the computed values only reach the highlight
+    // once that has run.
+    await vi.waitFor(() => {
+      const highlighted = getComputedStyle(rowAt(1));
+      expect(highlighted.backgroundColor).toBe("rgb(230, 247, 255)");
+      expect(highlighted.boxShadow).toBe("rgb(24, 144, 255) 0px 0px 0px 1px inset");
+      // blue-8, not the ring's primary blue: the name is text, and the primary blue sits at
+      // 2.95:1 on this fill, under the 4.5:1 text needs.
+      expect(highlighted.color).toBe("rgb(0, 80, 179)");
+    });
+    // The ring takes no layout space: the row's content box is still the full node height, where a
+    // 1px border would have left 2px less for the icon buttons under the app's border-box sizing.
+    expect(rowAt(1).clientHeight).toBe(component.TREE_NODE_HEIGHT_PX);
+  });
+
+  // The highlight is feedback for a pick, so where no file can be picked (the dataset picker in
+  // version mode, the model picker) a click must leave the row exactly as it was.
+  it("leaves the row untouched where files cannot be picked", async () => {
+    component.isFileSelectable = false;
+    await renderTree(makeFlatFileNodes(5));
+
+    const row = fixture.nativeElement.querySelectorAll(".node-content-wrapper")[1] as HTMLElement;
+    const before = getComputedStyle(row).backgroundColor;
+    row.click();
+    fixture.detectChanges();
+
+    expect(row.classList.contains("node-content-wrapper-active")).toBe(false);
+    expect(getComputedStyle(row).backgroundColor).toBe(before);
+  });
+
   // Both hosts create the tree empty and fill it when data arrives; the
   // height change must trigger a viewport re-measure or the 0px initial
   // measurement sticks and the tree stays blank.

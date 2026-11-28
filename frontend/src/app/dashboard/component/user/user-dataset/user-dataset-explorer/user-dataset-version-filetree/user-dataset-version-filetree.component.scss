@@ -61,3 +61,20 @@
   display: flex;
   align-items: center;
 }
+
+/* The picked file has to read as picked. The library's own active colours (#beebff behind a 1px
+   grey inset shadow) belong to no palette this app uses, so the row takes the ant blue-1 (#e6f7ff)
+   fill the dashboard's selected list rows and the workspace's selected cards share, with ant's
+   primary blue as the ring, as the workspace's selected cards ring. The name is ant's blue-8: the
+   primary blue reads at 2.95:1 on this fill, under the 4.5:1 that text needs (WCAG 1.4.3), while
+   blue-8 reads at 6.8:1. The :hover copy keeps this fill on the picked row rather than the
+   library's hover tint. */
+:host ::ng-deep .file-tree-container .node-content-wrapper.node-content-wrapper-active,
+:host ::ng-deep .file-tree-container .node-content-wrapper.node-content-wrapper-active:hover {
+  background-color: #e6f7ff;
+  color: #0050b3;
+  /* An inset shadow rather than a border: with the row's height pinned to --tree-node-height for
+     the virtual scroll, a border would eat 2px of the content box the row's icon buttons and
+     centring rely on; a shadow takes no layout space at all. */
+  box-shadow: inset 0 0 0 1px #1890ff;
+}

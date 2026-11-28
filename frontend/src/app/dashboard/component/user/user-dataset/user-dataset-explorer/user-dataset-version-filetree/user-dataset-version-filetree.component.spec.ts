@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture } from "@angular/core/testing";
+import { KEYS } from "@ali-hm/angular-tree-component";
 import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree.component";
 import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
 import { createFiletreeFixture, FILE_COUNT, makeFlatFileNodes } from "./user-dataset-version-filetree.test-utils";
@@ -109,38 +110,138 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     expect(component.tree.treeModel.roots[0].isExpanded).toBe(true);
   });
 
-  it("toggles expansion without emitting selectedTreeNode when a folder is clicked", () => {
-    const emitted: DatasetFileNode[] = [];
-    component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+  // Clicks go through the library's own mouseAction dispatch on real tree nodes, so what these
+  // pin is the state a row's node-content-wrapper-active class is bound to -- not only that the
+  // handler was reached.
+  describe("clicking a node", () => {
+    function renderAndClick(nodes: DatasetFileNode[], rootIndex: number): any {
+      component.fileTreeNodes = nodes;
+      fixture.detectChanges();
+      const node = component.tree.treeModel.roots[rootIndex];
+      node.mouseAction("click", new MouseEvent("click"));
+      return node;
+    }
 
-    // The folder branch delegates to TOGGLE_EXPANDED, which only calls
-    // node.toggleExpanded().
-    let toggleCalls = 0;
-    const onClick = component.fileTreeDisplayOptions.actionMapping!.mouse!.click!;
-    const folderNode = {
-      hasChildren: true,
-      toggleExpanded: () => {
-        toggleCalls++;
-      },
-      data: { name: "dir", type: "directory", parentDir: "/owner/dataset/v1" },
-    } as never;
-    onClick(undefined as never, folderNode, undefined as never);
+    const activeNames = (): string[] =>
+      component.tree.treeModel.activeNodes.map((node: any) => node.data.name as string);
 
-    expect(toggleCalls).toBe(1);
-    expect(emitted).toEqual([]);
-  });
+    it("emits selectedTreeNode and makes the file the active node", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
 
-  it("emits selectedTreeNode when a leaf node is clicked", () => {
-    component.fileTreeNodes = makeFlatFileNodes(1);
-    const emitted: DatasetFileNode[] = [];
-    component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+      const files = makeFlatFileNodes(3);
+      const node = renderAndClick(files, 1);
 
-    // The handler only reads hasChildren and data; tree and $event are unused.
-    const onClick = component.fileTreeDisplayOptions.actionMapping!.mouse!.click!;
-    const leafNode = { hasChildren: false, data: component.fileTreeNodes[0] } as never;
-    onClick(undefined as never, leafNode, undefined as never);
+      expect(emitted).toEqual([files[1]]);
+      expect(node.isActive).toBe(true);
+      expect(activeNames()).toEqual([files[1].name]);
+    });
 
-    expect(emitted).toEqual([component.fileTreeNodes[0]]);
+    // ACTIVATE, not TOGGLE_ACTIVE: a second click on the file the user already picked must not
+    // strip the highlight off a selection that still stands.
+    it("keeps the file active when the same file is clicked again, and emits it again", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+      const files = makeFlatFileNodes(3);
+      const node = renderAndClick(files, 1);
+
+      node.mouseAction("click", new MouseEvent("click"));
+
+      expect(node.isActive).toBe(true);
+      expect(activeNames()).toEqual([files[1].name]);
+      expect(emitted).toEqual([files[1], files[1]]);
+    });
+
+    // The library maps Enter and Space to TOGGLE_ACTIVE by default: Enter on the picked file would
+    // strip its highlight while the host's selection stands, and on another row would mark a file
+    // the host never heard of. Both keys now do what a click does.
+    it("activates and emits on Enter or Space, as on a click, without toggling the pick off", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+      const files = makeFlatFileNodes(3);
+      component.fileTreeNodes = files;
+      fixture.detectChanges();
+      const keys = component.fileTreeDisplayOptions.actionMapping!.keys!;
+      const node = component.tree.treeModel.roots[1];
+
+      keys[KEYS.ENTER](component.tree.treeModel, node, new KeyboardEvent("keydown"));
+      expect(node.isActive).toBe(true);
+      keys[KEYS.SPACE](component.tree.treeModel, node, new KeyboardEvent("keydown"));
+
+      expect(node.isActive).toBe(true);
+      expect(activeNames()).toEqual([files[1].name]);
+      expect(emitted).toEqual([files[1], files[1]]);
+    });
+
+    // Every mouse action focuses the tree, but only a file click focuses a node: after a hover or
+    // a folder click the tree holds focus with no focused node, and Enter then reaches the key
+    // action with null, as it does the library's own (which guard with `node &&`).
+    it("does nothing on Enter when the tree is focused but no node is", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+      const files = makeFlatFileNodes(3);
+      component.fileTreeNodes = files;
+      fixture.detectChanges();
+      const treeModel = component.tree.treeModel;
+      treeModel.roots[1].mouseAction("mouseOver", new MouseEvent("mouseover"));
+      expect(treeModel.isFocused).toBe(true);
+      expect(treeModel.getFocusedNode()).toBeNull();
+      const enter = new KeyboardEvent("keydown");
+      Object.defineProperty(enter, "keyCode", { value: KEYS.ENTER });
+
+      expect(() => component.tree.onKeydown(enter)).not.toThrow();
+
+      expect(activeNames()).toEqual([]);
+      expect(emitted).toEqual([]);
+    });
+
+    // A host that browses a version's files without being able to hold one (the dataset picker in
+    // version mode, the model picker) gets no trace of a click: a blue row there would promise a
+    // pick nothing takes. Folders still open.
+    it("neither activates nor emits a file where files cannot be picked, and still expands a folder", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+      component.isFileSelectable = false;
+
+      const files = makeFlatFileNodes(3);
+      const node = renderAndClick(files, 1);
+      expect(emitted).toEqual([]);
+      // Never activated at all, so the library leaves the flag unset rather than false.
+      expect(node.isActive).toBeFalsy();
+      expect(activeNames()).toEqual([]);
+
+      const folder = renderAndClick([folderWith(makeFlatFileNodes(2))], 0);
+      expect(folder.isExpanded).toBe(true);
+    });
+
+    // Every host that never binds the input (the dataset and model pages, the file selector) keeps
+    // the click it has today.
+    it("picks files by default, for a host that never binds the input", () => {
+      expect(component.isFileSelectable).toBe(true);
+    });
+
+    it("moves the highlight to the newly clicked file", () => {
+      const files = makeFlatFileNodes(3);
+      renderAndClick(files, 1);
+
+      component.tree.treeModel.roots[2].mouseAction("click", new MouseEvent("click"));
+
+      expect(activeNames()).toEqual([files[2].name]);
+    });
+
+    it("toggles a folder's expansion, activating nothing and emitting nothing", () => {
+      const emitted: DatasetFileNode[] = [];
+      component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+
+      const folder = renderAndClick([folderWith(makeFlatFileNodes(2))], 0);
+      expect(folder.isExpanded).toBe(true);
+
+      folder.mouseAction("click", new MouseEvent("click"));
+      expect(folder.isExpanded).toBe(false);
+
+      expect(activeNames()).toEqual([]);
+      expect(emitted).toEqual([]);
+    });
   });
 
   it("emits deletedTreeNode when a node deletion is requested", () => {

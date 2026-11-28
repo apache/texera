@@ -132,6 +132,11 @@ export class DatasetSelectionModalComponent implements OnInit {
     }
   }
 
+  /** Whether a file is the answer here (file mode) or only browsed (version mode); see the tree's isFileSelectable. */
+  get fileMode(): boolean {
+    return this.data.fileMode;
+  }
+
   onFileSelected(node: DatasetFileNode) {
     if (this.data.fileMode) {
       this.selectedPath = getFullPathFromDatasetFileNode(node);
