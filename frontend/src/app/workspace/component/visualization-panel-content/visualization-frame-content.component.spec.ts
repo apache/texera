@@ -114,26 +114,56 @@ describe("VisualizationFrameContentComponent", () => {
   });
 
   describe("result-update stream subscription", () => {
-    it("redraws after UPDATE_INTERVAL_MS when a matching operatorId emits", fakeAsync(() => {
+    // The frame stays mounted across runs. A re-run that finishes inside the interval sends a
+    // single update, already carrying the new picture; held for the interval, the frame showed the
+    // old one for that long (mengw15 on #9021, measured against the real result service).
+    it("redraws at once on the first update after mounting", fakeAsync(() => {
       snapshotProvider = () => makeResultSnapshot("<html><body><div>v1</div></body></html>");
       buildComponent("op-1");
       // Initial drawChart() from ngAfterContentInit ran with v1.
       const iframe = fixture.nativeElement.querySelector("iframe") as HTMLIFrameElement;
       expect(iframe.getAttribute("srcdoc")).toContain("v1");
 
-      // Stream emits, but auditTime(UPDATE_INTERVAL_MS) holds the redraw.
       snapshotProvider = () => makeResultSnapshot("<html><body><div>v2</div></body></html>");
       resultUpdateStream.next({ "op-1": { fake: true } });
-
-      // Before the audit window elapses, the iframe still shows v1.
-      tick(UPDATE_INTERVAL_MS - 1);
       fixture.detectChanges();
-      expect(iframe.getAttribute("srcdoc")).toContain("v1");
 
-      // After the window, the redraw fires and the iframe flips to v2.
-      tick(1);
-      fixture.detectChanges();
       expect(iframe.getAttribute("srcdoc")).toContain("v2");
+    }));
+
+    // A visualiser that outputs a row per input row sends an update per batch over a slow source;
+    // the frame draws the first at once and the rest at most once per interval, the trailing
+    // redraw taking whatever is current when the window closes.
+    it("holds further updates inside the interval to one trailing redraw, of the latest picture", fakeAsync(() => {
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v1</div></body></html>");
+      buildComponent("op-1");
+      const iframe = fixture.nativeElement.querySelector("iframe") as HTMLIFrameElement;
+      const drawSpy = vi.spyOn(component, "drawChart");
+
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v2</div></body></html>");
+      resultUpdateStream.next({ "op-1": { fake: true } });
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v3</div></body></html>");
+      tick(UPDATE_INTERVAL_MS / 4);
+      resultUpdateStream.next({ "op-1": { fake: true } });
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v4</div></body></html>");
+      tick(UPDATE_INTERVAL_MS / 4);
+      resultUpdateStream.next({ "op-1": { fake: true } });
+
+      // Inside the window: only the leading redraw has run.
+      tick(UPDATE_INTERVAL_MS / 4);
+      fixture.detectChanges();
+      expect(drawSpy).toHaveBeenCalledTimes(1);
+      expect(iframe.getAttribute("srcdoc")).toContain("v2");
+
+      // The window closes: one more redraw, with the picture that is current now.
+      tick(UPDATE_INTERVAL_MS / 4);
+      fixture.detectChanges();
+      expect(drawSpy).toHaveBeenCalledTimes(2);
+      expect(iframe.getAttribute("srcdoc")).toContain("v4");
+
+      // Nothing arrived in the window that followed, so nothing more is drawn.
+      tick(UPDATE_INTERVAL_MS);
+      expect(drawSpy).toHaveBeenCalledTimes(2);
     }));
 
     it("ignores stream emissions that don't include the current operatorId", fakeAsync(() => {
@@ -152,21 +182,27 @@ describe("VisualizationFrameContentComponent", () => {
     }));
 
     // An update event carries only the operators whose result changed, so events for different
-    // operators interleave. With the audit before the filter, a window that closed on another
+    // operators interleave. With the throttle before the filter, a window that closed on another
     // operator's event was dropped by the filter and this operator's pending redraw was lost.
     it("does not lose this operator's pending redraw to a later emission for another operator", fakeAsync(() => {
       snapshotProvider = () => makeResultSnapshot("<html><body><div>v1</div></body></html>");
       buildComponent("op-1");
       const iframe = fixture.nativeElement.querySelector("iframe") as HTMLIFrameElement;
 
+      // The leading redraw opens the window ...
       snapshotProvider = () => makeResultSnapshot("<html><body><div>v2</div></body></html>");
       resultUpdateStream.next({ "op-1": { fake: true } });
-      tick(UPDATE_INTERVAL_MS / 2);
+      // ... a second update of this operator is pending inside it ...
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v3</div></body></html>");
+      tick(UPDATE_INTERVAL_MS / 4);
+      resultUpdateStream.next({ "op-1": { fake: true } });
+      // ... and another operator's event lands before the window closes.
+      tick(UPDATE_INTERVAL_MS / 4);
       resultUpdateStream.next({ "some-other-op": { fake: true } });
       tick(UPDATE_INTERVAL_MS / 2);
       fixture.detectChanges();
 
-      expect(iframe.getAttribute("srcdoc")).toContain("v2");
+      expect(iframe.getAttribute("srcdoc")).toContain("v3");
     }));
 
     it("ignores stream emissions when operatorId is undefined", fakeAsync(() => {

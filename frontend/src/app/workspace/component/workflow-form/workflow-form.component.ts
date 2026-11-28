@@ -368,9 +368,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     this.syncSelectionFromHighlight();
 
     // A result update re-limits what the form shows and re-fits the visualisations. The chart
-    // frame is left alone: it redraws in place on its own operator's updates. The per-operator
-    // version that used to key the frame here never produced a second frame -- a visualisation
-    // operator draws once, from its whole input -- so it is gone; the measurements are on #8759.
+    // frame is left alone: it redraws in place on its own operator's updates. A per-operator
+    // version used to be bumped here to key the frame, rebuilding it on every update: a visualiser
+    // that outputs a row per input row (HTML Visualizer, URL Visualizer) sends several updates with
+    // a picture over a slow source, and each rebuild was the flicker of #8759.
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))

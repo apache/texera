@@ -20,7 +20,8 @@
 import { AfterContentInit, Component, Input } from "@angular/core";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
-import { auditTime, filter } from "rxjs/operators";
+import { asyncScheduler } from "rxjs";
+import { filter, throttleTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -45,16 +46,22 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     // attempt to draw chart immediately
     this.drawChart();
 
-    // Re-draw on this operator's result updates, at most once per UPDATE_INTERVAL_MS: auditTime
-    // holds the first re-draw until the interval has elapsed. Filter BEFORE auditing: an update
-    // event carries only the operators whose result changed, so with the audit first a window that
-    // closed on another operator's event handed the filter that event, and this operator's pending
-    // re-draw was lost -- the last update of a run showed the previous picture for good.
+    // Re-draw on this operator's result updates: at once on the first (the frame stays mounted
+    // across runs, and a re-run that finishes inside the interval sends one update, already
+    // carrying the new picture -- held back, it showed the old one for the whole interval), then at
+    // most once per UPDATE_INTERVAL_MS, with a trailing re-draw for whatever arrived inside the
+    // window. Filter BEFORE throttling: an update event carries only the operators whose result
+    // changed, so with the throttle first a window that closed on another operator's event handed
+    // the filter that event, and this operator's pending re-draw was lost -- the last update of a
+    // run showed the previous picture for good.
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(
         filter(rec => this.operatorId !== undefined && rec[this.operatorId] !== undefined),
-        auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS),
+        throttleTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS, asyncScheduler, {
+          leading: true,
+          trailing: true,
+        }),
         untilDestroyed(this)
       )
       .subscribe(() => {
