@@ -1715,6 +1715,44 @@ describe("WorkflowFormComponent", () => {
       expect(rebuild).toHaveBeenCalledTimes(1);
     });
 
+    // The sibling a card itself wrote is not a change to its context: the HuggingFace picker writes
+    // `task`, and the compilation that write triggers rebuilt the card -- recreating the picker,
+    // which keeps its per-task state on the instance, so switching the task back blanked the model
+    // as a first visit does, where the panel's picker (which survives) restored it (kunwp1). The
+    // context key advances with the baseline, so only someone else's change counts.
+    it("keeps the card when the sibling that changed is the one it just wrote", async () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { modelId: "seed", task: "image-classification" },
+      });
+      // The write lands on the operator, as the real one does.
+      formBindingService.writeProperties.mockImplementation((_id: string, patch: Record<string, unknown>) => {
+        h.graphOperators[0].operatorProperties = { ...h.graphOperators[0].operatorProperties, ...patch };
+      });
+      renderCard("modelId", "seed");
+      const card = component.rendered[0];
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      card.form.get("task")!.setValue("text-generation");
+      card.form.markAsDirty();
+      // The debounced write runs ...
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith("op-1", { task: "text-generation" });
+      // ... and the compilation it triggers comes back.
+      await compiled();
+
+      expect(rebuild).not.toHaveBeenCalled();
+      expect(component.rendered[0]).toBe(card);
+
+      // A sibling someone else changes afterwards still counts.
+      h.graphOperators[0].operatorProperties = { ...h.graphOperators[0].operatorProperties, task: "summarization" };
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
     // Two inputs from one step: each card's own property is the other card's sibling, so counting
     // bound properties as context would make one card's edit rebuild the other -- and with it the
     // card being edited, which is the churn this PR exists to stop (Copilot).

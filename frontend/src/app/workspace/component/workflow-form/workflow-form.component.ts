@@ -973,15 +973,26 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The operator's properties other than the one a card is bound to, serialized with the keys
-   * sorted so a rewrite that only reorders them is not a change. This is the context the card is
-   * seeded with (see renderField): a widget reads a sibling to decide what to show, and nothing
-   * but a rebuild re-seeds it, so the card goes stale when the canvas or a co-editor changes one.
+   * The operator's properties other than the one a card is bound to, as the context key they make
+   * (see contextKeyOf). This is the context the card is seeded with (see renderField): a widget
+   * reads a sibling to decide what to show, and nothing but a rebuild re-seeds it, so the card goes
+   * stale when the canvas or a co-editor changes one.
    */
   private contextKeyFor(operatorID: string): string {
     const graph = this.workflowActionService.getTexeraGraph();
     // getOperator throws for an operator that is gone, so it is only safe behind hasOperator.
     const properties = graph.hasOperator(operatorID) ? graph.getOperator(operatorID)?.operatorProperties ?? {} : {};
+    return this.contextKeyOf(operatorID, properties);
+  }
+
+  /**
+   * The context key `properties` make for a card of this operator: the properties other than those
+   * an input is bound to, serialized with the keys sorted at every level, so a rewrite that only
+   * reorders them is not a change. Every level, because the shared model updates a nested object
+   * key by key and keeps its stored order, so a sibling written in another order reads back
+   * reordered.
+   */
+  private contextKeyOf(operatorID: string, properties: Record<string, unknown>): string {
     // Every property an input is bound to is left out, this card's own and any other card's on the
     // same operator: each is compared against the card that shows it, one by one. Counting them as
     // context too would make one card's edit a change to every other card of that operator, and a
@@ -990,10 +1001,15 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     const bound = new Set(
       this.parameters.filter(field => field.binding.operatorID === operatorID).map(field => field.binding.propertyKey)
     );
+    const byKey = ([a]: [string, unknown], [b]: [string, unknown]) => a.localeCompare(b);
     return JSON.stringify(
       Object.entries(properties)
         .filter(([key]) => !bound.has(key))
-        .sort(([a], [b]) => a.localeCompare(b))
+        .sort(byKey),
+      (_key, value: unknown) =>
+        value !== null && typeof value === "object" && !Array.isArray(value)
+          ? Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(byKey))
+          : value
     );
   }
 
@@ -1131,6 +1147,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         if (refreshed) {
           card.resolved = refreshed;
         }
+        // The context key advances with the baseline: a sibling this card just wrote (the HuggingFace
+        // picker's `task`) is not a change to its context. Left at what the card was built from, the
+        // compilation the write triggers rebuilt the card, recreating the picker and losing the state
+        // it keeps per task, so switching back blanked the model as a first visit does, where the
+        // panel's picker, which survives, restored it (kunwp1). Only someone else's change rebuilds now.
+        card.contextKey = this.contextKeyOf(binding.operatorID, baseline);
       };
       // The card holds an unwritten edit from the first change until the debounced write below has
       // run (or a rebuild has flushed it, see buildForm).
