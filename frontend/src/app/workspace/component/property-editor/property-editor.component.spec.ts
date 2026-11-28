@@ -79,9 +79,11 @@ describe("PropertyEditorComponent", () => {
     localStorage.removeItem("right-panel-style");
   });
 
-  // An overlay opened inside (a dropdown, an autocomplete) follows this panel's scrolling only once
-  // the scroller is registered with the CDK's ScrollDispatcher -- the registration, not the
-  // directive's presence, is what the reposition strategy consults.
+  // An overlay opened inside follows this panel's scrolling only once the scroller is registered
+  // with the CDK's ScrollDispatcher -- the registration, not the directive's presence, is what a
+  // reposition strategy consults. A list a select opens also closes once its control is out of
+  // view; one nz-dropdown or nzAutocomplete opens only follows, since those bypass the app's
+  // connected-overlay strategy.
   it("registers its scrolling container with the CDK", () => {
     const scroller = fixture.debugElement.query(By.css("#content")).injector.get(CdkScrollable);
 

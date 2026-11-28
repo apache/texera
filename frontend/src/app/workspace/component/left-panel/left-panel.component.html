@@ -119,8 +119,11 @@
         nzType="minus"></span>
     </li>
   </ul>
-  <!-- cdkScrollable: an overlay opened inside (a dropdown, an autocomplete) follows this panel's
-       scrolling only once the scroller is registered with the CDK; see the property editor's #content. -->
+  <!-- cdkScrollable: an overlay opened inside follows this panel's scrolling only once the scroller
+       is registered with the CDK; see the property editor's #content. For the operator menu's
+       autocomplete, following is all the registration buys: nzAutocomplete opens its overlay with
+       the CDK's reposition strategy directly, so the app's follow-or-close strategy, which also
+       closes a list once its control has scrolled out of view, never reaches it. -->
   <div
     #content
     id="content"

@@ -93,9 +93,10 @@ describe("ResultPanelComponent", () => {
     localStorage.removeItem("result-panel-style");
   });
 
-  // An overlay opened inside (a dropdown, an autocomplete) follows this panel's scrolling only once
-  // the scroller is registered with the CDK's ScrollDispatcher -- the registration, not the
-  // directive's presence, is what the reposition strategy consults.
+  // An overlay opened inside follows this panel's scrolling only once the scroller is registered
+  // with the CDK's ScrollDispatcher -- the registration, not the directive's presence, is what a
+  // reposition strategy consults. The console's selects also close once their control is out of
+  // view; its dropdowns only follow, since nz-dropdown bypasses the app's connected-overlay strategy.
   it("registers its scrolling container with the CDK", () => {
     // The content area is rendered only while the panel is open (it has a width).
     component.width = 400;

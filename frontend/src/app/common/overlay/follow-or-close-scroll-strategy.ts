@@ -41,11 +41,13 @@ function isConnected(strategy: PositionStrategy | undefined): strategy is Connec
 
 /**
  * The scroll strategy of every `cdkConnectedOverlay` in the app (ng-zorro's select, cascader and
- * pickers open their lists through it). It is the CDK's `reposition()` -- the open list follows its
- * control while a `cdkScrollable` container scrolls -- plus one rule the CDK leaves to the app: once
- * the control has scrolled fully out of its container's view, the overlay is detached, and the
- * component that opened it closes (ng-zorro's components react to `detach`). Without that rule the
- * list keeps floating beyond the container's edge, attached to a control that is no longer in sight.
+ * pickers open their lists through it; nz-dropdown and nzAutocomplete do not -- they open their
+ * overlays with the CDK's reposition strategy directly, so they follow a registered scroller but
+ * never close this way). It is the CDK's `reposition()` -- the open list follows its control while
+ * a `cdkScrollable` container scrolls -- plus one rule the CDK leaves to the app: once the control
+ * has scrolled fully out of its container's view, the overlay is detached, and the component that
+ * opened it closes (ng-zorro's components react to `detach`). Without that rule the list keeps
+ * floating beyond the container's edge, attached to a control that is no longer in sight.
  *
  * The CDK computes "origin out of view" only against the scroll containers the position strategy is
  * given, and the directive gives it none in this version, so the strategy supplies them: the
