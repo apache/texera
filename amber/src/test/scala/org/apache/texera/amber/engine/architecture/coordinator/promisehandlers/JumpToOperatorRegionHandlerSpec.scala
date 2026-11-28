@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
-import org.apache.texera.amber.core.workflow.WorkflowContext
+import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorAsyncRPCHandlerInitializer,
   CoordinatorConfig,
@@ -30,7 +30,14 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   JumpToOperatorRegionRequest
 }
-import org.apache.texera.amber.engine.architecture.scheduling.{Region, Schedule}
+import org.apache.texera.amber.engine.architecture.scheduling.{
+  Region,
+  RegionLink,
+  RegionPlan,
+  Schedule,
+  ScheduleGenerator
+}
+import org.apache.texera.amber.operator.loop.LoopEndOpDesc
 import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.flatspec.AnyFlatSpec
@@ -73,10 +80,7 @@ class JumpToOperatorRegionHandlerSpec extends AnyFlatSpec with BarePhysicalPlanF
     assert(cp.workflowExecutionManager.schedule.next() == Set(first))
     assert(cp.workflowExecutionManager.schedule.next() == Set(second))
 
-    // Jump *back* to the region holding "first" (level 0). collectFirst finds level 0 and the
-    // foreach rebuilds the schedule with initialLevelIndex = 0. Because level 0 is behind the
-    // current cursor, the next pull yields `first` again instead of the `third` that natural
-    // progression would give — proving the cursor was actually repositioned.
+    // A jump to an ordinary region takes effect on the next dispatch.
     init.jumpToOperatorRegion(JumpToOperatorRegionRequest(OperatorIdentity("first")), ctx)
 
     assert(cp.workflowExecutionManager.schedule.next() == Set(first))
@@ -88,10 +92,59 @@ class JumpToOperatorRegionHandlerSpec extends AnyFlatSpec with BarePhysicalPlanF
     // Pull the first region; the cursor now sits at level 1.
     assert(cp.workflowExecutionManager.schedule.next() == Set(first))
 
-    // No level matches "does-not-exist": collectFirst is empty, the foreach is a no-op, and the
-    // schedule (and its cursor) is left exactly where it was.
+    // An unknown target leaves the next dispatch unchanged.
     init.jumpToOperatorRegion(JumpToOperatorRegionRequest(OperatorIdentity("does-not-exist")), ctx)
 
     assert(cp.workflowExecutionManager.schedule.next() == Set(second))
   }
+  it should "finish both side-sink writes before repeating or releasing the downstream report" in {
+    val (handler, cp, _, _, _) = newHarness()
+    val source = region(0, "source")
+    val start = region(1, "start").copy(physicalOps = Set(op("start").withIsLoopStart(true)))
+    val evaluate = region(2, "evaluate")
+    val endOp = new LoopEndOpDesc().getPhysicalOp(op("end").workflowId, op("end").executionId)
+    val end = region(3, "end").copy(physicalOps = Set(endOp))
+    val sideA = region(4, "sideA")
+    val sideB = region(5, "sideB")
+    val sink = region(6, "sink")
+    val report = region(7, "report")
+    val independent = region(8, "independent")
+    val regions = Set(source, start, evaluate, end, sideA, sideB, sink, report, independent)
+    val links = Seq(
+      source -> start,
+      start -> evaluate,
+      evaluate -> end,
+      evaluate -> sideA,
+      sideA -> sideB,
+      sideB -> sink,
+      end -> report,
+      source -> independent
+    ).map { case (from, to) => RegionLink(from.id, to.id) }.toSet
+    val generator =
+      new ScheduleGenerator(new WorkflowContext(), PhysicalPlan(Set.empty, Set.empty)) {
+        override def generate(): (Schedule, PhysicalPlan) =
+          (generateScheduleFromRegionPlan(RegionPlan(regions, links)), physicalPlan)
+      }
+    cp.workflowExecutionManager.schedule = generator.generate()._1
+    def schedule: Schedule = cp.workflowExecutionManager.schedule
+    val batches = List.newBuilder[Set[Region]]
+    var iterations = 0
+    while (schedule.hasNext) {
+      val batch = schedule.next()
+      batches += batch
+      if (batch.contains(end)) {
+        iterations += 1
+        if (iterations == 1)
+          handler.jumpToOperatorRegion(JumpToOperatorRegionRequest(OperatorIdentity("start")), ctx)
+      }
+    }
+    val observed = batches.result()
+    def positions(r: Region): List[Int] =
+      observed.indices.filter(i => observed(i).contains(r)).toList
+    assert(positions(start).size == 2 && positions(sink).size == 2 && positions(end).size == 2)
+    assert(positions(sink).head < positions(start).last)
+    assert(positions(sink).last < positions(report).head)
+    Seq(source, independent, report).foreach(r => assert(positions(r).size == 1))
+  }
+
 }

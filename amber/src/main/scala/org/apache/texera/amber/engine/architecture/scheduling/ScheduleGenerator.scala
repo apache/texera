@@ -49,7 +49,9 @@ abstract class ScheduleGenerator(
     * Regions are dispatched in batches of up to ApplicationConfig.maxConcurrentRegions, respecting the DAG dependencies.
     * When maxConcurrentRegions == 1, this is equivalent to a total order (fully sequential execution).
     */
-  def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
+  def generateScheduleFromRegionPlan(plan: RegionPlan): Schedule = {
+    val loops = plan.loopIterations
+    val regionPlan = plan.withLoopBarriers(loops)
     val inDegree = mutable.Map.empty[RegionIdentity, Int]
     regionPlan.topologicalIterator().foreach { rid =>
       inDegree(rid) = regionPlan.dag.inDegreeOf(rid)
@@ -95,6 +97,6 @@ abstract class ScheduleGenerator(
       case (lvl, idSet) =>
         lvl -> idSet.iterator.map(regionPlan.getRegion).toSet
     }.toMap
-    Schedule(levelSets)
+    Schedule(levelSets, loopMembers = loops.map(loop => loop.start -> loop.members).toMap)
   }
 }

@@ -218,7 +218,9 @@ case class PhysicalOp(
     // name of the PVE to execute within
     pveName: String = "",
     // setup postponed until the execution starts; None when there is nothing to defer
-    executionTimeBinding: Option[ExecutionTimeBinding] = None
+    executionTimeBinding: Option[ExecutionTimeBinding] = None,
+    // Closes the innermost loop when constructing iteration barriers in the materialized plan.
+    isLoopEnd: Boolean = false
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking

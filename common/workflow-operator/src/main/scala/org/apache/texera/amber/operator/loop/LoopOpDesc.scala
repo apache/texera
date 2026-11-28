@@ -98,7 +98,7 @@ abstract class LoopOpDesc extends LogicalOp {
       // the loop operators only run correctly under a fully-materialized
       // schedule; the scheduler forces it when this flag is set.
       .withRequiresMaterializedExecution(true)
-      .withIsLoopStart(isLoopStart)
+      .copy(isLoopStart = isLoopStart, isLoopEnd = !isLoopStart)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
