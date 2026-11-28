@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795783574964,
+  "lastUpdate": 1795869840866,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -24442,6 +24442,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 722.5108561745191,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "e8c37e625ae8bf40b8d77def2a47559bca0a9542",
+          "message": "refactor(frontend): remove unused agent service code (#9728)\n\n### What changes were proposed in this PR?\n\nRemove code that nothing uses from the frontend's agent service and the\nagent panel (**+73/−365 lines**). There is no behavior change.\n\n- **`AgentService`:**\n- Eight public methods have no caller outside the service's own spec:\n`getAgent`, `getAgentWorkflowId`, `getAgentCount`, `isAgentConnected`,\n`getHeadId`, `getVisibleSteps`, `getReActStepsByOperatorAccess` and\n`getStepsByOperatorIds`. The agent service's routes stay.\n- Nothing reads the port-shape toggle: `showPortShapes$`,\n`togglePortShapes` and `getShowPortShapes`.\n- `AgentInfo`'s `isBaselineMode` and `createdAt` are set when an agent\nis mapped but never read. The specs' agent fixtures drop them.\n- The `ApiMessageResponse` interface is unused, and the `ModelMessage`\nand `WorkflowContent` imports are never referenced.\n- **Agent panel template:** the tab loop's `let i = index` and the tab\ntitle's `let-active=\"active\"` declare variables that nothing reads.\n- **Service spec:**\n  - The ten cases that cover only the removed methods go.\n- Assertions that read the current HEAD or steps through `getHeadId` or\n`getVisibleSteps` now take the latest value of `getHeadIdObservable` or\n`getReActStepsObservable`. Unlike the removed getters, those create\ntracking for an unknown id, and the two accessor cases now assert that.\nThree cases are renamed to match.\n- The `getAllAgents` case now checks the mapped name and model type, and\nthat the delegate's `userToken` is dropped. Only a removed `getAgent`\ncase checked the token before.\n- A new case covers `getReActSteps` on a successful response, including\nthe operator-access `Map` that the chat's export iterates. Only the\nremoved `getReActStepsByOperatorAccess` cases covered that path before.\n\n| Event | PR / Commit |\n| --- | --- |\n| Introduced by | All of it: #4495 (2026-04-27) |\n| Usage removed by | Never used |\n\nAs of 2026-11-26, all of it has gone unused for the 7 months since it\nwas added.\n\n### Any related issues, documentation, discussions?\n\nCloses #9727.\n\n### How was this PR tested?\n\nRan on this branch and on `main` at `fec4330be6` (Windows 11; Node 24\nwith Yarn 4.14.1):\n\n```bash\ncd frontend\nnpx ng test --watch=false --include='**/agent.service.spec.ts' --include='**/agent-interaction.component.spec.ts' --include='**/agent-chat.component.spec.ts' --include='**/agent-panel.component.spec.ts' --include='**/agent-registration.component.spec.ts' --include='**/react-step-detail-modal.component.spec.ts' --include='**/workflow-editor.component.spec.ts'\nnpx tsc --noEmit -p src/tsconfig.app.json\nnpx tsc --noEmit -p src/tsconfig.spec.json\nnpx ngc -p src/tsconfig.app.json --noEmit\nyarn prettier-eslint --list-different $(git diff --name-only --relative origin/main -- src)\nyarn eslint $(git diff --name-only --relative origin/main -- src | grep -E '\\.(ts|html)$')\n```\n\n- **Specs:** the seven specs that import the agent service or its types\nrun 436 tests on this branch and 445 on `main`, all passing.\n- `main` has the removed methods' ten cases, and this branch adds the\n`getReActSteps` success case. Three cases are renamed, as above.\n  - Every other test keeps its name and outcome.\n- **Controls:** if a step event stops advancing HEAD, the two step-event\ncases that now read `getHeadIdObservable` fail. If the mapped agent\nkeeps the delegate's `userToken`, the `getAllAgents` case fails. If\n`getReActSteps` returns the fetched steps unconverted, or\n`getHeadIdObservable` stops creating tracking for a new id, the matching\nnew assertion fails.\n- **Checks:** both typechecks, the AOT compile (the template changes),\nprettier-eslint and ESLint pass.\n\nTo re-check, this returns no hits on this branch and 56 on `main`:\n\n```bash\ngit grep -nE \"getAgentWorkflowId|\\.getAgent\\(|getAgentCount|isAgentConnected|getHeadId\\(|getVisibleSteps|getReActStepsByOperatorAccess|getStepsByOperatorIds|PortShapes|isBaselineMode|ApiMessageResponse|let-active=|of agents; let i\" -- frontend/src/app/workspace/service/agent frontend/src/app/workspace/component/agent\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)",
+          "timestamp": "2026-11-27T22:08:57Z",
+          "url": "https://github.com/apache/texera/commit/e8c37e625ae8bf40b8d77def2a47559bca0a9542"
+        },
+        "date": 1795869839898,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 890.5826512224994,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1740.6006382578369,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1910.5808914013094,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1265.905514940352,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1822.8581715751732,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1924.918288343534,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1243.5183309067202,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1792.4265639106277,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1912.795465952566,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 971.69064805664,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1422.4193554344854,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1503.7821525971103,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1034.2653512291777,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1431.5051076949694,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1470.4004593279185,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1106.2938387913475,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1381.9620450218788,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1449.3889401436852,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 657.4510056407893,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 775.7932180564246,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 779.8088832220861,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 664.6763840736639,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 770.5583677396975,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 773.6327601581659,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 614.2828108955596,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 721.9928466972495,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 730.8493941764573,
             "unit": "tuples/sec"
           }
         ]
