@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from "@angular/core";
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, DoCheck } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
@@ -129,7 +129,7 @@ export function invalidateHuggingFaceModelCache(): void {
     FormlyModule,
   ],
 })
-export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
+export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy, DoCheck {
   private readonly taskScopedKeys = [
     "modelId",
     "promptColumn",
@@ -173,6 +173,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   private searchSubscription: Subscription | null = null;
 
   private readonly destroy$ = new Subject<void>();
+  /** Set once ngOnInit has read the model's task, which is what ngDoCheck then follows. */
+  private initialized = false;
   private subscription: Subscription | null = null;
   private taskPollInterval: ReturnType<typeof setInterval> | null = null;
   private modelPollInterval: ReturnType<typeof setInterval> | null = null;
@@ -188,6 +190,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   ngOnInit(): void {
     const savedTag = this.getCurrentTaskTag();
     this.selectedTaskTag = savedTag ?? this.selectedTaskTag;
+    this.initialized = true;
     this.syncTaskSelection(this.selectedTaskTag, false);
     this.loadTasks();
     this.loadAllModels();
@@ -198,6 +201,26 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       () => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false),
       0
     );
+  }
+
+  /**
+   * The task can change under this widget: a co-editor's edit, or the Form View's, lands on the
+   * operator and from there on this field's model (the panel hands formly a fresh model object; the
+   * form card is rebuilt). The selector shows this widget's own state, and on the panel the schema's
+   * `task` field is hidden, so there is no control to listen to: the model is checked on every
+   * change detection instead, and the selector follows it as a local pick is followed -- show the
+   * task, load its models -- rather than keeping what it showed when it was built.
+   */
+  ngDoCheck(): void {
+    const tag = this.model?.task;
+    if (!this.initialized || typeof tag !== "string" || !tag || tag === this.selectedTaskTag) {
+      return;
+    }
+    this.selectedTaskTag = tag;
+    // A task change ends any search, including one still out: its answer is dropped for being the
+    // other task's, so it is not the one to turn the spinner off (Copilot on #8839).
+    this.resetSearch();
+    this.loadAllModels();
   }
 
   ngOnDestroy(): void {
@@ -314,8 +337,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.snapshotTaskState(previousTask);
     this.syncTaskSelection(tag, true);
     this.restoreTaskState(tag);
-    this.searchText = "";
-    this.filteredModels = null;
+    this.resetSearch();
     this.loadAllModels();
   }
 
@@ -328,6 +350,17 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
    */
   private loadAllModels(): void {
     const tag = this.selectedTaskTag || "text-generation";
+    // Nothing a load produces is applied once the widget has moved to another task: the fast paths
+    // below return before the previous request is cancelled, so a slow first fetch of one task could
+    // land after a cached task was already shown and paint its models under the other task's name
+    // (Copilot on #8839; also reachable on main by picking a second task while the first loads).
+    const stillShowing = () => tag === (this.selectedTaskTag || "text-generation");
+    // A poll left over from an earlier task belongs to that task, whichever path this load takes:
+    // the fast paths below return before the in-flight path's own clear would run.
+    if (this.modelPollInterval !== null) {
+      clearInterval(this.modelPollInterval);
+      this.modelPollInterval = null;
+    }
 
     this.loading = false;
     this.errorMessage = null;
@@ -352,7 +385,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     // Another instance is already fetching this task — wait for it
     if (inFlightByTag.has(tag)) {
       this.loading = true;
-      if (this.modelPollInterval !== null) clearInterval(this.modelPollInterval);
       const poll = setInterval(() => {
         if (allModelsByTag.has(tag) || errorByTag.has(tag)) {
           clearInterval(poll);
@@ -407,6 +439,11 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
             truncatedByTag.add(tag);
           }
           allModelsByTag.set(tag, models);
+          // The cache is filled for whoever asks next; this widget shows it only if it is still on
+          // that task.
+          if (!stillShowing()) {
+            return;
+          }
           this.loading = false;
           this.truncated = truncatedByTag.has(tag);
           this.allModels = models;
@@ -416,6 +453,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           console.error(`Failed to load HuggingFace models for task '${tag}':`, err);
           const msg = "Failed to load models. Click retry to try again.";
           errorByTag.set(tag, msg);
+          if (!stillShowing()) {
+            return;
+          }
           this.loading = false;
           this.errorMessage = msg;
           this.cdr.detectChanges();
@@ -490,6 +530,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       .subscribe({
         next: models => {
           if (models === null) return;
+          // Whatever arrives here was asked for under the task still shown: switchMap drops a search
+          // the next search replaces, and a task change drops this whole subscription (resetSearch),
+          // taking the request with it. So there is no stale answer left to recognise.
           this.searchLoading = false;
           this.filteredModels = models;
           this.goToPage(0);
@@ -517,10 +560,26 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   }
 
   clearSearch(): void {
+    this.resetSearch();
+    this.goToPage(0);
+  }
+
+  /**
+   * Forget the search: the text, the results it filtered to, the spinner it was waiting on, and the
+   * query itself.
+   *
+   * The subscription is dropped and remade rather than left alone, which drops both a query still
+   * sitting in the debounce and a request already out. Clearing the first three alone left a typed
+   * query queued: 300 ms later it went out under whichever task the widget had by then, and the
+   * answer passed the task guard and filtered the list under a search box the reset had emptied
+   * (Copilot on #8839).
+   */
+  private resetSearch(): void {
     this.searchText = "";
     this.filteredModels = null;
     this.searchLoading = false;
-    this.goToPage(0);
+    this.searchSubscription?.unsubscribe();
+    this.setupServerSearch();
   }
 
   get isSearching(): boolean {
