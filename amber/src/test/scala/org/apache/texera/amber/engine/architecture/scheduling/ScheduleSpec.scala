@@ -115,4 +115,58 @@ class ScheduleSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
     assert(order.indexOf(r2) < order.indexOf(r3))
   }
 
+  it should "drain an inner side branch before applying a pending outer repeat" in {
+    val outer = region(0, "outer").copy(physicalOps = Set(op("outer").copy(isLoopStart = true)))
+    val inner = region(1, "inner").copy(physicalOps = Set(op("inner").copy(isLoopStart = true)))
+    val outerEnd =
+      region(2, "outerEnd").copy(physicalOps = Set(op("outerEnd").copy(isLoopEnd = true)))
+    val innerEnd =
+      region(3, "innerEnd").copy(physicalOps = Set(op("innerEnd").copy(isLoopEnd = true)))
+    val side = region(4, "side")
+    val report = region(5, "report")
+    val plan = RegionPlan(
+      Set(outer, inner, outerEnd, innerEnd, side, report),
+      Seq(
+        outer -> outerEnd,
+        outer -> inner,
+        inner -> innerEnd,
+        inner -> side,
+        side -> report,
+        outerEnd -> report
+      ).map { case (from, to) => RegionLink(from.id, to.id) }.toSet
+    )
+    val members = plan.loopIterations.map(loop => loop.start -> loop.members).toMap
+    val outId = outer.getOperators.head.id.logicalOpId
+    val inId = inner.getOperators.head.id.logicalOpId
+    assert(members(inId) == Set(inner.id, innerEnd.id, side.id))
+    assert(members(outId) == Set(outer.id, outerEnd.id, inner.id, innerEnd.id, side.id))
+
+    // Both ends can decide in parallel before the last side region finishes.
+    val levels = List(Set(outer), Set(inner), Set(outerEnd, innerEnd), Set(side), Set(report))
+    val schedule = Schedule(levels.indices.map(i => i -> levels(i)).toMap, loopMembers = members)
+    assert(schedule.next() == Set(outer))
+    assert(schedule.next() == Set(inner))
+    assert(schedule.next() == Set(outerEnd, innerEnd))
+    schedule.jumpTo(outId)
+    schedule.jumpTo(inId)
+    assert(schedule.toList == List(Set(side), Set(inner), Set(innerEnd), Set(side)) ++ levels)
+  }
+
+  it should "repeat at a terminal barrier when there is no downstream consumer" in {
+    val start = region(0, "start")
+    val end = region(1, "end")
+    val sink = region(2, "sink")
+    val target = start.getOperators.head.id.logicalOpId
+    val batches = List(Set(start), Set(end), Set(sink))
+    val schedule = Schedule(
+      batches.indices.map(i => i -> batches(i)).toMap,
+      loopMembers = Map(target -> Set(start.id, end.id, sink.id))
+    )
+    assert(schedule.next() == Set(start))
+    assert(schedule.next() == Set(end))
+    schedule.jumpTo(target)
+    assert(schedule.next() == Set(sink))
+    assert(schedule.hasNext)
+    assert(schedule.toList == batches)
+  }
 }
